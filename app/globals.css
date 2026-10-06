@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Placeholder until phase 5 brings the statement and peach token blocks. */
+:root {
+  --paper: #ffffff;
+  --ink: #171717;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}

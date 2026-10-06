@@ -25,6 +25,7 @@ npm run dev              # dev server
 npm run build            # production build + typecheck — the main verification gate
 npm run start            # serve the production build
 npm run migrate          # apply db/migrations/*.sql in order (owner role, DATABASE_URL_ADMIN)
+npm run migrate -- --seed  # …then reset the two dev households from db/seed.sql
 npm run email:dev        # React Email preview server for emails/*.tsx
 npm run send-reminders -- --household <slug>   # run one household's reminder batch from the CLI
 npm run import-tidb      # one-time TiDB → Neon import of the two legacy households (see DESIGN.md §11)
@@ -38,9 +39,10 @@ verification path. `npx tsc --noEmit` typechecks alone.
 Env lives in `.env.local` (see `.env.example`). Keys:
 
 - `DATABASE_URL` — Neon **pooled** URL for the `lejer_app` role (RLS enforced). All app code.
-- `DATABASE_URL_ADMIN` — Neon **unpooled** URL for `neondb_owner` (bypasses RLS). Only four
-  call sites may use it: `scripts/migrate.ts`, `scripts/import-tidb.ts`, `createHousehold()`
-  in `lib/households.ts`, and the household enumeration at the top of `app/api/cron/tick`.
+- `DATABASE_URL_ADMIN` — Neon **unpooled** URL for `neondb_owner` (table owner, so RLS does
+  not apply to it). Only four call sites may use it: `scripts/migrate.ts`,
+  `scripts/import-tidb.ts`, `createHousehold()` in `lib/households.ts`, and the household
+  enumeration at the top of `app/api/cron/tick`.
   Anything else reading it is a bug.
 - `SESSION_SECRET` — jose HS256 key for the `lejer_session` cookie.
 - `RESEND_API_KEY` — sends from `login@mail.lejer.app` (codes, invites) and
@@ -68,21 +70,31 @@ Env lives in `.env.local` (see `.env.example`). Keys:
   `set_config('app.household_id', …, true)` and `set_config('app.user_id', …, true)`, then your
   callback. Pages open one per request and pass `tx` into every `lib/*` data function (they all
   take `tx` first).
-- `withUser(userId, tx => …)` — sets only `app.user_id`; for `users`/`login_codes` and the
-  household switcher.
-- `adminSql` — the owner connection. See the four allowed call sites above.
+- `withUser(userId, tx => …)` — sets only `app.user_id` (`null` before login, e.g. looking up
+  the email being verified); for `users`/`login_codes` and the household switcher.
+- `adminSql()` — the owner connection, created on first call. See the four allowed call sites
+  above.
+
+Clients are created lazily, so importing `lib/db.ts` needs no credentials (the build, scripts).
 
 The raw `sql` client is not exported. If you find yourself importing `postgres` outside
 `lib/db.ts`, stop.
 
-**Row-level security is the second lock.** Every household table has `ENABLE` + `FORCE ROW
-LEVEL SECURITY` with policies on `household_id = app_household_id()`, where
-`app_household_id()` is `NULLIF(current_setting('app.household_id', true), '')::int` — the
-`NULLIF` matters because a finished `SET LOCAL` leaves `''` on a pooled connection and `''::int`
-throws. Missing setting → NULL → zero rows, zero writes. `memberships` and `households` have a
-wider **SELECT** policy (rows where `user_id = app_user_id()` / households the user belongs to)
-so the switcher can list names; their write policies are household-only. `users` and
-`login_codes` have no RLS.
+**Row-level security is the second lock.** Every household table has `ENABLE ROW LEVEL
+SECURITY` — deliberately **not** `FORCE`, so the table owner (`neondb_owner`) is exempt and
+`lejer_app` (`NOBYPASSRLS`) is enforced — with policies on
+`household_id = app_household_id()`, where `app_household_id()` is
+`NULLIF(current_setting('app.household_id', true), '')::int` — the `NULLIF` matters because
+a finished `SET LOCAL` leaves `''` on a pooled connection and `''::int` throws. Missing
+setting → NULL → zero rows, zero writes. `memberships` and `households` have a wider
+**SELECT** policy (rows where `user_id = app_user_id()` / households the user belongs to) so
+the switcher can list names; their write policies are household-only. `users` and
+`login_codes` have no RLS. `email_log` is the exception to the tenant policy: inserts accept
+`household_id IS NULL` (login codes), reads are household-only, there is no UPDATE/DELETE
+policy, and account-wide counts go through `email_sends_since(since, kind?)` — a
+`SECURITY DEFINER` function that returns only a number, executable by `lejer_app` alone.
+Never `INSERT … RETURNING` a NULL-household `email_log` row: `RETURNING` must pass the SELECT
+policy, so it fails.
 
 **Neon pooling rules** (the pooled endpoint is PgBouncer in transaction mode): never session
 `SET`, only `set_config(..., true)` / `SET LOCAL` inside a transaction; `prepare: false` in the
@@ -120,7 +132,7 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
 - `documents` (`file_path` always under `h/{id}/documents/`, `uploaded_by` SET NULL)
 - `login_codes` (`user_id`, `code_hash`, `attempts`, `ip_hash`, `created_at`, `expires_at`)
 - `email_log` (`household_id` nullable, `kind`, `to_hash`, `ok`, `sent_at`) — every send;
-  source of truth for the daily budget and the portal readouts
+  source of truth for the daily budget (via `email_sends_since()`) and the portal readouts
 
 Bill math: `total = amount + processing_fee`, `per_person_cost = round(total / splitters, 2)`
 where splitters are memberships with `splits_bills`; debt rows for every splitter except the
@@ -141,7 +153,8 @@ an unknown email still gets a code (anyone can sign up), verifying creates the `
 and first-timers land on onboarding (`/welcome/household`: name, mode, theme, timezone) which
 calls `createHousehold()`. Codes: sha256 at rest, 10-minute TTL, 5 wrong guesses, 30 s burst
 dedupe, 5 per email per 10 min, 10 per IP per hour (`ip_hash`), and a global 40 per UTC day
-from `email_log` — the last one reserves Resend headroom for household mail.
+from `email_sends_since(…, 'login_code')` — the last one reserves Resend headroom for
+household mail.
 
 **Page-level authorization** is `requireUser()` / `requireAdmin()` (`lib/auth.ts`, redirect to
 `/no-access`) and `requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions
@@ -188,9 +201,9 @@ renders the statement or peach shell from `households.theme` (inline styles only
 households with `adminSql`, then per household inside `withHousehold`: stamps `last_run_at`,
 flushes the thanks queue (own 10-minute debounce, every tick, if `feature_thanks`), and runs
 the reminder batch on the first tick at or after `send_hour` in the household's timezone, at
-most once per local day (`last_send_date`). Before a batch it checks the UTC-day send count in
-`email_log`; a batch that would push the day past 80 is **deferred** (no stamp, logged in the
-response) because Resend's free tier is 100/day. Core logic is `lib/reminders.ts`
+most once per local day (`last_send_date`). Before a batch it checks the account-wide UTC-day
+send count (`email_sends_since()`); a batch that would push the day past 80 is **deferred**
+(no stamp, logged in the response) because Resend's free tier is 100/day. Core logic is `lib/reminders.ts`
 (heads-up at exactly N days before due, urgent at ≤ M days including overdue), shared with
 `scripts/send-reminders.ts`.
 
@@ -232,16 +245,47 @@ Tailwind v4 cannot `@apply` a custom class from the same layer.
 
 ## Verifying changes locally
 
-Dev points at a Neon **branch**, not production; `npm run migrate` and `db/seed.sql` set one up.
-Set `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` to skip login. Server actions can be driven over the
-wire the same way as in `../utilities/.claude/skills/verify/SKILL.md`. To tick the cron
+Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
+(seed users `alex@example.com` / `sam@example.com`, households `elm-street` single-payer and
+`oak-lane` ledger, both users in both). Set `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` to skip
+login. Server actions can be driven over the wire the same way as in `../utilities/.claude/skills/verify/SKILL.md`. To tick the cron
 safely, check `households.last_send_date` first; a tick past `send_hour` on a day that hasn't
 sent will email real members of every household in that database.
 
 ## Deployment
 
 Vercel (Hobby) at lejer.app, Neon (free), one private Blob store, Resend (free, domain
-`mail.lejer.app`). Env above set in the Vercel project; `CRON_SECRET` also as a GitHub repo
-secret. Free-tier ceilings and where they bite first are in `DESIGN.md` §10 — the two to
+`mail.lejer.app`).
+
+**Neon** is not a Vercel marketplace integration (that integration owns `DATABASE_URL` and
+would point it at the owner role, skipping RLS). Project `lejer` (`round-grass-59501457`) in
+the Aaron Perkel LLC org, `aws-us-east-1`, Postgres 17; branch `main` is production, `dev` is
+local development. `lejer_app` was created with SQL on `main` before `dev` was branched, so
+both branches have it:
+
+```sql
+CREATE ROLE lejer_app LOGIN PASSWORD '<openssl rand -base64 24, URL-safe>' NOBYPASSRLS;
+```
+
+Never create it in the console (console roles join `neon_superuser`). `0001_init.sql` refuses
+to run if the role is missing or can bypass RLS. Drop `channel_binding` from Neon's
+connection strings; postgres.js would forward it as a startup parameter.
+
+**Vercel env vars, set by hand** in the project (Production uses `main`; Preview may use
+`dev` or its own branch):
+
+| Var | Value |
+|---|---|
+| `DATABASE_URL` | `lejer_app` on the `main` **pooled** host (`…-pooler…`), `?sslmode=require` |
+| `DATABASE_URL_ADMIN` | `neondb_owner` on the `main` **unpooled** host, `?sslmode=require` |
+| `SESSION_SECRET` | `openssl rand -base64 32` |
+| `RESEND_API_KEY` | from the Resend integration |
+| `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID` | from the Blob store |
+| `CRON_SECRET` | random; also the GitHub Actions repo secret |
+| `NEXT_PUBLIC_APP_URL` | `https://lejer.app` |
+
+`APP_DEV_USER` / `APP_DEV_HOUSEHOLD` are never set in Production (and are ignored there).
+Run `npm run migrate` against `main` with its `DATABASE_URL_ADMIN` before the first deploy
+and after every new migration. Free-tier ceilings and where they bite first are in `DESIGN.md` §10 — the two to
 respect are Neon's 100 CU-hours (never ping more than hourly) and Resend's 100 emails/day
 (the cron budget and login-code caps exist for this).

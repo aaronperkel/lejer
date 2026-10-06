@@ -157,6 +157,10 @@ Migrations are numbered SQL files in `db/migrations/` applied by `scripts/migrat
 | `login_codes.user_id → users` | CASCADE | — |
 | `documents.household_id`, `bill_types.household_id`, … `→ households` | CASCADE | deleting a household removes everything |
 
+The SET NULL FKs above are composite too (next paragraph), so they name the column to null —
+`ON DELETE SET NULL (owner_id)` (Postgres 15+) — or Postgres would also null the `NOT NULL`
+`household_id`.
+
 Child tables carry a denormalized `household_id` with **composite FKs** so RLS never needs a
 join and a child can never point across tenants:
 
@@ -265,8 +269,10 @@ app code — only `withHousehold`, `withUser` (login-time queries on `users`/`lo
 
 ### Row-level security (second lock)
 
-Every household table: `ENABLE ROW LEVEL SECURITY` **and** `FORCE ROW LEVEL SECURITY`. Policies
-read the transaction-local GUCs. After a `SET LOCAL` transaction ends on a pooled connection the
+Every household table: `ENABLE ROW LEVEL SECURITY`, deliberately **not** `FORCE`. `FORCE` exists
+only to subject the table owner to policies, and we want the owner (`neondb_owner`, the
+migration role) exempt; plain `ENABLE` gives exactly that while `lejer_app` stays enforced.
+Policies read the transaction-local GUCs. After a `SET LOCAL` transaction ends on a pooled connection the
 GUC is the empty string, not NULL, and `''::int` throws, so every policy goes through `NULLIF`:
 
 ```sql
@@ -296,7 +302,29 @@ CREATE POLICY households_read ON households FOR SELECT
 CREATE POLICY households_write ON households FOR ALL
   USING (id = app_household_id())
   WITH CHECK (id = app_household_id());
+
+-- email_log: login codes are sent before any household exists, so inserts accept NULL;
+-- reads stay household-only (portal readouts); no UPDATE/DELETE policy (append-only).
+CREATE POLICY email_log_read ON email_log FOR SELECT
+  USING (household_id = app_household_id());
+CREATE POLICY email_log_insert ON email_log FOR INSERT
+  WITH CHECK (household_id IS NULL OR household_id = app_household_id());
+
+-- Account-wide counts (Resend's cap is per account) for the cron budget and the login-code
+-- cap. Runs as the owner, returns a number and nothing else.
+CREATE FUNCTION email_sends_since(since timestamptz, only_kind text DEFAULT NULL) RETURNS int
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS
+  $$ SELECT count(*)::int FROM email_log
+     WHERE sent_at >= since AND (only_kind IS NULL OR kind = only_kind) $$;
+REVOKE EXECUTE ON FUNCTION email_sends_since(timestamptz, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION email_sends_since(timestamptz, text) TO lejer_app;
 ```
+
+A plain tenant policy on `email_log` would have broken three things: login-code sends
+(`household_id NULL`) could not be logged, the global login-code cap could not see any rows,
+and the cron budget would count only its own household's sends. Because `RETURNING` must pass
+the SELECT policy, `INSERT … RETURNING` of a NULL-household row fails: `sendMail` does not use
+`RETURNING`.
 
 Note: with `FOR ALL` plus a more permissive `FOR SELECT` policy, Postgres ORs permissive
 policies per command, so reads use the union and writes use only the household branch, which is
@@ -307,16 +335,20 @@ queries are keyed by the email being verified. `withUser` sets only `app.user_id
 
 ### Roles on Neon
 
-- `neondb_owner` (Neon's default): owns the tables. Table owners bypass RLS unless `FORCE` is
-  set, and even then they can disable it, so the app does not run as this role. Its URL is
+- `neondb_owner` (Neon's default): owns the tables, so RLS (enabled, not forced) does not apply
+  to it. (It also has `rolbypassrls = true` on Neon; either is sufficient.) It can also
+  disable RLS outright, so the app does not run as this role. Its URL is
   `DATABASE_URL_ADMIN` (unpooled). Allowed call sites, enumerated in `CLAUDE.md`:
   1. `scripts/migrate.ts`
   2. `scripts/import-tidb.ts`
   3. `createHousehold()` (signup: insert household + first admin membership, then return)
   4. the cron tick's household enumeration (`SELECT id, timezone, … FROM households`)
-- `lejer_app`: `CREATE ROLE lejer_app LOGIN PASSWORD … NOBYPASSRLS; GRANT USAGE ON SCHEMA
-  public; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES …; GRANT USAGE ON ALL SEQUENCES …`
-  plus `ALTER DEFAULT PRIVILEGES` so future tables inherit. Its pooled URL is `DATABASE_URL`.
+- `lejer_app`: created **with SQL** as `neondb_owner` on `main` before branching
+  (`CREATE ROLE lejer_app LOGIN PASSWORD … NOBYPASSRLS`), not in the console, so it is not a
+  member of `neon_superuser`. `0001_init.sql` refuses to run without it, then grants
+  `USAGE ON SCHEMA public`, `SELECT, INSERT, UPDATE, DELETE ON ALL TABLES`,
+  `USAGE ON ALL SEQUENCES`, `ALTER DEFAULT PRIVILEGES` so future tables inherit, and revokes
+  `schema_migrations`. Its pooled URL is `DATABASE_URL`.
 
 ### Neon connection pooling and RLS
 
@@ -396,7 +428,7 @@ and for the import script.
   - per email: 5 codes per 10 min window, 30 s burst dedupe (as today);
   - per IP: 10 codes per hour (`login_codes.ip_hash` = sha256 of the client IP from
     `x-forwarded-for`'s first hop, never the raw IP);
-  - global: 40 code emails per UTC day, counted from `email_log`; past that the form says
+  - global: 40 code emails per UTC day, counted from `email_log` via `email_sends_since()`; past that the form says
     "try again later" and logs. This reserves ~60% of Resend's 100/day for household mail.
 - **Dev bypass.** `APP_DEV_USER=<email>` + `APP_DEV_HOUSEHOLD=<slug>`; `getCtx()` resolves both
   and `proxy.ts` short-circuits, **only** when `VERCEL_ENV !== "production"` (local and preview
@@ -429,7 +461,8 @@ and for the import script.
 - `sendMail()` returns `false` on failure (logged, never thrown) as today, and writes an
   `email_log` row either way. Reminder batches use `resend.batch.send` (≤ 100 per call),
   replacing the 1 s SMTP sleep.
-- **Daily budget.** `email_log` is the source of truth for "sends today" (UTC). Before a
+- **Daily budget.** `email_log` is the source of truth for "sends today" (UTC), read
+  account-wide through `email_sends_since()` (§4). Before a
   household's reminder batch, the cron computes `sentToday + batchSize`; if it would exceed
   **80**, it defers that household (no `last_send_date` stamp, so the next hour retries; if the
   day never clears, tomorrow's window sends), logs `deferred: budget` in the tick response, and
@@ -520,8 +553,10 @@ does not care who pings it. `scripts/send-reminders.ts` remains the manual CLI a
 Each phase ends with `npm run build` green (the typecheck gate, as in both source repos).
 
 **Phase 1 — Scaffold and data layer.** `create-next-app` (Next 16, TypeScript, Tailwind v4,
-App Router, Turbopack), `vercel.ts`, `.env.example`. Provision Neon, Blob (private store),
-Resend through the Vercel marketplace integrations and `vercel env pull`. `lib/db.ts`
+App Router, Turbopack), `vercel.ts`, `.env.example`. Neon is created **directly** (`neonctl`,
+org Aaron Perkel LLC, `aws-us-east-1`), not through the Vercel marketplace: the integration
+owns `DATABASE_URL` and points it at the owner's pooled URL, which would run the app past RLS.
+Blob (private store) and Resend through the Vercel marketplace integrations and `vercel env pull`. `lib/db.ts`
 (postgres.js, type parsers, `withHousehold`, `withUser`, `adminSql`), `db/migrations/0001_init.sql`
 (schema, FKs, composite FKs, RLS functions and policies, roles and grants), `scripts/migrate.ts`,
 `db/seed.sql` (one household per mode, two users). Placeholder page that renders a seeded
@@ -581,9 +616,11 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
 
 ## 12. Open items to confirm during implementation
 
-- Neon role creation via SQL vs. the console (both work; SQL-created roles are not listed in
-  the console but authenticate fine). Pick whichever `vercel integration` exposes cleanly.
+- ~~Neon role creation via SQL vs. the console.~~ SQL (§4 "Roles"): console roles join
+  `neon_superuser`. Verified 2026-10-06: `lejer_app` `rolbypassrls = false`, not a member.
 - Resend's daily counter boundary (UTC assumed). The budget rule is conservative either way.
-- Whether `households_read`'s subquery against `memberships` needs a `SECURITY DEFINER`
-  helper to avoid recursive policy evaluation (it should not: `memberships_read` already
-  admits `user_id = app_user_id()` rows). Verify with `EXPLAIN` and a two-tenant test.
+- ~~Whether `households_read`'s subquery needs a `SECURITY DEFINER` helper.~~ It does not.
+  Verified 2026-10-06 on a Neon branch with a two-tenant probe (58 checks): fail-closed with
+  no GUC (pooled and direct), `''` → NULL via `NULLIF` on a reused pooled backend, no
+  cross-household reads/writes, composite FKs block cross-tenant children, 60 interleaved
+  pooled transactions without leaks, switcher reads without recursion, owner unaffected.
