@@ -52,7 +52,7 @@ Decided with Aaron:
 
 | Conflict | Decision |
 |---|---|
-| Add-bill form (utilities asks statement date + requires PDF; peach-cob auto-stamps date, no PDF) | Household setting `ask_bill_date` (default on for single-payer, off for ledger). PDF always optional; when present it is keyed by bill date as utilities does. |
+| Add-bill form (utilities asks statement date + requires PDF; peach-cob auto-stamps date, no PDF) | Household setting `ask_bill_date` (column default `false`; the onboarding wizard sets it, on for single-payer and off for ledger, and settings can change it). PDF always optional; when present it is keyed by bill date as utilities does. |
 | Member rights (utilities: one admin; peach-cob: everyone admin so owners can post) | `admin` does everything. `member` reads everything and, for bill types they **own**, can post bills and mark payments. |
 | Demo mode | `APP_DEMO_MODE` is gone. A hosted `/demo` on lejer.app shows the app without an account. |
 | Next.js version | 16 (`proxy.ts`, Turbopack). |
@@ -181,7 +181,7 @@ households      id, slug UNIQUE, name, tagline,
                 theme           TEXT CHECK IN ('statement','peach'),
                 color_scheme    TEXT CHECK IN ('system','light'),
                 timezone        TEXT (IANA, default 'America/New_York'),
-                ask_bill_date   BOOLEAN, bills_per_page INT DEFAULT 10,
+                ask_bill_date   BOOLEAN DEFAULT false, bills_per_page INT DEFAULT 10,
                 feature_rent, feature_trends, feature_bulk_email, feature_documents,
                 feature_welcome_tour, feature_thanks   BOOLEAN,
                 monthly_rent NUMERIC(10,2) NULL, lease_start DATE NULL, lease_end DATE NULL,
@@ -194,6 +194,7 @@ users           id, email CITEXT UNIQUE, name, created_at                       
 memberships     id, household_id, user_id, role TEXT CHECK IN ('admin','member'),
                 splits_bills BOOLEAN, welcomed_at TIMESTAMPTZ NULL,
                 invited_by INT NULL → memberships, invited_at, joined_at TIMESTAMPTZ NULL,
+                calendar_token TEXT NOT NULL UNIQUE (32 random bytes, base64url, column default),
                 UNIQUE (household_id, user_id), UNIQUE (id, household_id)
 bill_types      id, household_id, name, emoji, processing_fee NUMERIC(10,2), owner_id → memberships NULL,
                 UNIQUE (household_id, name), UNIQUE (id, household_id)
@@ -221,10 +222,10 @@ and simplifies the UI; it never changes how debts are stored.
 - **single_payer** = every `bill_types.owner_id` is the same membership (the payer). New types
   default to the payer; the type form hides the owner column; the dashboard shows "You owe $X"
   and the house ledger collapses to one creditor; add-bill flash copy says "split with the
-  house". `ask_bill_date` defaults on.
+  house". The onboarding wizard turns `ask_bill_date` on.
 - **ledger** = types carry their own owners. Owner column shown; dashboard shows who-owes-whom
   pairs (`getOwedPairs`); new-bill emails tell debtors who to pay and the owner who owes them.
-  `ask_bill_date` defaults off.
+  The wizard leaves `ask_bill_date` off (the column default, `false`).
 - **Switching** is a settings change. `ledger → single_payer` asks "who pays?" and bulk-sets
   every type's owner to that membership. `single_payer → ledger` just reveals the owner column.
   Existing bills and debts are untouched in both directions. No migration.
@@ -319,6 +320,28 @@ CREATE FUNCTION email_sends_since(since timestamptz, only_kind text DEFAULT NULL
 REVOKE EXECUTE ON FUNCTION email_sends_since(timestamptz, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION email_sends_since(timestamptz, text) TO lejer_app;
 ```
+
+The calendar feed (`/cal.ics?k=<token>`) is fetched by calendar apps with no session, so it
+needs one more definer function, hardened the same way. Tokens are per **membership**, not
+per household: removing a member kills their feed by cascade, and "reset my calendar link"
+(`UPDATE memberships SET calendar_token = DEFAULT` for `ctx.membership.id`) rotates one
+person's link without touching anyone else's.
+
+```sql
+-- 0002 (CREATE EXTENSION pgcrypto for gen_random_bytes; available on Neon PG 17):
+-- memberships.calendar_token TEXT NOT NULL UNIQUE
+--   DEFAULT rtrim(translate(encode(gen_random_bytes(32), 'base64'), '+/', '-_'), '=')
+CREATE FUNCTION calendar_context(token text)
+  RETURNS TABLE (household_id int, membership_id int)
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS
+  $$ SELECT m.household_id, m.id FROM memberships m WHERE m.calendar_token = token $$;
+REVOKE EXECUTE ON FUNCTION calendar_context(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION calendar_context(text) TO lejer_app;
+```
+
+The route calls it inside `withUser(null)`, then serves the feed inside `withHousehold` for the
+returned household. `memberships_read` lets a member see everyone's row in their household,
+tokens included; app code selects `calendar_token` only for `ctx.membership.id`.
 
 A plain tenant policy on `email_log` would have broken three things: login-code sends
 (`household_id NULL`) could not be logged, the global login-code cap could not see any rows,
@@ -442,8 +465,12 @@ and for the import script.
 
 ## 6. Email
 
-- **Resend** replaces nodemailer. Domain `mail.lejer.app` verified (SPF + DKIM on the
-  subdomain; a DMARC record on `lejer.app`). Senders: `login@mail.lejer.app` for codes and
+- **Resend** replaces nodemailer. The account is set up directly at resend.com (not the
+  Vercel marketplace); Aaron owns the `RESEND_API_KEY` and the DNS. Domain `mail.lejer.app`
+  verified (SPF + DKIM on the subdomain; a DMARC record on `lejer.app`). Development does not
+  wait on verification: until it lands, dev sends from Resend's test sender
+  (`onboarding@resend.dev`, which delivers only to the account owner's address), and the
+  seed users sign in through the dev bypass. Senders: `login@mail.lejer.app` for codes and
   invites (From "Lejer", no Reply-To) and `notify@mail.lejer.app` for everything household-scoped.
 - **Per-household From and Reply-To.** From is
   `"{households.from_name ?? households.name} via Lejer" <notify@mail.lejer.app>`; the display
@@ -556,7 +583,9 @@ Each phase ends with `npm run build` green (the typecheck gate, as in both sourc
 App Router, Turbopack), `vercel.ts`, `.env.example`. Neon is created **directly** (`neonctl`,
 org Aaron Perkel LLC, `aws-us-east-1`), not through the Vercel marketplace: the integration
 owns `DATABASE_URL` and points it at the owner's pooled URL, which would run the app past RLS.
-Blob (private store) and Resend through the Vercel marketplace integrations and `vercel env pull`. `lib/db.ts`
+Blob (private store) via `vercel blob create-store` on the linked project; Resend directly at
+resend.com (revised 2026-10-06, see §6); dev values live in Vercel's Development environment
+for `vercel env pull`. `lib/db.ts`
 (postgres.js, type parsers, `withHousehold`, `withUser`, `adminSql`), `db/migrations/0001_init.sql`
 (schema, FKs, composite FKs, RLS functions and policies, roles and grants), `scripts/migrate.ts`,
 `db/seed.sql` (one household per mode, two users). Placeholder page that renders a seeded
@@ -566,6 +595,9 @@ household through `withHousehold`.
 `lib/session.ts`, `lib/login-codes.ts` (user_id, ip_hash, caps), `/login`, Resend client and the
 login-code + invite templates with the `<Shell>`, onboarding wizard + `createHousehold()`,
 members page with invites, roles helpers, `/households` switcher, `/demo`, `email_log`.
+`db/migrations/0002_*.sql`: `memberships.calendar_token` + `calendar_context()` (§4) and
+`ask_bill_date DEFAULT false`, plus the "reset my calendar link" action (the feed itself
+ships in phase 5).
 
 **Phase 3 — Core ledger.** Bill types with owners (mode-aware form), add bill
 (`ask_bill_date`, optional PDF → private Blob), payment checkboxes (`updateOwes`, thanks
@@ -579,8 +611,8 @@ batch confirmation, bulk receipt), `lib/reminders.ts` per household with timezon
 flush, bulk email tab, `/api/cron/tick` with the budget rule, `.github/workflows/tick.yml`,
 `scripts/send-reminders.ts`, settings page groups for reminders and email.
 
-**Phase 5 — Features and themes.** Trends over all types (CSV too), rent + `/cal.ics`
-(RRULE when `feature_rent`), welcome tour behind `feature_welcome_tour`, both theme token
+**Phase 5 — Features and themes.** Trends over all types (CSV too), rent + `/cal.ics?k=`
+(per-membership token via `calendar_context()`; RRULE when `feature_rent`), welcome tour behind `feature_welcome_tour`, both theme token
 blocks + dark mode for statement, OG and apple icons via `next/og`, the rest of the settings
 page, nav/footer gating.
 
@@ -619,6 +651,8 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
 - ~~Neon role creation via SQL vs. the console.~~ SQL (§4 "Roles"): console roles join
   `neon_superuser`. Verified 2026-10-06: `lejer_app` `rolbypassrls = false`, not a member.
 - Resend's daily counter boundary (UTC assumed). The budget rule is conservative either way.
+- `mail.lejer.app` domain verification at Resend (Aaron's DNS). Until then dev uses the test
+  sender (§6); nothing in phase 2 blocks on it.
 - ~~Whether `households_read`'s subquery needs a `SECURITY DEFINER` helper.~~ It does not.
   Verified 2026-10-06 on a Neon branch with a two-tenant probe (58 checks): fail-closed with
   no GUC (pooled and direct), `''` → NULL via `NULLIF` on a reused pooled backend, no

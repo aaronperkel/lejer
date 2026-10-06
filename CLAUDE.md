@@ -46,7 +46,9 @@ Env lives in `.env.local` (see `.env.example`). Keys:
   Anything else reading it is a bug.
 - `SESSION_SECRET` — jose HS256 key for the `lejer_session` cookie.
 - `RESEND_API_KEY` — sends from `login@mail.lejer.app` (codes, invites) and
-  `notify@mail.lejer.app` (household mail).
+  `notify@mail.lejer.app` (household mail). Resend is set up directly at resend.com, not
+  through the Vercel marketplace. Until `mail.lejer.app` verifies, dev sends from Resend's test
+  sender (which only delivers to the Resend account's own address).
 - `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` — the single **private** Blob store. On Vercel the
   SDK uses OIDC; the token is needed locally, for client-upload token minting, and for the
   import script.
@@ -55,6 +57,23 @@ Env lives in `.env.local` (see `.env.example`). Keys:
 - `APP_DEV_USER` + `APP_DEV_HOUSEHOLD` — bypass login as that email in that household slug.
   Honored only when `VERCEL_ENV !== "production"` (local + preview). There is no passphrase
   login and no `APP_DEMO_MODE`; the demo is the `/demo` route.
+
+**Recovering `.env.local` on a new machine.** The Vercel project's **Development** environment
+holds the dev values (Neon `dev` branch URLs, `SESSION_SECRET`, `CRON_SECRET`, the Blob
+token and store id), so:
+
+```bash
+vercel link --yes --project lejer --scope aaronperkel
+vercel env pull .env.local          # Development environment
+```
+
+Keys that are empty locally (`RESEND_API_KEY` until it exists, `APP_DEV_*`) are not stored
+there; add them by hand. `vercel link`/`env pull` rewrite the whole file (comments are lost;
+`.env.example` documents the keys) and add `VERCEL_OIDC_TOKEN`. If the Development values are
+ever lost too, reset `lejer_app`'s password on the **dev** branch only (owner connection to
+the dev endpoint, `ALTER ROLE lejer_app WITH PASSWORD …`), rebuild the URLs, and push them back
+with `vercel env add <KEY> development`. Each Neon branch has its own `lejer_app` password, so
+resetting dev's never touches production.
 
 ## Architecture
 
@@ -94,7 +113,9 @@ the switcher can list names; their write policies are household-only. `users` an
 policy, and account-wide counts go through `email_sends_since(since, kind?)` — a
 `SECURITY DEFINER` function that returns only a number, executable by `lejer_app` alone.
 Never `INSERT … RETURNING` a NULL-household `email_log` row: `RETURNING` must pass the SELECT
-policy, so it fails.
+policy, so it fails. The calendar feed has no session, so `calendar_context(token)` (same
+`SECURITY DEFINER` hardening) maps a membership's `calendar_token` to
+`(household_id, membership_id)` and nothing else; the feed then runs inside `withHousehold`.
 
 **Neon pooling rules** (the pooled endpoint is PgBouncer in transaction mode): never session
 `SET`, only `set_config(..., true)` / `SET LOCAL` inside a transaction; `prepare: false` in the
@@ -120,8 +141,9 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
   `last_sent_at`, `last_sent_count`), email identity (`from_name`, `reply_to`, `digest_email`)
 - `users` (`email` citext unique = login identity, `name`) — global
 - `memberships` (`household_id`, `user_id`, `role` `admin`|`member`, `splits_bills`,
-  `welcomed_at`, `invited_by`, `joined_at` NULL until first sign-in) — everything per-person
-  per-household hangs off `memberships.id`, not `users.id`
+  `welcomed_at`, `invited_by`, `joined_at` NULL until first sign-in, `calendar_token` 32 random
+  bytes base64url, unique, generated on insert, reset with `SET calendar_token = DEFAULT`) —
+  everything per-person per-household hangs off `memberships.id`, not `users.id`
 - `bill_types` (`name` unique per household, `emoji`, `processing_fee`, `owner_id` →
   memberships, SET NULL on delete)
 - `bills` (`type_id` RESTRICT, `bill_date`, `due_date`, `total`, `per_person_cost`, `status`
@@ -228,7 +250,9 @@ which would defeat the portal-configurable send hour. GitHub drops delayed runs,
 - `app/households/` — the switcher
 - `app/demo/` — signed demo session over the in-memory household in `lib/demo.ts`; data
   functions branch on `ctx.demo`, mutations refuse politely
-- `app/cal.ics/route.ts` — public iCal feed per household (`/cal.ics?h=<slug>&k=<token>`)
+- `app/cal.ics/route.ts` — public iCal feed per membership (`/cal.ics?k=<calendar_token>`, no
+  household param), resolved through `calendar_context()`; removing the membership kills the
+  feed, and "reset my calendar link" issues a new token
 
 ### Styling
 
@@ -261,7 +285,8 @@ Vercel (Hobby) at lejer.app, Neon (free), one private Blob store, Resend (free, 
 would point it at the owner role, skipping RLS). Project `lejer` (`round-grass-59501457`) in
 the Aaron Perkel LLC org, `aws-us-east-1`, Postgres 17; branch `main` is production, `dev` is
 local development. `lejer_app` was created with SQL on `main` before `dev` was branched, so
-both branches have it:
+both branches have it, each with its own password (dev's was reset 2026-10-06; set or reset
+main's with `ALTER ROLE` when Production env is configured):
 
 ```sql
 CREATE ROLE lejer_app LOGIN PASSWORD '<openssl rand -base64 24, URL-safe>' NOBYPASSRLS;
@@ -271,16 +296,23 @@ Never create it in the console (console roles join `neon_superuser`). `0001_init
 to run if the role is missing or can bypass RLS. Drop `channel_binding` from Neon's
 connection strings; postgres.js would forward it as a startup parameter.
 
-**Vercel env vars, set by hand** in the project (Production uses `main`; Preview may use
-`dev` or its own branch):
+**Vercel** project `lejer` in the `aaronperkel` (Hobby) scope, linked with the CLI, no Git
+connection yet. Blob store `lejer-blob` (`store_kmuAqgMI8w1nbg75`, private, `iad1`) was
+created with `vercel blob create-store` and is connected to **Development only** so far;
+connect it to Preview/Production when those environments are configured. Resend is a
+direct resend.com account, not a marketplace integration.
+
+**Vercel env vars, set by hand** in the project. Development holds the dev-branch values
+(the `.env.local` recovery path above). Production (uses `main`) and Preview (may use `dev`
+or its own branch) are **not set yet**:
 
 | Var | Value |
 |---|---|
 | `DATABASE_URL` | `lejer_app` on the `main` **pooled** host (`…-pooler…`), `?sslmode=require` |
 | `DATABASE_URL_ADMIN` | `neondb_owner` on the `main` **unpooled** host, `?sslmode=require` |
 | `SESSION_SECRET` | `openssl rand -base64 32` |
-| `RESEND_API_KEY` | from the Resend integration |
-| `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID` | from the Blob store |
+| `RESEND_API_KEY` | from the resend.com dashboard (API Keys) |
+| `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID` | connecting the Blob store sets the token; the id is `store_kmuAqgMI8w1nbg75` |
 | `CRON_SECRET` | random; also the GitHub Actions repo secret |
 | `NEXT_PUBLIC_APP_URL` | `https://lejer.app` |
 
