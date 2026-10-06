@@ -26,7 +26,7 @@ npm run build            # production build + typecheck — the main verificatio
 npm run start            # serve the production build
 npm run migrate          # apply db/migrations/*.sql in order (owner role, DATABASE_URL_ADMIN)
 npm run migrate -- --seed  # …then reset the two dev households from db/seed.sql
-npm run email:dev        # React Email preview server for emails/*.tsx
+npm run email:dev        # React Email preview server for emails/*.tsx (port 3001)
 npm run send-reminders -- --household <slug>   # run one household's reminder batch from the CLI
 npm run import-tidb      # one-time TiDB → Neon import of the two legacy households (see DESIGN.md §11)
 ```
@@ -47,8 +47,15 @@ Env lives in `.env.local` (see `.env.example`). Keys:
 - `SESSION_SECRET` — jose HS256 key for the `lejer_session` cookie.
 - `RESEND_API_KEY` — sends from `login@mail.lejer.app` (codes, invites) and
   `notify@mail.lejer.app` (household mail). Resend is set up directly at resend.com, not
-  through the Vercel marketplace. Until `mail.lejer.app` verifies, dev sends from Resend's test
-  sender (which only delivers to the Resend account's own address).
+  through the Vercel marketplace. **Empty outside production = console mode**: `sendMail()`
+  prints the message (login codes included) with a `[mail:console]` prefix instead of sending,
+  and writes no `email_log` row. In production (`VERCEL_ENV=production`) there is no fallback:
+  `instrumentation.ts` refuses to boot without the key, so codes can never land in logs.
+- `RESEND_TEST_SENDER` — `1` sends every message from `onboarding@resend.dev` (display name
+  kept) until `mail.lejer.app` verifies; set in Vercel's Development env, ignored in
+  production. Resend's test sender **only delivers to the Resend account owner's address**, so
+  login codes or invites for anyone else (seed users, invitees) need console mode (empty key)
+  or the verified domain.
 - `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` — the single **private** Blob store. On Vercel the
   SDK uses OIDC; the token is needed locally, for client-upload token minting, and for the
   import script.
@@ -152,7 +159,8 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
   the owner never gets a row; bill flips to `paid` when none remain (`updateOwes`, transactional)
 - `payment_thanks` — debounced thank-you receipts (`lib/thanks.ts`), only when `feature_thanks`
 - `documents` (`file_path` always under `h/{id}/documents/`, `uploaded_by` SET NULL)
-- `login_codes` (`user_id`, `code_hash`, `attempts`, `ip_hash`, `created_at`, `expires_at`)
+- `login_codes` (`email` citext, `code_hash`, `attempts`, `ip_hash`, `created_at`, `expires_at`) —
+  keyed by the normalized email, not `users.id`: requesting a code never creates a user
 - `email_log` (`household_id` nullable, `kind`, `to_hash`, `ok`, `sent_at`) — every send;
   source of truth for the daily budget (via `email_sends_since()`) and the portal readouts
 
@@ -165,27 +173,52 @@ join `bill_types` and owner/poster memberships so each `Bill` carries
 
 ### Auth flow
 
-`proxy.ts` requires a valid `lejer_session` cookie for everything except `/login`, `/demo`,
-`/cal.ics`, `/api/cron`, `/api/documents/upload`, `/no-access`, icons and static assets;
-non-GET without a session gets 401, GET redirects to `/login?next=`; the 30-day cookie is
-re-issued once a week old. The JWT carries `{ uid, hid }`.
+`proxy.ts` requires a valid `lejer_session` (or `lejer_demo`) cookie for everything except
+`/login`, `/demo*`, `/cal.ics`, `/api/cron`, `/api/documents/upload`, `/no-access`, icons and
+static assets; non-GET without one gets 401, GET redirects to `/login?next=`; the 30-day
+session cookie is re-issued once a week old. The session JWT carries `{ uid, hid }` (`hid`
+null until the user has a household); the demo JWT is `{ demo: true }`. The two use different
+JWT audiences, so neither verifies as the other (`lib/session.ts`). `next=` goes through
+`safeNext()` (`lib/flash.ts`), which rejects `//host` and `/\host`.
+
+`getCtx()` order: dev bypass → session → demo cookie (only with no session). A stale or revoked
+`hid` falls back to the user's first membership; a signed-in user with no membership gets
+`null`, and `getSessionUser()` serves pages that need the user but no household (onboarding,
+`/households`, `/account`).
 
 `/login` is the same two-step form as before: email → 6-digit code → session. Differences:
-an unknown email still gets a code (anyone can sign up), verifying creates the `users` row,
-and first-timers land on onboarding (`/welcome/household`: name, mode, theme, timezone) which
-calls `createHousehold()`. Codes: sha256 at rest, 10-minute TTL, 5 wrong guesses, 30 s burst
-dedupe, 5 per email per 10 min, 10 per IP per hour (`ip_hash`), and a global 40 per UTC day
-from `email_sends_since(…, 'login_code')` — the last one reserves Resend headroom for
-household mail.
+an unknown email still gets a code (anyone can sign up) and the request writes nothing to
+`users`; a verified code creates the `users` row with a placeholder name from the email's
+local part, and first-timers land on onboarding (`/welcome/household`: their real name first,
+then household name, mode, theme, timezone), which calls `createHousehold()` and sets
+`ask_bill_date` from the mode. Every email is normalized once (`normalizeEmail()`: trim +
+lowercase) and the column is citext, so all per-email caps key on one spelling. Codes: sha256
+at rest, 10-minute TTL, 5 wrong guesses, 30 s burst dedupe, 5 per email per 10 min, 10 per IP
+per hour (`ip_hash`), and a global 40 per UTC day from `email_sends_since(…, 'login_code')`,
+which reserves Resend headroom for household mail. A send that fails releases its code.
+Verifying also accepts every pending invite (`joined_at`), one `withHousehold` per household,
+since `memberships_write` only admits the current one.
 
-**Page-level authorization** is `requireUser()` / `requireAdmin()` (`lib/auth.ts`, redirect to
-`/no-access`) and `requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions
-(throw). A `member` can read everything and, for types they own, post bills and mark payments.
-`admin` does everything. Invites are just memberships with `joined_at NULL` plus an email —
-the code login proves address ownership, so there is no invite-token table.
+**Page-level authorization** is `requireUser()` (no ctx → onboarding if signed in, else
+`/login`) / `requireAdmin()` (`/no-access`) in `lib/auth.ts`, and `requireUserAction()` /
+`requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions (throw). Every
+action authorizes itself; `proxy.ts` is only the first lock. A `member` can read everything
+(including `/portal/household`, read-only) and, for types they own, post bills and mark
+payments. `admin` does everything. The last **joined** admin can't be demoted, and nobody can
+remove themselves. Invites are memberships with `joined_at NULL` plus a `users` row created up
+front (an admin vouched for the address; the typed name only applies if the person is new);
+the code login proves address ownership, so there is no invite-token table. Names live on
+`users` and are shared across households, so only their owner edits them (`/account`).
 
 Switcher: `/households` lists the user's memberships; choosing one re-issues the cookie with the
-new `hid`. Nav shows the household name and a dropdown only when there is more than one.
+new `hid` (and accepts it if it was a pending invite). Nav shows the household name and a
+dropdown only when there is more than one. The dev bypass pins `APP_DEV_HOUSEHOLD`, so switching
+does nothing while it is set.
+
+Demo: `GET /demo` sets `lejer_demo` and opens `/`. `lib/demo.ts` serves an in-memory ledger
+household, `withHousehold` throws on a demo scope, and actions refuse with `DEMO_REFUSAL`. A
+signed-in user hitting `/demo` gets `/demo/signed-in` ("You're signed in to <household>. Sign
+out to view the demo, or go back.") and is never dropped into either household silently.
 
 ### Stored files
 
@@ -208,7 +241,9 @@ pathname under the household's documents prefix; `onUploadCompleted` is intentio
 ### Email
 
 `lib/mail.ts` wraps Resend: `sendMail({ ctx?, to, subject, react, replyTo?, kind })` returns
-`false` on failure (logged, not thrown) and always writes `email_log`. From is
+`false` on failure (logged, not thrown) and writes one `email_log` row per attempt (except in
+console mode), in its own short transaction after the send, without `RETURNING`. `ctx` logs
+the row under that household; without it the row is `household_id NULL`. From is
 `"{from_name ?? household name} via Lejer" <notify@mail.lejer.app>`; Reply-To is
 `households.reply_to`, except reminder and new-bill emails use the bill owner's email.
 Login codes and invites come from `"Lejer" <login@mail.lejer.app>` with no Reply-To.
@@ -242,14 +277,18 @@ which would defeat the portal-configurable send hour. GitHub drops delayed runs,
   checkboxes, per-bill reminders), `/portal/household` members (invite/edit/remove) + bill
   types (owner column in ledger mode), `/portal/settings` (features, theme, reminders,
   timezone, email identity, rent, mode switch), `/portal/email` bulk email (feature-gated).
-  All mutations are server actions; flash messages travel as `?ok=`/`?err=` query params via
-  `done()`/`fail()` in `app/portal/actions.ts`
+  All mutations are server actions (portal ones in `app/portal/actions.ts`); flash messages
+  travel as `?ok=`/`?err=` query params via `done()`/`fail()` in `lib/flash.ts` (plain
+  functions, so they aren't exposed as actions), rendered by `app/components/Flash.tsx`
 - `app/documents/` — household paperwork (feature-gated); everyone reads, admins manage
 - `app/trends/` — Chart.js per bill type, CSV at `/trends/csv` (feature-gated)
 - `app/welcome/` — onboarding wizard for new users and the animated tour (feature-gated)
-- `app/households/` — the switcher
-- `app/demo/` — signed demo session over the in-memory household in `lib/demo.ts`; data
-  functions branch on `ctx.demo`, mutations refuse politely
+- `app/households/` — the switcher (+ "start a new household")
+- `app/account/` — your name (all households) and "reset my calendar link" for the current one
+- `app/login/` — the code flow and `signOut`
+- `app/demo/` — `route.ts` sets the `lejer_demo` cookie over the in-memory household in
+  `lib/demo.ts`; `signed-in/` is the notice for signed-in visitors; data functions branch on
+  `ctx.demo`, mutations refuse politely
 - `app/cal.ics/route.ts` — public iCal feed per membership (`/cal.ics?k=<calendar_token>`, no
   household param), resolved through `calendar_context()`; removing the membership kills the
   feed, and "reset my calendar link" issues a new token
@@ -272,7 +311,12 @@ Tailwind v4 cannot `@apply` a custom class from the same layer.
 Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
 (seed users `alex@example.com` / `sam@example.com`, households `elm-street` single-payer and
 `oak-lane` ledger, both users in both). Set `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` to skip
-login. Server actions can be driven over the wire the same way as in `../utilities/.claude/skills/verify/SKILL.md`. To tick the cron
+login. With `RESEND_API_KEY` empty, login codes print to the dev server's output
+(`[mail:console] login_code to …`), so the real login flow works locally for any address.
+Server actions can be driven over the wire like a no-JS browser: POST `multipart/form-data` to
+the page with a `$ACTION_ID_<id>` field plus the form fields, ids from
+`.next/dev/server/server-reference-manifest.json` (`exportedName`); the response is a 303 whose
+`Location` carries `?ok=`/`?err=`. To tick the cron
 safely, check `households.last_send_date` first; a tick past `send_hour` on a day that hasn't
 sent will email real members of every household in that database.
 

@@ -430,17 +430,26 @@ and for the import script.
   by `proxy.ts` once a week old. `hid` is validated against `memberships` on every request in
   `getCtx()`; a stale or revoked `hid` falls back to the user's first membership or `/households`.
 - **Unknown email is not an error anymore.** Anyone can sign up, so the code is sent regardless
-  (this also stops login from enumerating members). Verifying the code creates the `users` row
-  if needed and lands on onboarding.
-- **Signup = onboarding** after first login: household name, mode (two cards with one-line
-  explanations), theme, timezone → `createHousehold()` (owner role, one transaction: household +
+  (this also stops login from enumerating members). `login_codes` is keyed by the normalized
+  email (citext; `0002` replaced `user_id`, revised 2026-10-06 because a NOT NULL `user_id`
+  would have forced a `users` row per code request), so requesting a code writes nothing to
+  `users`. Verifying the code creates the `users` row with a placeholder name from the email's
+  local part and lands on onboarding, whose first field asks for the real name.
+- **Signup = onboarding** after first login: your name, household name, mode (two cards with
+  one-line explanations), theme, timezone → `createHousehold()` (owner role, one transaction: household +
   admin membership) → "invite your roommates".
 - **Invites by email.** An admin enters name + email (+ role, `splits_bills`). This upserts the
   `users` row (name only if new) and inserts a `memberships` row with `joined_at NULL`. Resend
   sends "{Admin} added you to {Household} on Lejer" with a `/login?email=` link. The email-code
   login already proves ownership of the address, so there is no invite-token table; signing in
-  stamps `joined_at`. "Resend invite" re-sends the email. Removing a membership cascades debts
-  and thanks, nulls owner/uploader/poster references (same outcome as `removePerson` today).
+  stamps `joined_at` (and so does opening the household from the switcher). "Resend invite"
+  re-sends the email. Removing a membership cascades debts and thanks, nulls
+  owner/uploader/poster references (same outcome as `removePerson` today). Unlike login,
+  invites do create the `users` row up front: an admin vouched for the address.
+- **Names belong to their owner.** `users.name` is shared by every household a person is in,
+  so admins set it only when inviting someone new to Lejer; afterwards the person edits it on
+  `/account`. Admins manage role and `splits_bills`. The last joined admin can't be demoted;
+  nobody removes themselves.
 - **Roles.** `admin`: settings, members, bill types, every bill, bulk email, documents CRUD.
   `member`: read everything; in ledger mode, post bills and mark payments for types they own.
   Helpers: `requireUser()`, `requireAdmin()`, `requireAdminAction()` keep their names;
@@ -456,10 +465,13 @@ and for the import script.
 - **Dev bypass.** `APP_DEV_USER=<email>` + `APP_DEV_HOUSEHOLD=<slug>`; `getCtx()` resolves both
   and `proxy.ts` short-circuits, **only** when `VERCEL_ENV !== "production"` (local and preview
   deployments). The passphrase fallback and `SITE_OWNER_EMAIL` are deleted.
-- **Demo.** `GET /demo` sets a signed session `{ demo: true }`. `getCtx()` returns an in-memory
-  ledger-mode household (ported `lib/demo.ts`, relative dates, neutral names); data functions
-  branch on `ctx.demo` and mutations return the polite refusal; theme switching works so it
-  doubles as a theme preview. No env flag.
+- **Demo.** `GET /demo` sets a separate signed `lejer_demo` cookie `{ demo: true }` (its own JWT
+  audience), which `getCtx()` consults only when there is no real session. It returns an
+  in-memory ledger-mode household (ported `lib/demo.ts`, relative dates, neutral names); data
+  functions branch on `ctx.demo` and mutations return the polite refusal; theme switching works
+  so it doubles as a theme preview. No env flag. A signed-in user hitting `/demo` sees "You're
+  signed in to <household>. Sign out to view the demo, or go back." and is never silently
+  redirected into their own household.
 
 ---
 
@@ -470,7 +482,9 @@ and for the import script.
   verified (SPF + DKIM on the subdomain; a DMARC record on `lejer.app`). Development does not
   wait on verification: until it lands, dev sends from Resend's test sender
   (`onboarding@resend.dev`, which delivers only to the account owner's address), and the
-  seed users sign in through the dev bypass. Senders: `login@mail.lejer.app` for codes and
+  seed users sign in through the dev bypass. With `RESEND_API_KEY` empty outside production,
+  `sendMail()` prints each message with a `[mail:console]` prefix and writes no `email_log` row;
+  production refuses to boot without the key (`instrumentation.ts`), so codes never reach logs. Senders: `login@mail.lejer.app` for codes and
   invites (From "Lejer", no Reply-To) and `notify@mail.lejer.app` for everything household-scoped.
 - **Per-household From and Reply-To.** From is
   `"{households.from_name ?? households.name} via Lejer" <notify@mail.lejer.app>`; the display

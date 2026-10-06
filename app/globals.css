@@ -1,17 +1,369 @@
 @import "tailwindcss";
 
-/* Placeholder until phase 5 brings the statement and peach token blocks. */
+/*
+ * Statement theme (from utilities): paper ledger in light mode, graphite in dark. Raw values
+ * live on :root and are mapped into Tailwind utilities by @theme inline (bg-panel, etc.).
+ * One accent blue; green/red/amber are reserved for paid/unpaid/due-soon. The root layout
+ * sets <html data-theme data-color-scheme> from the household; dark mode applies only to
+ * data-color-scheme="system". The peach theme block arrives in phase 5.
+ */
 :root {
-  --paper: #ffffff;
-  --ink: #171717;
+  color-scheme: light;
+
+  --page: #f4f5f6;
+  --panel: #ffffff;
+  --panel-2: #f8f9fb;
+  --ink: #1b2530;
+  --ink-muted: #5b6875;
+  --line: rgba(27, 37, 48, 0.16);
+  --line-soft: rgba(27, 37, 48, 0.08);
+
+  --accent: #1d5fd6; /* links, active states */
+  --accent-soft: rgba(29, 95, 214, 0.1);
+  --primary: #1d5fd6; /* solid buttons */
+  --primary-hover: #174db3;
+
+  --paid: #187a4b;
+  --paid-soft: rgba(24, 122, 75, 0.12);
+  --unpaid: #c03538;
+  --unpaid-soft: rgba(192, 53, 56, 0.1);
+  --warn: #8a5b00;
+  --warn-soft: rgba(216, 146, 0, 0.16);
+}
+
+:root[data-color-scheme="system"] {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-color-scheme="system"] {
+    --page: #14181d;
+    --panel: #1b2128;
+    --panel-2: #20262e;
+    --ink: #e4eaf0;
+    --ink-muted: #99a5b1;
+    --line: rgba(228, 234, 240, 0.16);
+    --line-soft: rgba(228, 234, 240, 0.08);
+
+    --accent: #82abf3;
+    --accent-soft: rgba(130, 171, 243, 0.13);
+    --primary: #3168d5;
+    --primary-hover: #4478e2;
+
+    --paid: #52c48a;
+    --paid-soft: rgba(82, 196, 138, 0.14);
+    --unpaid: #ee7378;
+    --unpaid-soft: rgba(238, 115, 120, 0.12);
+    --warn: #e0b24c;
+    --warn-soft: rgba(224, 178, 76, 0.14);
+  }
 }
 
 @theme inline {
-  --color-paper: var(--paper);
+  --color-page: var(--page);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
   --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-paid: var(--paid);
+  --color-paid-soft: var(--paid-soft);
+  --color-unpaid: var(--unpaid);
+  --color-unpaid-soft: var(--unpaid-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono: var(--font-ledger), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
 }
 
-body {
-  background: var(--paper);
+html {
+  background: var(--page);
   color: var(--ink);
+  font-size: clamp(15px, 1vw + 12px, 16px);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .panel {
+    @apply bg-panel border border-line-soft rounded-(--radius-md);
+  }
+
+  /* Statement-style section label: the mono eyebrow that titles every block */
+  .eyebrow {
+    @apply block font-mono text-[0.7rem] font-medium uppercase tracking-[0.14em]
+      text-ink-muted;
+  }
+
+  .page-title {
+    @apply text-xl font-bold tracking-tight;
+  }
+
+  /* Money, dates, counts — everything numeric reads in the ledger face */
+  .figure {
+    @apply font-mono tabular-nums;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-3.5 py-2 min-h-9
+      rounded-(--radius-md) text-sm font-medium cursor-pointer
+      border border-line bg-panel text-ink no-underline
+      transition-colors duration-100 hover:border-ink/40
+      disabled:cursor-default disabled:opacity-60
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .btn-primary {
+    @apply bg-primary border-primary text-white
+      hover:bg-primary-hover hover:border-primary-hover;
+  }
+
+  .btn-sm {
+    @apply px-2.5 py-1 min-h-7 text-[0.8rem];
+  }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-7 h-7
+      rounded-(--radius-sm) border border-line-soft bg-transparent
+      text-ink-muted cursor-pointer transition-colors duration-100
+      hover:text-ink hover:border-line
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  /* Payment status tags */
+  .tag {
+    @apply inline-block rounded-(--radius-sm) px-1.5 py-0.5
+      font-mono text-[0.7rem] font-medium uppercase tracking-[0.08em];
+  }
+
+  .tag-paid {
+    @apply bg-paid-soft text-paid;
+  }
+
+  .tag-unpaid {
+    @apply bg-unpaid-soft text-unpaid;
+  }
+
+  /* Due-date chips (classes consumed by DueChip) */
+  .due-chip {
+    @apply inline-block whitespace-nowrap rounded-(--radius-sm) px-1.5 py-0.5
+      font-mono text-[0.7rem] tracking-[0.02em] tabular-nums;
+  }
+
+  .due-paid,
+  .due-future {
+    @apply bg-panel-2 text-ink-muted;
+  }
+
+  .due-past {
+    @apply bg-unpaid-soft text-unpaid;
+  }
+
+  .due-soon {
+    @apply bg-warn-soft text-warn;
+  }
+
+  .field-label {
+    @apply block text-[0.82rem] font-semibold mb-1.5;
+  }
+
+  /* text-base below sm: fields under 16px make iOS Safari zoom in on focus */
+  .field-input {
+    @apply w-full rounded-(--radius-md) border border-line bg-panel
+      px-3 py-2 text-base sm:text-sm text-ink
+      placeholder:text-ink-muted/70
+      focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/25;
+  }
+
+  /* Ruled ledger table */
+  .data-table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .data-table th {
+    @apply px-3 sm:px-4 py-2.5 text-left font-mono text-[0.68rem] font-medium
+      uppercase tracking-[0.12em] text-ink-muted border-b border-line;
+  }
+
+  .data-table td {
+    @apply px-3 sm:px-4 py-3 border-b border-line-soft align-middle;
+  }
+
+  .data-table tr:last-child td {
+    @apply border-b-0;
+  }
+
+  /* Right-aligned amount column */
+  .data-table th.num,
+  .data-table td.num {
+    @apply text-right;
+  }
+
+  /* Portal sub-nav */
+  .tab {
+    @apply inline-flex items-center border-b-2 border-transparent px-1 pb-2
+      text-sm font-medium text-ink-muted no-underline
+      hover:text-ink transition-colors duration-100;
+  }
+
+  .tab-active {
+    @apply border-accent text-ink;
+  }
+
+  /* Server-action flash messages */
+  .flash {
+    @apply mb-5 rounded-(--radius-md) border px-4 py-3 text-sm;
+  }
+
+  .flash-ok {
+    @apply border-paid/40 bg-paid-soft text-ink;
+  }
+
+  .flash-err {
+    @apply border-unpaid/40 bg-unpaid-soft text-ink;
+  }
+
+  /* Route-loading placeholder blocks (loading.tsx skeletons) */
+  .skeleton {
+    @apply animate-pulse rounded-(--radius-sm) bg-panel-2;
+  }
+
+  /*
+   * Stacked tables: below sm a .table-stack table reflows into ledger cards —
+   * one grid per row, cells placed by the .cell-* classes — so nothing scrolls
+   * sideways on a phone. Desktop keeps the ruled table untouched.
+   */
+  @media (max-width: 39.99rem) {
+    .table-stack,
+    .table-stack tbody {
+      display: block;
+    }
+
+    .table-stack thead {
+      display: none;
+    }
+
+    .table-stack tr {
+      display: grid;
+      align-items: center;
+      column-gap: 0.75rem;
+      row-gap: 0.625rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .table-stack tr:last-child {
+      border-bottom: 0;
+    }
+
+    .table-stack td {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    /* Empty-state rows (a single colSpan cell) span the whole card */
+    .table-stack td:only-child {
+      grid-column: 1 / -1;
+    }
+
+    .table-stack-bills tr,
+    .table-stack-owes tr {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas:
+        "bill bill amount"
+        "due status actions";
+    }
+
+    .table-stack-owes tr {
+      grid-template-areas:
+        "bill bill amount"
+        "due status actions"
+        "owes owes owes";
+    }
+
+    .table-stack-people tr {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "name role"
+        "email email"
+        "actions actions";
+    }
+
+    .table-stack-docs tr {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "doc kind"
+        "uploaded actions";
+    }
+
+    .table-stack .cell-bill {
+      grid-area: bill;
+    }
+
+    .table-stack .cell-due {
+      grid-area: due;
+    }
+
+    .table-stack .cell-status {
+      grid-area: status;
+    }
+
+    .table-stack .cell-owes {
+      grid-area: owes;
+    }
+
+    .table-stack .cell-amount {
+      grid-area: amount;
+    }
+
+    .table-stack .cell-actions {
+      grid-area: actions;
+    }
+
+    .table-stack .cell-name {
+      grid-area: name;
+    }
+
+    .table-stack .cell-email {
+      grid-area: email;
+    }
+
+    .table-stack .cell-role {
+      grid-area: role;
+      justify-self: end;
+    }
+
+    .table-stack .cell-doc {
+      grid-area: doc;
+    }
+
+    .table-stack .cell-kind {
+      grid-area: kind;
+      justify-self: end;
+    }
+
+    .table-stack .cell-uploaded {
+      grid-area: uploaded;
+    }
+  }
+
+  /* Touch screens get comfortable icon-button targets */
+  @media (pointer: coarse) {
+    .btn-icon {
+      @apply h-9 w-9;
+    }
+  }
 }

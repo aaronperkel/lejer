@@ -6,13 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts"
+    "migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
+    "email:dev": "email dev --dir emails --port 3001"
   },
   "dependencies": {
+    "@react-email/components": "^1.0.12",
+    "jose": "^6.2.12",
     "next": "16.3.8",
     "postgres": "^3.4.9",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "resend": "^6.32.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -20,6 +24,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/config": "^0.10.0",
+    "react-email": "^6.11.1",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

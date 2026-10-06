@@ -39,6 +39,7 @@ export const adminSql = () => (ownerClient ??= connect("DATABASE_URL_ADMIN", 1))
 export interface TenantScope {
   household: { id: number };
   user: { id: number } | null;
+  demo?: boolean;
 }
 
 /**
@@ -46,6 +47,8 @@ export interface TenantScope {
  * transaction-local settings; outside this (or withUser) lejer_app sees no tenant rows.
  */
 export async function withHousehold<T>(scope: TenantScope, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  // The demo household lives in lib/demo.ts; callers branch on ctx.demo before getting here.
+  if (scope.demo) throw new Error("withHousehold called with the demo context");
   return app().begin(async (tx) => {
     await tx`SELECT set_config('app.household_id', ${String(scope.household.id)}, true),
                     set_config('app.user_id', ${scope.user ? String(scope.user.id) : ""}, true)`;
