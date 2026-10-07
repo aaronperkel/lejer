@@ -9,6 +9,7 @@ import {
   readDemoToken,
   readSessionToken,
 } from "@/lib/session";
+import { SITE_HOME, SITE_PAGES } from "@/lib/site";
 
 // First lock only: a valid session (or demo) cookie for everything that isn't public.
 // Pages and server actions still authorize themselves (lib/auth.ts); hid is validated
@@ -27,6 +28,8 @@ const PUBLIC = [
 
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  if (SITE_PAGES.test(path)) return NextResponse.next();
+  if (path === SITE_HOME) return NextResponse.redirect(new URL("/", req.url));
   if (PUBLIC.some((re) => re.test(path)) || devBypass()) return NextResponse.next();
 
   const session = await readSessionToken(req.cookies.get(SESSION_COOKIE)?.value);
@@ -38,12 +41,15 @@ export async function proxy(req: NextRequest) {
     return res;
   }
   if (await readDemoToken(req.cookies.get(DEMO_COOKIE)?.value)) return NextResponse.next();
+  // Signed out at "/": the public home page instead of the sign-in form. Every method, since
+  // its sign-up form is a server action that posts back to "/".
+  if (path === "/") return NextResponse.rewrite(new URL(SITE_HOME, req.url));
 
   if (req.method !== "GET" && req.method !== "HEAD") {
     return new NextResponse("Unauthorized", { status: 401 });
   }
   const login = new URL("/login", req.url);
-  if (path !== "/") login.searchParams.set("next", path + req.nextUrl.search);
+  login.searchParams.set("next", path + req.nextUrl.search);
   return NextResponse.redirect(login);
 }
 

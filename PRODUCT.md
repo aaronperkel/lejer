@@ -91,8 +91,11 @@ Lejer records that it happened.
 - **Privacy:** each household's data is isolated by row-level security, and bill PDFs and
   documents are private, served only to members.
 - **Undecided:** the product name. "Lejer" / lejer.app is a working name and may change before
-  launch, so it lives only in `lib/brand.ts`. A public landing page doesn't exist yet. `/login`
-  and `/demo` are the current front door.
+  launch, so it lives only in `lib/brand.ts`.
+- **Public site:** signed-out visitors land on a home page at `/`, plus `/how-it-works` and
+  `/about`, in its own drafting-sheet look rather than either household theme. Its sign-up form
+  is the real email-code login, and `/demo` sits beside it. It may say the product is free (no
+  ads, no card) and is made by Aaron Perkel LLC (user-confirmed 2026-10-07).
 
 ## Brand Commitments
 

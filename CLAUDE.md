@@ -239,8 +239,10 @@ bill sends a "Bill removed" note right away.
 ### Auth flow
 
 `proxy.ts` requires a valid `lejer_session` (or `lejer_demo`) cookie for everything except
-`/login`, `/demo*`, `/cal.ics`, `/api/cron`, `/api/documents/upload`, `/no-access`, icons and
-static assets; non-GET without one gets 401, GET redirects to `/login?next=`; the 30-day
+`/login`, `/demo*`, `/cal.ics`, `/api/cron`, `/api/documents/upload`, `/no-access`, the public
+site (`/how-it-works`, `/about`, and `/` itself for a visitor with neither cookie, rewritten to
+`/home`, any method, since its sign-up form posts back to `/`), icons and static assets;
+non-GET without one gets 401, GET redirects to `/login?next=`; the 30-day
 session cookie is re-issued once a week old. The session JWT carries `{ uid, hid }` (`hid`
 null until the user has a household); the demo JWT is `{ demo: true }`. The two use different
 JWT audiences, so neither verifies as the other (`lib/session.ts`). `next=` goes through
@@ -361,6 +363,19 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 
 ### Key surfaces
 
+- **Two root layouts.** Household pages live in the `app/(app)/` route group under
+  `app/(app)/layout.tsx` (nav, theme, demo banner); the public site lives in `app/(site)/` under
+  its own root layout. URLs don't include the group, so paths below like `app/portal/` mean
+  `app/(app)/portal/`. Crossing between the two is a full page load, so neither `<html>` leaks
+  into the other; a link that changes identity inside the app (the login page's demo link) is a
+  plain `<a>` for the same reason. `app/global-not-found.tsx` (experimental `globalNotFound`) is
+  the 404 for unmatched URLs, since no single layout covers both; `app/metadata.ts` holds the
+  metadata both roots share
+- `app/(site)/` — the public site (`lib/site.ts`): home (served at `/` when signed out; `/home`
+  itself redirects to `/`), `/how-it-works`, `/about`. Its look is its own (`site.css` on
+  `html[data-site]`: a drafting sheet, Archivo + Martian Mono, the four utility-locate colors;
+  DESIGN.md "Public Site"), not either household theme. `FloorPlan.tsx` is the interactive
+  sample household from `lib/demo.ts`; the sign-up form is the real `requestCode` action
 - `app/page.tsx` — dashboard: mode-aware summary strip (you owe / next due / bills on record),
   house ledger (hidden in single-payer when the viewer is the payer), bills grouped by year,
   calendar subscribe buttons
@@ -402,7 +417,7 @@ mapped to utilities in `@theme inline`; `:root[data-theme="peach"]` overrides th
 peach awning theme (cream/espresso/deep peach, Fraunces display, Karla body, Courier Prime
 ledger, the `.awning` band, radii one step rounder, pill tags). Faces come from `next/font` as
 `--nf-*` variables on `<html>` and are picked per theme through `--face-*`; only Plex Mono
-preloads. `<html data-theme data-color-scheme>` is set by the root layout from the household
+preloads. `<html data-theme data-color-scheme>` is set by the app's root layout from the household
 (peach always renders `light`). The statement dark block is gated on
 `data-color-scheme="system"` and excludes peach. Green/red/amber (sage/rose/butter in peach) are reserved for paid/unpaid/due-soon.
 Theme color values have one home, `lib/theme-tokens.ts`: email reads it directly, and the stylesheet

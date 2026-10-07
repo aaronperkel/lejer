@@ -1266,6 +1266,213 @@
         "dark": "none, by design",
         "logo": "none; the household name is the wordmark"
       }
+    },
+    "site": {
+      "name": "Public Site: The Drafting Sheet",
+      "northStar": "The Floor Plan",
+      "scope": "app/(site) pages only (/, /how-it-works, /about). Tokens live in app/(site)/site.css on html[data-site]; not in lib/theme-tokens.ts, DESIGN.md frontmatter or colorMeta; never on household pages, the portal or email.",
+      "colorScheme": "light only",
+      "palette": {
+        "sheet": {
+          "value": "#f3f5f4",
+          "role": "page and sheet ground; theme-color"
+        },
+        "sheet-hi": {
+          "value": "#fbfcfb",
+          "role": "rooms, chips, fields, panels; text on ink buttons"
+        },
+        "ink": {
+          "value": "#111315",
+          "role": "text, rules, frames, wall poché, primary button"
+        },
+        "ink-hover": {
+          "value": "#2b3036",
+          "role": "primary button hover"
+        },
+        "ink-2": {
+          "value": "#4a5056",
+          "role": "secondary text, labels, sheet numbers"
+        },
+        "rule": {
+          "value": "rgba(17, 19, 21, 0.2)",
+          "role": "hairlines"
+        },
+        "rule-soft": {
+          "value": "rgba(17, 19, 21, 0.1)",
+          "role": "hatching"
+        },
+        "grid": {
+          "value": "rgba(17, 19, 21, 0.045)",
+          "role": "24px sheet grid"
+        },
+        "highlight": {
+          "value": "rgba(242, 196, 0, 0.42)",
+          "role": "text selection only"
+        }
+      },
+      "utilities": [
+        {
+          "id": "electric",
+          "color": "#d6231b",
+          "dash": "13 3 3 3"
+        },
+        {
+          "id": "gas",
+          "color": "#d29c00",
+          "dash": "9 5"
+        },
+        {
+          "id": "water",
+          "color": "#1b5ecf",
+          "dash": "1.5 4.5",
+          "alsoFocusRing": true
+        },
+        {
+          "id": "wifi",
+          "color": "#ec6612",
+          "dash": "15 3 1.5 3 1.5 3"
+        }
+      ],
+      "typography": {
+        "display": {
+          "fontFamily": "Archivo (wdth axis), system-ui, sans-serif",
+          "h1": "800, 112% width, clamp(1.85rem, 1.3rem + 1.6vw, 2.6rem), lh 1.02, -0.028em",
+          "h1Inner": "clamp(2.4rem, 1.4rem + 3.6vw, 4.2rem)",
+          "h2": "800, 108% width, clamp(1.7rem, 1.2rem + 1.8vw, 2.4rem), lh 1.08",
+          "h3": "700, 1.08rem",
+          "wordmark": "800, 118% width, 1.3rem"
+        },
+        "body": {
+          "fontFamily": "Archivo",
+          "prose": "1.04rem / 1.6, ink-2, max 62ch"
+        },
+        "mono": {
+          "fontFamily": "Martian Mono (wdth axis), ui-monospace, monospace",
+          "use": "figures, sheet numbers, drawing labels; tabular-nums",
+          "widths": {
+            "amounts-labels": "87.5%",
+            "share-figure": "75%",
+            "step-number": "85%"
+          },
+          "labels": "uppercase 0.58-0.66rem, 0.06-0.1em tracking"
+        },
+        "shareFigure": "600, 75% width, clamp(2.1rem, 0.9rem + 5.2cqi, 3.5rem); owner clamp(2.1rem, 0.6rem + 7.2cqi, 3.9rem)"
+      },
+      "layout": {
+        "wrap": "1360px, 16px gutters (28px from 640px)",
+        "wall": "7px (8px from 720px container)",
+        "titleBlock": "400px column from 1080px",
+        "sectionPadding": "72px (104px from 640px)",
+        "breakpoints": [
+          "640px",
+          "760px",
+          "860px (sheet index joins header row)",
+          "900px",
+          "1080px (sheet frame splits)"
+        ],
+        "containerBreakpoints": [
+          "560px",
+          "720px (plan gains kitchen/living)",
+          "760px",
+          "1100px"
+        ]
+      },
+      "shapes": {
+        "radius": "0 everywhere",
+        "frame": "1.5px ink",
+        "internal": "1px ink",
+        "hairline": "1px rule",
+        "ownerChip": "4px double ink"
+      },
+      "elevation": "none; depth is line weight",
+      "motion": [
+        {
+          "name": "pencil",
+          "value": "520ms cubic-bezier(0.16, 1, 0.3, 1)",
+          "purpose": "1px ink draft line draws the drop then fades; staggered 110ms per room"
+        },
+        {
+          "name": "ink",
+          "value": "260ms ease-out, +300ms",
+          "purpose": "utility-color drop appears after the pencil"
+        },
+        {
+          "name": "trunk",
+          "value": "200ms ease-out",
+          "purpose": "selected trunk 40% to full opacity"
+        },
+        {
+          "name": "state",
+          "value": "120-140ms ease-out",
+          "purpose": "button, link, toggle color"
+        }
+      ],
+      "rules": [
+        {
+          "name": "The Locate Code Rule",
+          "body": "A utility color always travels with its dash pattern and its name. Color alone never carries meaning, and the four colors never color text, fills or backgrounds; the one exception is the selected bill's 3px bottom rule in its utility color."
+        },
+        {
+          "name": "The Hatching Rule",
+          "body": "Tone comes from 45° hatching (1px ink at 10% every 8 to 9px). Never a tinted fill."
+        },
+        {
+          "name": "The Size Is Billing Rule",
+          "body": "Share figures outweigh the H1, and what the bill's owner is owed back is the largest number on the sheet."
+        },
+        {
+          "name": "The Lane Label Rule",
+          "body": "Each lane label sits in the rightmost hall gap clear of every drop, measured from its rendered width, haloed in sheet highlight so drops pass under it; fall back to beside the meters."
+        }
+      ],
+      "nav": {
+        "sheetIndex": [
+          {
+            "no": "A-101",
+            "label": "Home"
+          },
+          {
+            "no": "A-201",
+            "label": "How it works"
+          },
+          {
+            "no": "A-301",
+            "label": "About"
+          }
+        ]
+      },
+      "components": [
+        {
+          "name": "Ink Button (site)",
+          "kind": "button",
+          "html": "<button class=\"ds-s-btn\">Email me a code</button>",
+          "css": ".ds-s-btn{display:inline-flex;align-items:center;min-height:48px;padding:0 20px;border:1.5px solid #111315;border-radius:0;background:#111315;color:#fbfcfb;font-family:Archivo,system-ui,sans-serif;font-weight:650;font-stretch:106%;font-size:1rem;cursor:pointer;transition:background-color 120ms ease-out}.ds-s-btn:hover{background:#2b3036}.ds-s-btn:focus-visible{outline:2px solid #1b5ecf;outline-offset:2px}"
+        },
+        {
+          "name": "Line Button (site)",
+          "kind": "button",
+          "html": "<button class=\"ds-s-btn-line\">Try the demo</button>",
+          "css": ".ds-s-btn-line{display:inline-flex;align-items:center;min-height:38px;padding:0 14px;border:1.5px solid #111315;border-radius:0;background:transparent;color:#111315;font-family:Archivo,system-ui,sans-serif;font-weight:650;font-size:.9rem;cursor:pointer;transition:background-color 120ms ease-out}.ds-s-btn-line:hover{background:#fbfcfb}.ds-s-btn-line:focus-visible{outline:2px solid #1b5ecf;outline-offset:2px}"
+        },
+        {
+          "name": "Field (site)",
+          "kind": "input",
+          "html": "<input class=\"ds-s-input\" placeholder=\"you@example.com\">",
+          "css": ".ds-s-input{min-height:48px;padding:0 14px;border:1.5px solid #111315;border-radius:0;background:#fbfcfb;color:#111315;font-family:Archivo,system-ui,sans-serif;font-size:16px}.ds-s-input:focus-visible{outline:2px solid #1b5ecf;outline-offset:0}"
+        },
+        {
+          "name": "Sheet Index (site)",
+          "kind": "nav",
+          "html": "<nav class=\"ds-s-index\"><a aria-current=\"page\"><span>A-101</span>Home</a><a><span>A-201</span>How it works</a><a><span>A-301</span>About</a></nav>",
+          "css": ".ds-s-index{display:flex;gap:4px;border-bottom:1.5px solid #111315;background:#f3f5f4}.ds-s-index a{display:inline-flex;align-items:baseline;gap:8px;padding:18px 10px 16px;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;font-family:Archivo,system-ui,sans-serif;font-weight:550;font-size:.94rem;color:#4a5056;cursor:pointer;transition:color 120ms ease-out}.ds-s-index a:hover{color:#111315}.ds-s-index a[aria-current=page]{color:#111315;border-bottom-color:#111315}.ds-s-index span{font-family:'Martian Mono',ui-monospace,monospace;font-size:.7rem;font-weight:500;font-stretch:87.5%;color:#4a5056}"
+        },
+        {
+          "name": "Share Chip (site)",
+          "kind": "custom",
+          "html": "<div class=\"ds-s-share\"><span class=\"ds-s-fig\"><span class=\"ds-s-cur\">$</span>52.06</span><span class=\"ds-s-cap\">owed back · fronted $104.12</span></div>",
+          "css": ".ds-s-share{display:inline-grid;gap:4px;padding:4px 8px 6px;border:4px double #111315;background:#fbfcfb;color:#111315}.ds-s-fig{font-family:'Martian Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:600;font-stretch:75%;font-size:3.5rem;line-height:1;letter-spacing:-.035em}.ds-s-cur{font-size:.6em;vertical-align:.48em}.ds-s-cap{font-family:Archivo,system-ui,sans-serif;font-size:.78rem;color:#4a5056}"
+        }
+      ]
     }
   },
   "components": [

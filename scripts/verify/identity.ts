@@ -12,6 +12,7 @@ import { createLoginCode, hashIp, normalizeEmail, verifyLoginCode } from "@/lib/
 import { DEMO_COOKIE, SESSION_COOKIE, createDemoToken, createSessionToken, readDemoToken, readSessionToken } from "@/lib/session";
 import { LOG_MARK, RUN, type Results, type Sql, email, makeHousehold, rolledBack } from "./harness";
 import { BRAND } from "@/lib/brand";
+import { SITE_HOME } from "@/lib/site";
 
 export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sql }) {
   const a = await makeHousehold(owner, "ia");
@@ -146,8 +147,19 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     r.check("…keeping uid and hid", reissued?.uid === a.admin.userId && reissued?.hid === a.id);
     res = await call("/", { cookie: `${DEMO_COOKIE}=${demo}` });
     r.check("proxy: demo cookie passes", res.headers.get("x-middleware-next") === "1");
-    res = await call("/", { cookie: `${SESSION_COOKIE}=${demo}` });
+    res = await call("/portal", { cookie: `${SESSION_COOKIE}=${demo}` });
     r.check("proxy: demo token in the session cookie is refused", res.status === 307);
+    // The public site: signed out, "/" is the home page (lib/site.ts), never the dashboard.
+    res = await call("/", { cookie: `${SESSION_COOKIE}=${demo}` });
+    r.check("proxy: signed out at / → the public home page", res.headers.get("x-middleware-rewrite")?.endsWith(SITE_HOME) === true, res.headers.get("x-middleware-rewrite"));
+    res = await call("/", { method: "POST" });
+    r.check("…for its sign-up action too", res.headers.get("x-middleware-rewrite")?.endsWith(SITE_HOME) === true, res.status);
+    res = await call(SITE_HOME);
+    r.check(`proxy: ${SITE_HOME} requested directly → /`, res.status === 307 && new URL(res.headers.get("location") ?? "").pathname === "/", res.headers.get("location"));
+    for (const p of ["/how-it-works", "/about"]) {
+      res = await call(p);
+      r.check(`proxy: ${p} is public`, res.headers.get("x-middleware-next") === "1", res.status);
+    }
   } finally {
     if (devUser !== undefined) process.env.APP_DEV_USER = devUser;
   }

@@ -223,7 +223,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("demo session → 404", res.status === 404, res.status);
 
   r.section("http: posting bills over the wire (useActionState protocol)");
-  const addBill = id("app/portal/actions.ts", "addBill");
+  const addBill = id("app/(app)/portal/actions.ts", "addBill");
   const billForm = (typeId: number, amount: string, withPdf: Uint8Array | string | null) => {
     const f = new FormData();
     f.set("typeId", String(typeId));
@@ -259,7 +259,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("posting queues the new-bill email instead of sending it", queued?.kind === "new" && queued.queued && !/new_bill to /.test(server.log), queued);
 
   r.section("http: marking payments over the wire");
-  const setPaidAction = id("app/portal/actions.ts", "setPaidAction");
+  const setPaidAction = id("app/(app)/portal/actions.ts", "setPaidAction");
   res = await callAction("/portal", setPaidAction, [a.billId, a.member.membershipId, true], aMember);
   text = await res.text();
   r.check("member marking a payment on someone else's type → refused", text.includes("types you own") && text.includes('"ok":false'), text.slice(0, 160));
@@ -273,11 +273,11 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("an admin of A can't touch B's bill (RLS hides it)", text.includes('"ok":false') && text.includes("no longer exists"), text.slice(0, 160));
 
   r.section("http: other portal actions");
-  res = await formPost("/portal", id("app/portal/actions.ts", "sendReminder"), { billId: String(b.billId) }, aAdmin);
+  res = await formPost("/portal", id("app/(app)/portal/actions.ts", "sendReminder"), { billId: String(b.billId) }, aAdmin);
   r.check("reminder for another household's bill → refused", err(res).includes("no longer exists"), err(res));
-  res = await formPost("/portal/household", id("app/portal/actions.ts", "saveBillTypeAction"), { name: "Nope", emoji: "❌", processingFee: "0" }, aMember);
+  res = await formPost("/portal/household", id("app/(app)/portal/actions.ts", "saveBillTypeAction"), { name: "Nope", emoji: "❌", processingFee: "0" }, aMember);
   r.check("member adding a bill type → refused", res.status >= 400 || err(res) !== "", res.status);
-  res = await formPost("/portal/household", id("app/portal/actions.ts", "removeBillTypeAction"), { typeId: String(a.typeId) }, aAdmin);
+  res = await formPost("/portal/household", id("app/(app)/portal/actions.ts", "removeBillTypeAction"), { typeId: String(a.typeId) }, aAdmin);
   r.check("removing a type with bills → friendly refusal", err(res).includes("on record"), err(res));
   const roomie = await addMember(owner, a, `ha-roomie-${RUN}`);
   const lateBill = await owner<{ id: number }[]>`SELECT id FROM bills WHERE id = ${posted.id}`;
@@ -285,8 +285,8 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("someone who joined after a bill can't be marked on it", (await res.text()).includes("doesn't owe"));
 
   r.section("http: editing and deleting a bill over the wire");
-  const editBill = id("app/portal/actions.ts", "editBill");
-  const deleteBill = id("app/portal/actions.ts", "deleteBillAction");
+  const editBill = id("app/(app)/portal/actions.ts", "editBill");
+  const deleteBill = id("app/(app)/portal/actions.ts", "deleteBillAction");
   const editForm = (amount: string) => {
     const f = billForm(a.memberTypeId, amount, null);
     f.set("billId", String(posted.id));
@@ -387,7 +387,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("the right secret under the wrong scheme → 401", res.status === 401, res.status);
 
   r.section("http: settings");
-  const saveSettings = id("app/portal/settings/actions.ts", "saveSettingsAction");
+  const saveSettings = id("app/(app)/portal/settings/actions.ts", "saveSettingsAction");
   const settingsForm = (over: Record<string, string> = {}) => {
     const f = new FormData();
     const fields: Record<string, string> = {
@@ -416,7 +416,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
     (res.headers.get("x-action-redirect") ?? "").startsWith("/portal/settings?ok=") && saved.tz === "America/Chicago" && saved.hour === 8 && saved.first === 5 && saved.digest === "digest@verify.invalid" && saved.fromName === "Oak Crew", saved);
 
   r.section("http: bulk email");
-  const bulk = id("app/portal/email/actions.ts", "sendBulkEmailAction");
+  const bulk = id("app/(app)/portal/email/actions.ts", "sendBulkEmailAction");
   const bulkForm = (subject: string, body: string) => {
     const f = new FormData();
     f.set("subject", subject);
@@ -448,7 +448,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
 
   r.section("http: sign-in flow (console mail)");
   const fresh = email("signup");
-  const loginForm = (actionName: string, fields: Record<string, string>) => formPost("/login", id("app/login/actions.ts", actionName), fields, "");
+  const loginForm = (actionName: string, fields: Record<string, string>) => formPost("/login", id("app/(app)/login/actions.ts", actionName), fields, "");
   res = await loginForm("requestCode", { email: fresh.toUpperCase(), next: "/" });
   r.check("code requested (unknown email welcome)", (res.headers.get("location") ?? "").includes("step=code"), res.headers.get("location"));
   let code = "";
@@ -483,7 +483,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("a well-formed token nobody holds → 404, empty", empty(await feed("A".repeat(43))));
   r.check("another household's member's token → only their household", (await feed((await tokenOf(b.member.membershipId))!)).body.includes(`UID:bill-${b.billId}@`));
 
-  const resetAction = id("app/account/actions.ts", "resetCalendarLink");
+  const resetAction = id("app/(app)/account/actions.ts", "resetCalendarLink");
   res = await formPost("/account", resetAction, {}, aMember);
   const kA2 = (await tokenOf(a.member.membershipId))!;
   r.check("reset my calendar link → ?ok= and a new token", res.status === 303 && (res.headers.get("location") ?? "").includes("ok=") && kA2 !== kA, res.status);
@@ -515,7 +515,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("/trends/csv → 404", res.status === 404, res.status);
   pg = await page("/welcome", aMember);
   r.check("/welcome → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Step 1 of"), pg.status);
-  const finish = id("app/welcome/actions.ts", "finishWelcome");
+  const finish = id("app/(app)/welcome/actions.ts", "finishWelcome");
   await owner`UPDATE memberships SET welcomed_at = NULL WHERE id = ${a.member.membershipId}`;
   res = await formPost("/welcome", finish, {}, aMember);
   let [{ w }] = await owner<{ w: Date | null }[]>`SELECT welcomed_at AS w FROM memberships WHERE id = ${a.member.membershipId}`;

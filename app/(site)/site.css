@@ -1,0 +1,1420 @@
+/*
+ * The public site's world: a drafting sheet. Neither household theme applies here; these
+ * tokens live on html[data-site] (set by the root layout for site pages only). Black ink and
+ * the four sidewalk-locate utility colors are the whole palette; tone comes from hatching.
+ * Light only: it's a sheet of paper, and the figures have to read on it at a glance.
+ */
+
+html[data-site] {
+  --sheet: #f3f5f4;
+  --sheet-hi: #fbfcfb;
+  --ink: #111315;
+  --ink-2: #4a5056;
+  --ink-hover: #2b3036;
+  --rule: rgba(17, 19, 21, 0.2);
+  --rule-soft: rgba(17, 19, 21, 0.1);
+  --grid: rgba(17, 19, 21, 0.045);
+  --electric: #d6231b;
+  --gas: #d29c00;
+  --water: #1b5ecf;
+  --wifi: #ec6612;
+  --highlight: rgba(242, 196, 0, 0.42);
+  --wall: 7px;
+
+  color-scheme: light;
+  background: var(--sheet);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html[data-site] ::selection {
+  background: var(--highlight);
+  color: var(--ink);
+}
+
+html[data-site] input {
+  caret-color: var(--ink);
+}
+
+/* The faces arrive as next/font variables on .site, so the stacks resolve here, not on html. */
+.site {
+  --face: var(--f-archivo), system-ui, sans-serif;
+  --mono: var(--f-martian), ui-monospace, monospace;
+  font-family: var(--face);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.site a {
+  color: inherit;
+}
+
+.site :focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+
+.s-wrap {
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 640px) {
+  .s-wrap {
+    padding: 0 28px;
+  }
+}
+
+.s-mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Header: the wordmark and the sheet index ---------- */
+
+.s-header {
+  border-bottom: 1.5px solid var(--ink);
+  background: var(--sheet);
+}
+
+.s-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 60px;
+}
+
+.s-wordmark {
+  font-weight: 800;
+  font-stretch: 118%;
+  font-size: 1.3rem;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.s-index {
+  display: flex;
+  gap: 4px;
+}
+
+.s-index a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 18px 10px 16px;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -1.5px;
+  font-weight: 550;
+  font-size: 0.94rem;
+  text-decoration: none;
+  color: var(--ink-2);
+  transition: color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.s-index a:hover {
+  color: var(--ink);
+}
+
+.s-index a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.s-index .s-sheetno {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-stretch: 87.5%;
+}
+
+.s-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.s-link {
+  font-weight: 600;
+  font-size: 0.94rem;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--rule);
+  transition: text-decoration-color 120ms ease-out;
+}
+
+.s-link:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* Phone: the sheet index drops to its own row under the wordmark. */
+.s-header-index-row {
+  border-top: 1px solid var(--rule-soft);
+}
+
+.s-header-index-row .s-index {
+  gap: 0;
+}
+
+.s-header-index-row .s-index a {
+  gap: 5px;
+  padding: 10px 7px 9px;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.s-header-index-row .s-sheetno {
+  font-size: 0.58rem;
+}
+
+.s-header-index-row .s-index a:first-child {
+  padding-left: 0;
+}
+
+.s-header-row .s-index {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .s-header-row .s-index {
+    display: flex;
+  }
+  .s-header-index-row {
+    display: none;
+  }
+}
+
+/* ---------- Buttons and fields: square, inked ---------- */
+
+.s-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--sheet-hi);
+  font-family: var(--face);
+  font-weight: 650;
+  font-stretch: 106%;
+  font-size: 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.site .s-btn {
+  color: var(--sheet-hi);
+}
+
+.s-btn:hover {
+  background: var(--ink-hover);
+}
+
+.s-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.site .s-btn-line {
+  background: transparent;
+  color: var(--ink);
+}
+
+.s-btn-line:hover {
+  background: var(--sheet-hi);
+}
+
+.s-btn-sm {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.9rem;
+}
+
+.s-arrow {
+  width: 18px;
+  height: 10px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+}
+
+.s-signup label {
+  display: block;
+  font-weight: 650;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.s-signup-row {
+  display: grid;
+  gap: 10px;
+}
+
+.s-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--sheet-hi);
+  color: var(--ink);
+  font-family: var(--face);
+  font-size: 16px;
+}
+
+.s-input::placeholder {
+  color: var(--ink-2);
+  opacity: 0.75;
+}
+
+.s-input:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 0;
+}
+
+.s-hint {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  color: var(--ink-2);
+  max-width: 46ch;
+}
+
+.s-signup-wide .s-signup-row {
+  max-width: 560px;
+}
+
+@media (min-width: 640px) {
+  .s-signup-wide .s-signup-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+/* ---------- The sheet: hero frame, drawing area, title block ---------- */
+
+.s-sheet {
+  position: relative;
+  margin: 16px 0 0;
+  border: 1.5px solid var(--ink);
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
+}
+
+@media (min-width: 640px) {
+  .s-sheet {
+    margin-top: 24px;
+  }
+}
+
+.s-sheet-grid {
+  display: grid;
+}
+
+.s-drawing {
+  padding: 20px 16px 18px;
+  container-type: inline-size;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .s-drawing {
+    padding: 28px 28px 22px;
+  }
+}
+
+.s-tb {
+  border-bottom: 1.5px solid var(--ink);
+  background: var(--sheet);
+}
+
+@media (min-width: 1080px) {
+  .s-sheet-grid {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-rows: auto 1fr;
+  }
+  /* The column rule belongs to the drawing, so the title block can end where its content does. */
+  .s-tb-fields {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .s-tb {
+    grid-column: 2;
+    grid-row: 1;
+    border-bottom: 0;
+  }
+  .s-drawing {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    border-right: 1.5px solid var(--ink);
+  }
+}
+
+.s-tb-cell {
+  padding: 18px 16px 20px;
+}
+
+.s-tb-cell + .s-tb-cell {
+  border-top: 1px solid var(--ink);
+}
+
+@media (min-width: 640px) {
+  .s-tb-cell {
+    padding: 26px 28px;
+  }
+}
+
+.s-tb-grow {
+  flex: 1;
+}
+
+.s-h1 {
+  font-weight: 800;
+  font-stretch: 112%;
+  font-size: clamp(1.85rem, 1.3rem + 1.6vw, 2.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+.s-lede {
+  margin-top: 12px;
+  font-size: clamp(0.98rem, 0.9rem + 0.3vw, 1.06rem);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 44ch;
+  text-wrap: pretty;
+}
+
+.s-demo-link,
+.s-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.s-tb-fields {
+  border-top: 1.5px solid var(--ink);
+  background: var(--sheet);
+}
+
+.s-tb-field {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 16px;
+}
+
+.s-tb-field + .s-tb-field {
+  border-top: 1px solid var(--rule);
+}
+
+@media (min-width: 640px) {
+  .s-tb-field {
+    padding: 12px 28px;
+  }
+}
+
+.s-tb-key {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  font-stretch: 87.5%;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.s-tb-val {
+  display: block;
+  font-weight: 650;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+.s-footer .s-tb-key {
+  margin-bottom: 4px;
+}
+
+/* ---------- The floor plan ---------- */
+
+.fp-controls {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+@container (min-width: 1100px) {
+  .fp-controls {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: end;
+    gap: 28px;
+  }
+}
+
+.fp-mode {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.fp-control-label {
+  display: block;
+  font-weight: 650;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.fp-seg {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1.5px solid var(--ink);
+  background: var(--sheet-hi);
+  width: 100%;
+}
+
+@container (min-width: 760px) {
+  .fp-seg {
+    width: auto;
+  }
+}
+
+.fp-seg button {
+  min-height: 44px;
+  padding: 6px 12px;
+  line-height: 1.2;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--face);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.fp-seg button + button {
+  border-left: 1.5px solid var(--ink);
+}
+
+.fp-seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--sheet-hi);
+}
+
+.fp-seg button[aria-pressed="false"]:hover {
+  background: var(--sheet);
+}
+
+.fp-bills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@container (min-width: 560px) {
+  .fp-bills {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.fp-bill {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "swatch swatch" "name total" "owner owner";
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 10px 12px 9px;
+  border: 1.5px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--face);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.fp-bill:hover {
+  border-color: var(--ink);
+}
+
+.fp-bill[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--sheet-hi);
+  box-shadow: inset 0 -3px 0 var(--u);
+}
+
+.fp-swatch {
+  grid-area: swatch;
+  width: 44px;
+  height: 8px;
+  margin-bottom: 4px;
+  stroke: var(--u);
+  stroke-width: 3;
+  stroke-linecap: butt;
+}
+
+.fp-bill-name {
+  grid-area: name;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.fp-bill-total {
+  grid-area: total;
+  justify-self: end;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-stretch: 87.5%;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.fp-bill-owner {
+  grid-area: owner;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+[data-util="electric"] {
+  --u: var(--electric);
+}
+[data-util="gas"] {
+  --u: var(--gas);
+}
+[data-util="water"] {
+  --u: var(--water);
+}
+[data-util="wifi"] {
+  --u: var(--wifi);
+}
+
+/* The plan itself: the grid's background is the poché; the gaps between cells are walls. */
+.fp-plan {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 104px auto;
+  grid-template-areas: "r1 r2" "hall hall" "r3 r4";
+  gap: var(--wall);
+  padding: calc(var(--wall) + 3px);
+  background: var(--ink);
+}
+
+@container (min-width: 720px) {
+  .fp-plan {
+    --wall: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.72fr);
+    grid-template-rows: auto 116px auto;
+    grid-template-areas: "r1 r2 kit" "hall hall hall" "r3 r4 liv";
+  }
+}
+
+.fp-room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 168px;
+  padding: 10px 8px 10px;
+  background: var(--sheet-hi);
+  min-width: 0;
+}
+
+@container (min-width: 720px) {
+  .fp-room {
+    min-height: 184px;
+    padding: 14px 18px 16px;
+  }
+}
+
+/* Bottom-row rooms: the share sits by the hall wall, the name at the far side. */
+.fp-room[data-side="bottom"] {
+  flex-direction: column-reverse;
+}
+
+.fp-room-quiet {
+  display: none;
+  justify-content: flex-start;
+  background-color: var(--sheet);
+  background-image: repeating-linear-gradient(45deg, var(--rule-soft) 0 1px, transparent 1px 9px);
+}
+
+@container (min-width: 720px) {
+  .fp-room-quiet {
+    display: flex;
+  }
+}
+
+.fp-room-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fp-room-no {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 500;
+  font-stretch: 87.5%;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.fp-room-person {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.fp-share {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "figure figure" "check caption";
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 8px 7px;
+  border: 1.5px solid var(--ink);
+  background: var(--sheet-hi);
+  color: var(--ink);
+  font-family: var(--face);
+  text-align: left;
+}
+
+button.fp-share {
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+
+button.fp-share:hover {
+  background: var(--sheet);
+}
+
+.fp-share-owner {
+  grid-template-areas: "figure figure" "caption caption";
+  border-style: double;
+  border-width: 4px;
+  padding: 4px 8px 6px;
+}
+
+.fp-check {
+  grid-area: check;
+  width: 16px;
+  height: 16px;
+}
+
+.fp-check svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+
+.fp-share[aria-pressed="true"] .fp-check rect {
+  fill: var(--ink);
+}
+
+.fp-share[aria-pressed="true"] .fp-check path {
+  stroke: var(--sheet-hi);
+  stroke-width: 2;
+}
+
+.fp-figure {
+  grid-area: figure;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-stretch: 75%;
+  font-size: clamp(2.1rem, 0.9rem + 5.2cqi, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+/* Size is billing: what the owner is owed back is the biggest number on the sheet. */
+.fp-share-owner .fp-figure {
+  font-size: clamp(2.1rem, 0.6rem + 7.2cqi, 3.9rem);
+}
+
+.fp-cur {
+  font-size: 0.6em;
+  vertical-align: 0.48em;
+  margin-right: 0.04em;
+}
+
+.fp-share[aria-pressed="true"] .fp-figure {
+  color: var(--ink-2);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.fp-caption {
+  grid-area: caption;
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+
+.fp-hall {
+  position: relative;
+  background: var(--sheet-hi);
+  padding: 8px 12px;
+}
+
+.fp-meter {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  right: 10px;
+  width: 30px;
+  border: 1.5px solid var(--ink);
+  background: var(--sheet);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fp-meter span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fp-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.fp-door {
+  fill: var(--sheet-hi);
+}
+
+.fp-trunk {
+  stroke: var(--u);
+  stroke-width: 1.5;
+  opacity: 0.4;
+  transition: opacity 200ms ease-out;
+}
+
+.fp-lane[data-on] .fp-trunk {
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.fp-lane-label {
+  paint-order: stroke;
+  stroke: var(--sheet-hi);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  fill: var(--ink-2);
+}
+
+.fp-lane-label[data-on] {
+  font-weight: 700;
+  font-size: 10px;
+  fill: var(--ink);
+}
+
+.fp-drop-draft {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  animation: fp-draft 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fp-drop-ink {
+  fill: none;
+  stroke: var(--u);
+  stroke-width: 2.5;
+  animation: fp-ink 260ms ease-out both;
+}
+
+.fp-drop[data-paid] .fp-drop-ink,
+.fp-drop[data-owner] .fp-drop-ink {
+  stroke-width: 3.5;
+}
+
+.fp-terminal {
+  fill: var(--u);
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  animation: fp-ink 200ms ease-out both;
+}
+
+.fp-drop[data-owner] .fp-terminal {
+  fill: var(--ink);
+}
+
+@keyframes fp-draft {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  70% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes fp-ink {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fp-summary {
+  margin-top: 14px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 72ch;
+  min-height: 3em;
+}
+
+.fp-sample {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-stretch: 87.5%;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+}
+
+/* ---------- Calm sections below the sheet ---------- */
+
+.s-section {
+  padding: 72px 0;
+}
+
+.s-section + .s-section {
+  border-top: 1px solid var(--rule);
+}
+
+@media (min-width: 640px) {
+  .s-section {
+    padding: 104px 0;
+  }
+}
+
+.s-h2 {
+  font-weight: 800;
+  font-stretch: 108%;
+  font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.024em;
+  text-wrap: balance;
+  max-width: 22ch;
+}
+
+.s-h3 {
+  font-weight: 700;
+  font-size: 1.08rem;
+  line-height: 1.3;
+}
+
+.s-prose {
+  font-size: 1.04rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.s-prose + .s-prose {
+  margin-top: 14px;
+}
+
+.s-prose strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.s-section-head {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 44px;
+}
+
+@media (min-width: 900px) {
+  .s-split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 64px;
+    align-items: start;
+  }
+  .s-split .s-section-head {
+    margin-bottom: 0;
+    position: sticky;
+    top: 32px;
+  }
+}
+
+/* General notes: the drawing's numbered notes, here as the product's plain facts. */
+.s-notes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: note;
+  display: grid;
+  border-top: 1.5px solid var(--ink);
+}
+
+.s-notes li {
+  counter-increment: note;
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  gap: 4px 12px;
+  padding: 20px 0 22px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.s-notes li::before {
+  content: counter(note) ".";
+  grid-row: span 2;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding-top: 3px;
+}
+
+.s-notes p {
+  color: var(--ink-2);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  max-width: 58ch;
+}
+
+/* The reminder schedule drawn as a dimension string: a vertical run on a phone, then one
+   horizontal line with ticks at each date, segments to scale (7, 4, 3 days, then open). */
+.s-dim {
+  margin-top: 8px;
+}
+
+.s-dim-track {
+  display: grid;
+  border-left: 1.5px solid var(--ink);
+}
+
+.s-dim-seg {
+  position: relative;
+  padding: 0 0 22px 18px;
+  min-width: 0;
+}
+
+.s-dim-seg::before {
+  content: "";
+  position: absolute;
+  left: -1.5px;
+  top: 12px;
+  width: 12px;
+  border-top: 1.5px solid var(--ink);
+}
+
+.s-dim-seg-over {
+  padding-bottom: 0;
+}
+
+.s-dim-num {
+  display: block;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-stretch: 87.5%;
+  font-size: clamp(1.05rem, 0.75rem + 0.9vw, 1.35rem);
+  letter-spacing: -0.01em;
+}
+
+.s-dim-what {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+@media (min-width: 760px) {
+  .s-dim-num {
+    white-space: nowrap;
+    font-size: clamp(0.95rem, 0.6rem + 0.7vw, 1.2rem);
+  }
+  .s-dim-track {
+    grid-template-columns: 7fr 4fr 3.6fr 3.6fr;
+    border-left: 0;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  .s-dim-seg {
+    padding: 0 14px 22px 14px;
+    border-left: 1.5px solid var(--ink);
+  }
+  .s-dim-seg::before {
+    display: none;
+  }
+  .s-dim-seg-over {
+    padding-bottom: 22px;
+    border-left-style: solid;
+    background-image: repeating-linear-gradient(-45deg, var(--rule-soft) 0 1px, transparent 1px 8px);
+  }
+}
+
+.s-more {
+  margin-top: 36px;
+}
+
+.s-mail {
+  margin-top: 40px;
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 760px) {
+  .s-mail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.s-mail-item {
+  border-top: 1.5px solid var(--ink);
+  padding-top: 12px;
+}
+
+.s-mail-subject {
+  font-weight: 650;
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.s-mail-from {
+  margin-top: 2px;
+  font-size: 0.86rem;
+  color: var(--ink-2);
+}
+
+/* Steps on How it works: the monthly cycle, in order. */
+.s-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step;
+  border-top: 1.5px solid var(--ink);
+}
+
+.s-steps > li {
+  counter-increment: step;
+  display: grid;
+  gap: 8px 24px;
+  padding: 28px 0 30px;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (min-width: 760px) {
+  .s-steps > li {
+    grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 0.9fr);
+    align-items: start;
+  }
+}
+
+.s-steps > li::before {
+  content: counter(step);
+  font-family: var(--mono);
+  font-weight: 600;
+  font-stretch: 85%;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.s-step-aside {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  font-stretch: 87.5%;
+  line-height: 1.6;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  background: var(--sheet-hi);
+  align-self: start;
+}
+
+.s-step-aside b {
+  font-weight: 600;
+}
+
+.s-pair {
+  display: grid;
+  gap: 0;
+  border: 1.5px solid var(--ink);
+}
+
+@media (min-width: 760px) {
+  .s-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+  .s-pair > * + * {
+    border-left: 1.5px solid var(--ink);
+  }
+}
+
+.s-pair > * {
+  padding: 24px 20px 26px;
+}
+
+@media (max-width: 759px) {
+  .s-pair > * + * {
+    border-top: 1.5px solid var(--ink);
+  }
+}
+
+@media (min-width: 640px) {
+  .s-pair > * {
+    padding: 28px 30px 30px;
+  }
+}
+
+.s-pair .s-prose {
+  margin-top: 8px;
+  font-size: 0.98rem;
+}
+
+.s-defs {
+  display: grid;
+  gap: 0 48px;
+}
+
+@media (min-width: 760px) {
+  .s-defs {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.s-defs > div {
+  padding: 18px 0 20px;
+  border-top: 1px solid var(--rule);
+}
+
+.s-defs dt {
+  font-weight: 700;
+  font-size: 1.02rem;
+}
+
+.s-defs dd {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  max-width: 54ch;
+}
+
+/* Page header for the inner sheets (How it works, About). */
+.s-page-head {
+  padding: 56px 0 8px;
+}
+
+@media (min-width: 640px) {
+  .s-page-head {
+    padding: 88px 0 8px;
+  }
+}
+
+.s-steps .s-h3 + .s-prose,
+.s-section-head .s-h2 + .s-prose {
+  margin-top: 6px;
+}
+
+.s-page-head .s-h1 {
+  font-size: clamp(2.4rem, 1.4rem + 3.6vw, 4.2rem);
+  max-width: 16ch;
+}
+
+.s-page-head .s-lede {
+  font-size: 1.15rem;
+  max-width: 54ch;
+  margin-top: 20px;
+}
+
+/* The close: one more chance to start, framed like the hero's title block. */
+.s-close {
+  padding: 0 0 72px;
+}
+
+@media (min-width: 640px) {
+  .s-close {
+    padding-bottom: 104px;
+  }
+}
+
+.s-close-panel {
+  display: grid;
+  border: 1.5px solid var(--ink);
+  background: var(--sheet-hi);
+}
+
+.s-close-panel > * {
+  padding: 26px 16px 28px;
+  min-width: 0;
+}
+
+.s-close-panel > * + * {
+  border-top: 1px solid var(--ink);
+}
+
+@media (min-width: 640px) {
+  .s-close-panel > * {
+    padding: 36px 32px 38px;
+  }
+}
+
+@media (min-width: 900px) {
+  .s-close-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .s-close-panel > * + * {
+    border-top: 0;
+    border-left: 1px solid var(--ink);
+  }
+}
+
+.s-close .s-h2 {
+  max-width: 18ch;
+}
+
+.s-close .s-prose {
+  margin-top: 12px;
+}
+
+/* ---------- Footer: a title-block strip ---------- */
+
+.s-footer {
+  margin-top: auto;
+  border-top: 1.5px solid var(--ink);
+}
+
+
+.s-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (min-width: 860px) {
+  .s-footer-grid {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  }
+}
+
+.s-footer-cell {
+  padding: 22px 0 24px;
+  min-width: 0;
+}
+
+.s-footer-cell:first-child {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (min-width: 860px) {
+  .s-footer-cell {
+    padding: 28px 24px 30px;
+    border-left: 1px solid var(--rule);
+  }
+  .s-footer-cell:first-child {
+    grid-column: auto;
+    border-bottom: 0;
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+.s-footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 4px;
+}
+
+.s-footer ul a {
+  font-size: 0.92rem;
+  text-decoration: none;
+  color: var(--ink-2);
+}
+
+.s-footer ul a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.s-footer-note {
+  margin-top: 8px;
+  font-size: 0.86rem;
+  color: var(--ink-2);
+  max-width: 34ch;
+}
+
+@container (max-width: 420px) {
+  .fp-seg button {
+    font-size: 0.85rem;
+    padding: 6px 8px;
+  }
+}
+
+.s-notes-plain li {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.s-notes-plain li::before {
+  content: none;
+}
+
+.s-steps-note {
+  margin: 0 0 16px;
+}
+
+.s-404-actions {
+  gap: 24px;
+  margin-top: 28px;
+}
