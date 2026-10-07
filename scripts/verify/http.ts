@@ -4,8 +4,8 @@
 // Real blobs are written under fixture households' h/{id}/ prefixes; the harness sweep deletes
 // them by prefix, before the rows, on every run.
 
-import { type ChildProcess, spawn } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { billPdfKey, putBillPdf } from "@/lib/blob";
 import { DEMO_COOKIE, SESSION_COOKIE, createDemoToken, createSessionToken } from "@/lib/session";
@@ -13,6 +13,75 @@ import { RUN, type Results, type Sql, addMember, email, makeHousehold } from "./
 
 const ROOT = path.join(import.meta.dirname, "..", "..");
 const PDF = new TextEncoder().encode(`%PDF-1.4\n% verify ${RUN}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`);
+
+// The server runs on a fixed port in its own process group, recorded in a pidfile. A verify run
+// that dies without cleaning up (SIGKILL, a crash) leaves it running; the next run kills that
+// group and frees the port before starting its own. Only processes that are ours are killed:
+// the recorded group, or a `next` process still listening on the port.
+const PIDFILE = path.join(ROOT, ".verify", "server.json");
+const PORT = Number(process.env.VERIFY_PORT ?? 4317);
+
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function listeners(port: number): number[] {
+  try {
+    return execFileSync("lsof", ["-ti", `tcp:${port}`, "-sTCP:LISTEN"], { encoding: "utf8" }).split("\n").filter(Boolean).map(Number);
+  } catch {
+    return []; // lsof exits 1 when nothing listens
+  }
+}
+
+const commandOf = (pid: number) => {
+  try {
+    return execFileSync("ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim();
+  } catch {
+    return "";
+  }
+};
+
+async function killGroup(pid: number): Promise<void> {
+  for (const signal of ["SIGTERM", "SIGKILL"] as const) {
+    try {
+      process.kill(-pid, signal); // the whole group: next and its server child
+    } catch {}
+    for (let i = 0; i < 25 && alive(pid); i++) await sleep(100);
+    if (!alive(pid)) return;
+  }
+}
+
+/** Kills a server a previous run left behind and makes sure the port is free. */
+async function clearStaleServer(port: number): Promise<string | null> {
+  let note: string | null = null;
+  if (existsSync(PIDFILE)) {
+    const stale = JSON.parse(readFileSync(PIDFILE, "utf8")) as { pid: number; port: number };
+    if (alive(stale.pid)) {
+      await killGroup(stale.pid);
+      note = `killed stale verify server (pid ${stale.pid}, port ${stale.port})`;
+    }
+    rmSync(PIDFILE, { force: true });
+  }
+  for (const pid of listeners(port)) {
+    const cmd = commandOf(pid);
+    if (!/\bnext\b|next-server/.test(cmd)) throw new Error(`port ${port} is taken by something that isn't ours (pid ${pid}: ${cmd}); set VERIFY_PORT`);
+    await killGroup(pid);
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {}
+    note = `${note ? `${note}; ` : ""}freed port ${port} from pid ${pid}`;
+  }
+  for (let i = 0; i < 25 && listeners(port).length; i++) await sleep(100);
+  if (listeners(port).length) throw new Error(`port ${port} is still in use`);
+  return note;
+}
 
 class Server {
   private proc!: ChildProcess;
@@ -24,7 +93,9 @@ class Server {
   async start() {
     const env: NodeJS.ProcessEnv = { ...process.env, PORT: String(this.port), RESEND_API_KEY: "", APP_DEV_USER: "", APP_DEV_HOUSEHOLD: "", NODE_ENV: "production" };
     delete env.VERCEL_ENV;
-    this.proc = spawn(path.join(ROOT, "node_modules/.bin/next"), ["start", "-p", String(this.port), "-H", "127.0.0.1"], { cwd: ROOT, env });
+    this.proc = spawn(path.join(ROOT, "node_modules/.bin/next"), ["start", "-p", String(this.port), "-H", "127.0.0.1"], { cwd: ROOT, env, detached: true });
+    mkdirSync(path.dirname(PIDFILE), { recursive: true });
+    writeFileSync(PIDFILE, JSON.stringify({ pid: this.proc.pid, port: this.port, startedAt: new Date().toISOString() }));
     this.proc.stdout!.on("data", (c) => (this.log += c));
     this.proc.stderr!.on("data", (c) => (this.log += c));
     for (let i = 0; i < 100; i++) {
@@ -35,8 +106,9 @@ class Server {
     }
     throw new Error(`next start did not come up:\n${this.log}`);
   }
-  stop() {
-    this.proc?.kill("SIGTERM");
+  async stop() {
+    if (this.proc?.pid) await killGroup(this.proc.pid);
+    rmSync(PIDFILE, { force: true });
   }
 }
 
@@ -73,12 +145,14 @@ export async function http(r: Results, { owner }: { owner: Sql }) {
     return v;
   };
 
-  const server = new Server(4100 + Math.floor(Math.random() * 800));
+  const cleared = await clearStaleServer(PORT);
+  if (cleared) console.log(`(${cleared})`);
+  const server = new Server(PORT);
   await server.start();
   try {
     await suite(r, owner, server, id);
   } finally {
-    server.stop();
+    await server.stop();
   }
 }
 

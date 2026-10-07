@@ -51,7 +51,10 @@ leftovers from crashed runs first, so they never depend on or disturb the seed d
 phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `index.ts`).
 Suites: `brand`, `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
 `ctxFor()`), `http` (starts `next start` on gate 1's build, refusing a build older than the
-sources; mints sessions with `SESSION_SECRET`; forces console mail; drives server actions the
+sources; fixed port 4317 or `VERIFY_PORT`, in its own process group, pid in the gitignored
+`.verify/server.json`: a run that died without cleaning up is found and its server group
+killed on the next run, and a `next` process still holding the port is freed, while anything
+else on the port makes verify refuse rather than kill it; mints sessions with `SESSION_SECRET`; forces console mail; drives server actions the
 way the client does: plain forms as `$ACTION_ID_<id>` posts, `useActionState`/direct calls with
 a `Next-Action` header and React's `encodeReply` body, referenced `_1_*` fields **before** the
 root `"0"`). Suites write real blobs, so `verify` also refuses unless `BLOB_READ_WRITE_TOKEN`
