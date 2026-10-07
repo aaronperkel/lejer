@@ -1,4 +1,4 @@
-# Lejer — design
+# Lejer — architecture
 
 Lejer (lejer.app) merges two Next.js apps that share a lineage into one hosted, multi-tenant
 household-bills app:

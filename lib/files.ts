@@ -2,7 +2,7 @@ import { contentTypeFor, householdPrefix } from "@/lib/blob";
 import type { Ctx } from "@/lib/context";
 import { withHousehold } from "@/lib/db";
 
-// Authorization for /files/<key>, the only read path into Blob (DESIGN.md §4). Three locks:
+// Authorization for /files/<key>, the only read path into Blob (ARCHITECTURE.md §4). Three locks:
 // the key must sit under the requester's household prefix, carry an allowlisted extension, and
 // be recorded in bills.pdf_path or documents.file_path, a lookup that runs inside withHousehold
 // so RLS hides every other household's rows even if the prefix check were wrong.

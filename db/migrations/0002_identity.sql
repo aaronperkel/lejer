@@ -1,5 +1,5 @@
 -- Phase 2 (identity): email-keyed login codes, per-membership calendar tokens, and the
--- ask_bill_date default. DESIGN.md §4 (calendar_context) and §5 (login).
+-- ask_bill_date default. ARCHITECTURE.md §4 (calendar_context) and §5 (login).
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;  -- gen_random_bytes
 

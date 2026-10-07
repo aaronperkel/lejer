@@ -9,7 +9,7 @@ import { isYmd } from "@/lib/time";
 // mutations also take ctx and authorize themselves (assertAdmin / assertBillManager), so the
 // rules hold no matter which action or script calls them.
 //
-// The model (DESIGN.md §3): a bill type has an owner who fronts it. When a bill is posted, the
+// The model (ARCHITECTURE.md §3): a bill type has an owner who fronts it. When a bill is posted, the
 // type's owner is snapshotted into bills.owner_id (0004) and every splitter except that owner
 // gets a bill_debts row; both are fixed for the life of the bill. Reassigning a type only
 // changes who owns *new* bills. Paying sets paid_at, un-paying clears it, and the bill is paid exactly when no row has

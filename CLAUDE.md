@@ -9,7 +9,7 @@ app for splitting household bills. Households sign up, invite roommates by email
 track who owes whom, and get reminder emails. It merges two earlier single-household apps that
 share a lineage — `../utilities` (77 N Union, one person pays everything) and `../peach-cob`
 (404 Parke Ave, each bill type has an owner who fronts it). When behavior is ambiguous, those
-repos are the ground truth for intent; `DESIGN.md` records every decision made in the merge,
+repos are the ground truth for intent; `ARCHITECTURE.md` (formerly `DESIGN.md`) records every decision made in the merge,
 including a table of places the two apps disagreed and which way Lejer went.
 
 **One data model, two modes.** Every bill type has an `owner_id`; posting a bill snapshots it
@@ -18,6 +18,9 @@ changes who owns new bills). `households.mode` is `single_payer` (every type own
 owner column, dashboard says "you owe") or `ledger` (types carry their own owners, dashboard
 shows who-owes-whom). Mode is a setting that drives defaults and copy; switching never
 migrates data.
+
+**`DESIGN.md` is reserved** for the Impeccable design skill (visual design context). Engineering
+decisions go in `ARCHITECTURE.md`.
 
 **Brand.** "Lejer" / lejer.app is the working name and may change before launch. The name,
 domain, app URL, mail subdomain and From addresses, and cookie names live in `lib/brand.ts`;
@@ -39,7 +42,7 @@ npm run migrate          # apply db/migrations/*.sql in order (owner role, DATAB
 npm run migrate -- --seed  # …then reset the two dev households from db/seed.sql
 npm run email:dev        # React Email preview server for emails/*.tsx (port 3001)
 npm run send-reminders -- --household <slug>   # run one household's reminder batch from the CLI
-npm run import-tidb      # one-time TiDB → Neon import of the two legacy households (see DESIGN.md §11)
+npm run import-tidb      # one-time TiDB → Neon import of the two legacy households (see ARCHITECTURE.md §11)
 ```
 
 Two gates, in order: `npm run build` (typecheck + build), then `npm run verify`. `verify`
@@ -405,7 +408,7 @@ Development now, to Preview when Preview is configured, **never to Production**.
 `h/{household_id}/…` and dev/preview household ids come from the Neon `dev` branch, so sharing
 a store with production would let dev overwrite prod files and let `npm run verify`'s
 prefix sweep delete them. Production gets its **own** private store, created at cutover
-(DESIGN.md §11 checklist); `verify` keeps pinning lejer-blob by the store id embedded
+(ARCHITECTURE.md §11 checklist); `verify` keeps pinning lejer-blob by the store id embedded
 in the token, so it can never run against the production store. Resend is a
 direct resend.com account, not a marketplace integration.
 
@@ -425,6 +428,6 @@ or its own branch) are **not set yet**:
 
 `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` are never set in Production (and are ignored there).
 Run `npm run migrate` against `main` with its `DATABASE_URL_ADMIN` before the first deploy
-and after every new migration. Free-tier ceilings and where they bite first are in `DESIGN.md` §10 — the two to
+and after every new migration. Free-tier ceilings and where they bite first are in `ARCHITECTURE.md` §10 — the two to
 respect are Neon's 100 CU-hours (never ping more than hourly) and Resend's 100 emails/day
 (the cron budget and login-code caps exist for this).

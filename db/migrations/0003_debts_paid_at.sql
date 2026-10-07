@@ -6,7 +6,7 @@
 --
 -- Rows that exist today are unpaid by definition (the old model deleted paid ones). Bills that
 -- were already paid have no rows and so no debtor history; the phase 6 importer synthesizes
--- paid rows for them (DESIGN.md §11).
+-- paid rows for them (ARCHITECTURE.md §11).
 
 ALTER TABLE bill_debts ADD COLUMN paid_at TIMESTAMPTZ NULL;
 

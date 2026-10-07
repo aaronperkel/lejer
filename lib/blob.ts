@@ -1,7 +1,8 @@
 import { del, get, head, list, put } from "@vercel/blob";
 import { slugify } from "@/lib/households";
 
-// The one private Blob store. Every key lives under h/{household_id}/ (DESIGN.md §4):
+// This environment's private Blob store (lejer-blob for dev/preview, its own store in
+// production). Every key lives under h/{household_id}/ (ARCHITECTURE.md §4):
 //   h/{id}/bills/{year}/{type-slug}/{MMDD}-{billId}.pdf   deterministic per bill; allowOverwrite
 //   h/{id}/documents/{name}-{randomSuffix}.{ext}          client-direct upload; addRandomSuffix
 // The bill id keeps two same-type bills posted the same day from sharing a key. Keys are never

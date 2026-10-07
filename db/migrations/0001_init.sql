@@ -1,7 +1,7 @@
 -- Lejer schema: households, users, memberships and everything that hangs off them.
 -- Applied by scripts/migrate.ts as neondb_owner (DATABASE_URL_ADMIN), which owns every table.
 --
--- Tenancy (DESIGN.md §4): every household table carries household_id and has row-level
+-- Tenancy (ARCHITECTURE.md §4): every household table carries household_id and has row-level
 -- security ENABLED (not FORCED). The table owner is therefore exempt, and lejer_app (the app
 -- role, NOBYPASSRLS) only sees rows where household_id matches the transaction-local
 -- app.household_id. Children use composite FKs (parent_id, household_id) so a row can never

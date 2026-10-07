@@ -1,4 +1,4 @@
-// Row-level security: the second lock (DESIGN.md §4). Rebuilt in the repo from the phase 1
+// Row-level security: the second lock (ARCHITECTURE.md §4). Rebuilt in the repo from the phase 1
 // probe's coverage: fail-closed without GUCs (pooled and direct), '' → NULL on a reused
 // backend, no cross-household reads or writes, composite FKs, switcher reads, interleaved
 // pooled transactions, owner exemption, and the role/table settings that make it all hold.
