@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import CalendarLinks from "@/app/components/CalendarLinks";
 import DueChip from "@/app/components/DueChip";
 import Pagination from "@/app/components/Pagination";
 import { DownloadIcon, EyeIcon } from "@/app/components/icons";
 import { requireUser } from "@/lib/auth";
 import type { Bill } from "@/lib/bills";
+import { hasFeature } from "@/lib/features";
 import { fileHref } from "@/lib/files";
 import { localDate } from "@/lib/time";
 import { loadDashboard } from "@/lib/views";
@@ -26,12 +28,20 @@ function byYear(bills: Bill[]): [string, Bill[]][] {
 // what you owe, plus who owes whom across the house.
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const ctx = await requireUser();
+  // First visit with the tour on (from login, the switcher or an invite): show it once.
+  if (!ctx.demo && hasFeature(ctx.household, "welcomeTour") && !ctx.membership.welcomedAt) redirect("/welcome");
   const requested = Math.max(1, Number((await searchParams).page) || 1);
   const data = await loadDashboard(ctx, requested);
   if (data.page !== requested && data.totalBills > 0) redirect(`/?page=${data.page}`);
 
   const me = ctx.membership.id;
+  // The viewer's own pairs first: what you owe, then what you're owed, then everyone else's.
+  const mine = (p: (typeof data.pairs)[number]) => (p.debtorId === me ? 0 : p.ownerId === me ? 1 : 2);
+  const pairs = [...data.pairs].sort((a, b) => mine(a) - mine(b));
   const owedToMe = data.pairs.filter((p) => p.ownerId === me);
+  const iOweTo = [...new Set(data.pairs.filter((p) => p.debtorId === me).map((p) => p.owner ?? "the house"))];
+  const names = (list: string[]) =>
+    list.length === 1 ? list[0] : list.length <= 3 ? `${list.slice(0, -1).join(", ")} and ${list.at(-1)}` : `${list.length} roommates`;
   const owedToMeTotal = Math.round(owedToMe.reduce((s, p) => s + p.amount * 100, 0)) / 100;
   const singlePayer = ctx.household.mode === "single_payer";
   const iAmPayer = singlePayer && data.ownsTypes;
@@ -40,11 +50,19 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
   return (
     <main>
-      <div className="mb-6">
-        <h1 className="page-title">Hi, {ctx.user.name}</h1>
-        <p className="text-sm text-ink-muted">
-          {ctx.household.name} as of {today}
-        </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div>
+          <h1 className="page-title">Hi, {ctx.user.name}</h1>
+          <p className="text-sm text-ink-muted">
+            {ctx.household.name} as of {today}
+          </p>
+        </div>
+        {data.calendarToken && (
+          <div>
+            <span className="sr-only">Add every due date to your calendar:</span>
+            <CalendarLinks token={data.calendarToken} />
+          </div>
+        )}
       </div>
 
       <div className="panel mb-8 grid divide-y divide-line-soft sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -54,7 +72,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
               <span className="eyebrow mb-1">Owed to you</span>
               <div className="figure text-[1.7rem] font-semibold leading-tight">${money(owedToMeTotal)}</div>
               <div className="mt-0.5 text-xs text-ink-muted">
-                {owedToMe.length ? `from ${owedToMe.length} ${owedToMe.length === 1 ? "roommate" : "roommates"}` : "everyone's paid you back"}
+                {owedToMe.length ? `from ${names(owedToMe.map((p) => p.debtor))}` : "everyone's paid you back"}
               </div>
             </>
           ) : (
@@ -65,9 +83,15 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                 {!ctx.membership.splitsBills
                   ? "you don't split bills here"
                   : data.owed.billIds.length
-                    ? `across ${data.owed.billIds.length} unpaid ${data.owed.billIds.length === 1 ? "bill" : "bills"}`
+                    ? `to ${names(iOweTo)}, across ${data.owed.billIds.length} unpaid ${data.owed.billIds.length === 1 ? "bill" : "bills"}`
                     : "all settled up"}
               </div>
+              {/* Ledger mode: an owner is owed too, and that belongs in the first answer. */}
+              {owedToMeTotal > 0 && (
+                <div className="mt-1.5 text-xs text-ink-muted">
+                  and you&apos;re owed <span className="figure font-semibold text-ink">${money(owedToMeTotal)}</span> from {names(owedToMe.map((p) => p.debtor))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -93,7 +117,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             <div className="panel px-5 py-4 text-sm text-ink-muted">Everyone&rsquo;s settled up. Nothing owed in the house.</div>
           ) : (
             <div className="panel divide-y divide-line-soft">
-              {data.pairs.map((p) => (
+              {pairs.map((p) => (
                 <div key={`${p.debtorId}->${p.ownerId ?? "house"}`} className="flex items-baseline justify-between gap-3 px-5 py-2.5 text-sm">
                   <span>
                     <strong className={p.debtorId === me ? "text-unpaid" : ""}>{p.debtorId === me ? "You" : p.debtor}</strong>{" "}

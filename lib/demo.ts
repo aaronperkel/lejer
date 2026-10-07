@@ -123,3 +123,25 @@ export function demoCtx(): Ctx {
     demo: true,
   };
 }
+
+/**
+ * A year and a bit of history for the demo's trends chart (the bill list above stays short).
+ * Deterministic: a seasonal curve per type, so gas peaks in winter and electric in summer.
+ */
+export function demoMonthTotals(today: string): { month: string; typeId: number; total: number }[] {
+  const [y, m] = today.split("-").map(Number);
+  const out: { month: string; typeId: number; total: number }[] = [];
+  for (let back = 14; back >= 1; back--) {
+    const d = new Date(Date.UTC(y, m - 1 - back, 1));
+    const month = d.toISOString().slice(0, 7);
+    const season = Math.cos(((d.getUTCMonth() + 0.5) / 12) * 2 * Math.PI); // +1 in January, -1 in July
+    const wobble = ((back * 37) % 11) / 10 - 0.5;
+    out.push({ month, typeId: 1, total: Math.round((88 - season * 26 + wobble * 9) * 100) / 100 }); // Electric
+    out.push({ month, typeId: 2, total: Math.round((52 + season * 34 + wobble * 6) * 100) / 100 }); // Gas
+    out.push({ month, typeId: 3, total: Math.round((41 + wobble * 4) * 100) / 100 }); // Water
+    out.push({ month, typeId: 4, total: 79.99 }); // Wifi
+  }
+  // The posted demo bills stand in for the history in their own months.
+  const posted = BILLS.map((b) => ({ month: b.billDate.slice(0, 7), typeId: b.typeId, total: b.total }));
+  return [...out.filter((h) => !posted.some((p) => p.month === h.month && p.typeId === h.typeId)), ...posted];
+}

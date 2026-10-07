@@ -54,6 +54,22 @@ colors:
   peach-butter-wash: "rgba(216, 166, 42, 0.2)"
   peach-awning-stripe: "#eb9a76"
   peach-awning-cream: "#f8e3d3"
+  # chart series (trends only; never interactive, never status). See Colors > Data series.
+  statement-series-1: "#1d5fd6"
+  statement-series-2: "#8c2f6e"
+  statement-series-3: "#2e9fd0"
+  statement-series-4: "#5b3fa8"
+  statement-series-5: "#c2418f"
+  statement-dark-series-1: "#4f86e8"
+  statement-dark-series-2: "#b4508f"
+  statement-dark-series-3: "#3aa0d0"
+  statement-dark-series-4: "#7f66d8"
+  statement-dark-series-5: "#d465a5"
+  peach-series-1: "#b45031"
+  peach-series-2: "#51609e"
+  peach-series-3: "#9a3f6b"
+  peach-series-4: "#3e5fb0"
+  peach-series-5: "#c06090"
 typography:
   statement-page-title:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
@@ -271,6 +287,24 @@ strictly for status.
 - **Peach:** sage (`peach-sage`), rose (`peach-rose`) and butter (`peach-butter`), with their
   washes.
 
+### Data series
+Charts (trends) get five series colors per theme and per statement mode, `*-series-1` to
+`*-series-5` in the frontmatter. They're data, not interface: never a link, a button, a fill
+or a status. Slot 1 is the theme's accent and the rest avoid the status hues entirely, so a
+line never reads as paid, unpaid or due soon. Bill types take slots in the order they were
+created and keep them as data changes or as lines are toggled. A sixth type onward folds into
+"Other" in muted ink and a dotted stroke, never a generated sixth hue.
+- **Statement:** blue, plum, sky, violet, magenta.
+- **Statement dark:** the same hues, stepped for the graphite sheet.
+- **Peach:** deep peach, periwinkle, plum, cobalt, orchid.
+
+Each palette passes the dataviz validator against its own panel: lightness band, chroma
+floor, protanopia and deuteranopia separation between neighboring slots (8.8 or better), and
+3:1 against the panel. Without orange, green or yellow no set of four hues stays apart for
+every pair, so identity never rests on color alone. Each slot has its own point shape, the
+legend is a row of labelled toggle buttons, lines are named at their last point when four or
+fewer show, and the tooltip names every value.
+
 ### Named Rules
 **The Reserved Semantics Rule.** Green, red and amber (sage, rose and butter) belong to paid,
 unpaid and due soon (overdue reads as unpaid). Never use them for decoration, branding or
@@ -278,7 +312,8 @@ generic success and error. The one exception is flash messages, which borrow the
 washes for ok and err.
 
 **The One Accent Rule.** Each theme has exactly one interactive color. If something is
-clickable and not a status, it is the accent or it is ink.
+clickable and not a status, it is the accent or it is ink. Series colors are data and never
+clickable; the legend toggle that shows or hides a line is ink, with the series drawn in its swatch.
 
 **The Calm Red Rule.** Unpaid and overdue use the soft wash with colored text, never a solid red
 block. Owing money is information, not an alarm.
@@ -298,6 +333,9 @@ against their wash flattened onto each surface.
 | Rose on its wash (UNPAID, overdue) | 4.61 | 4.93 | 4.43 / 4.74 |
 | Butter on its wash (due soon) | 4.65 | 4.94 | 4.26 / 4.53 |
 | Periwinkle on its wash (info) | 4.64 | 4.98 | 3.73 / 4.00 |
+
+Series colors are marks, not text, and each clears 3:1 against its own panel (statement
+light, statement dark and peach).
 
 Statement light pairs measure 5.2:1 or better on page and panel. Its status tags measure at
 least 4.53:1 on their washes over the panel, where tags live. Statement dark pairs measure
@@ -389,7 +427,7 @@ states are a 2px accent underline, not a filled pill.
 
 **The awning** is peach's signature silhouette: a 10px band of 14px peach and cream stripes
 across the top of the page, finished with a 7px scalloped hem drawn by two offset radial
-gradients. It sits once, under the header. A slimmer cousin, `.panel-awning`, gives a panel a
+gradients. It sits once, at the very top of the header, with its hem hanging over the bar. A slimmer cousin, `.panel-awning`, gives a panel a
 6px striped top edge with no scallop.
 
 ## Components
@@ -432,15 +470,57 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
 
 ### Navigation
 - **Header:** a sheet-colored bar with a soft bottom rule. On the left is the household name as
-  the wordmark, which becomes a dropdown only for people in more than one household. On the
-  right are text links (Dashboard, Portal, Docs, Account) and Sign out.
+  the wordmark, with its tagline beside it in the eyebrow voice from `md`, and the wordmark
+  becomes a dropdown only for people in more than one household. On the right are text links
+  (Dashboard, Portal, Trends, Docs, Account) and Sign out. A feature that's off loses its link.
+- **Phone menu:** below `sm` the links fold into one "Menu" disclosure, a default button with a
+  caret. Its sheet drops under the header at full width with the dropdown shadow (it floats),
+  and the links stack at a 44px height, divided by soft rules. The current link is ink with a
+  2px accent rule on its left edge. The menu closes on every navigation.
 - **States:** links are muted sans at 0.875rem/500. Hover turns them ink, and the active link
   gets ink plus a 2px accent underline running the full bar height.
 - **Peach:** the awning sits at the very top, the wordmark is Fraunces, and a soft rule sits
   under the bar.
 - **No logo, in either theme.** The household name is the identity. Peach-cob's PeachMark was
   that house's mark and doesn't come over. A product mark arrives later, with the final brand.
-- **Portal tabs:** the same underline language at a smaller scale (`.tab`, `.tab-active`).
+- **Portal tabs** (`.tab`, `.tab-active`, `PortalTabs`): the same underline language at a
+  smaller scale, under the portal's page title. The labels are muted sans at 0.875rem/500 and
+  turn ink on hover, while the current tab is ink with a 2px accent underline. A soft rule runs
+  the full width beneath them, and they scroll sideways inside their own strip rather than
+  wrap, the one sanctioned horizontal scroll. Bills, Household and Settings show for everyone;
+  Email shows only to admins, and only while bulk email is on.
+
+### Confirm Dialog
+`ConfirmButton` asks before a destructive or consequential action: removing a member, a bill
+type or a document, sending a reminder, or saving a change of mode or payer. It is a native
+modal `<dialog>` (`.dialog`), a panel at the large radius with the dialog shadow over a 35%
+black scrim. Inside are a display-voice title that names the action and its object ("Remove
+Water?"), one or two muted sentences on what happens and what doesn't, then a ruled footer
+with Cancel (default, focused first, so Enter never confirms by accident) and the action as
+the primary button. Escape and the backdrop cancel, and focus returns to the trigger. Nothing
+uses the browser's `confirm()`. Routine saves never ask.
+
+### Choice Cards
+Settings choices with consequences (the mode, the theme) are radio cards: a 1px rule panel at
+the middle radius with a bold label and a muted line under it. The chosen card takes the accent
+border and the accent wash. Theme cards also carry a swatch of the theme drawn from its own
+tokens and faces (page, greeting in the display face, a PAID tag and a ledger figure), so the
+choice reads before saving.
+
+### Trends Chart
+A line per bill type on a panel, by statement month, at most 12 months ending this month: 2px
+lines with gentle tension, 4px point shapes ringed in the panel color, horizontal soft-rule
+grid lines only, and muted mono ticks. It draws in place with no entrance animation. Above it
+sits a row of legend toggles (`.legend-toggle`, `aria-pressed`): small default buttons with the
+series swatch, struck through and dimmed when off. The "compare with a year earlier" option
+(`.legend-option`) adds dashed lines at 55% and reads as a wash when on. The chart rebuilds when
+the theme or the device scheme changes. Under it, a ledger table of totals per type is the
+text equivalent: on a phone each figure takes its own line, label left, amount right.
+
+### Calendar Links
+Two small default buttons with a drawn calendar icon, "Apple Calendar" (`webcal://`) and
+"Google Calendar". They sit at the right of the dashboard greeting, and on `/account` beside
+the copyable link and the reset.
 
 ### Ledger Table (signature)
 The ruled table is the system's main element. It has mono uppercase eyebrow headers over a 16%
@@ -492,6 +572,10 @@ without opting in.
 - **Do** change a theme color in `lib/theme-tokens.ts` first, then mirror it in
   `app/globals.css`, this file and `.impeccable/design.json` until `npm run verify -- tokens`
   passes.
+- **Do** give a chart a legend of real buttons, a point shape per series, and a table that
+  says the same thing in figures. Take series colors from `--series-N` in slot order.
+- **Do** ask with `ConfirmButton` before anything that removes, sends or reassigns, and never
+  with the browser's `confirm()`.
 - **Do** let the global reduced-motion rule handle motion. Never re-enable animation with
   `!important` under `prefers-reduced-motion`.
 
@@ -500,7 +584,7 @@ without opting in.
   pills and the warm palette are intentional, not slop.
 - **Don't** give peach a dark mode. It is light-only on purpose.
 - **Don't** use green, red or amber (sage, rose or butter) for anything but paid, unpaid and due
-  soon, and don't add a second accent to statement.
+  soon, and don't add a second accent to statement. Series colors stay inside charts.
 - **Don't** fill a block with solid red for an unpaid or overdue state. Use the wash and colored
   text.
 - **Don't** add shadows, gradients or glows to panels, cards or buttons at rest. The awning

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { removeDocumentAction, updateDocumentAction } from "@/app/documents/actions";
+import ConfirmButton from "@/app/components/ConfirmButton";
 import { PencilIcon, TrashIcon } from "@/app/components/icons";
 
 interface CategoryOption {
@@ -38,24 +39,18 @@ export default function DocumentActions({
         <PencilIcon />
       </button>
 
-      <form
-        action={removeDocumentAction}
-        onSubmit={(e) => {
-          if (!confirm(`Remove ${document.title}? This deletes the file too.`)) {
-            e.preventDefault();
-          }
-        }}
-        className="inline"
-      >
+      <form action={removeDocumentAction} className="inline">
         <input type="hidden" name="documentId" value={document.id} />
-        <button
-          type="submit"
+        <ConfirmButton
           className="btn-icon"
-          title="Remove document"
-          aria-label={`Remove ${document.title}`}
+          buttonProps={{ title: "Remove document", "aria-label": `Remove ${document.title}` }}
+          title={`Remove ${document.title}?`}
+          body="The file is deleted for everyone in the household. This can't be undone."
+          confirmLabel="Remove"
+          pendingLabel="Removing…"
         >
           <TrashIcon />
-        </button>
+        </ConfirmButton>
       </form>
 
       {editing && (

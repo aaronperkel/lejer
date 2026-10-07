@@ -112,7 +112,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                     </td>
                     <td className="cell-owes">
                       <span className="eyebrow mb-1.5 sm:hidden">Paid {bill.ownerName ?? "back"}</span>
-                      {debts.length > 0 ? <PaymentCheckboxes billId={bill.id} debts={debts} canEdit={canManage && !ctx.demo} /> : <span className="text-ink-muted">Nobody owes</span>}
+                      {debts.length > 0 ? <PaymentCheckboxes billId={bill.id} billLabel={`${bill.typeName}, ${shortDate(bill.billDate)}`} debts={debts} canEdit={canManage && !ctx.demo} /> : <span className="text-ink-muted">Nobody owes</span>}
                     </td>
                     <td className="num cell-amount">
                       <div className="figure font-medium">${money(bill.total)}</div>
@@ -130,7 +130,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                             </a>
                           </>
                         )}
-                        {canManage && bill.status !== "paid" && <ReminderButton billId={bill.id} />}
+                        {canManage && bill.status !== "paid" && <ReminderButton billId={bill.id} typeName={bill.typeName} />}
                       </div>
                     </td>
                   </tr>

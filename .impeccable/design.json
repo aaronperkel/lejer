@@ -800,6 +800,246 @@
           "oklch(82% 0.032 59.7)",
           "oklch(95% 0.032 59.7)"
         ]
+      },
+      "statement-series-1": {
+        "role": "data",
+        "displayName": "Statement Series 1",
+        "canonical": "#1d5fd6",
+        "oklch": "oklch(51.9% 0.195 261.2)",
+        "tonalRamp": [
+          "oklch(15% 0.100 261.2)",
+          "oklch(26% 0.100 261.2)",
+          "oklch(37% 0.100 261.2)",
+          "oklch(48% 0.100 261.2)",
+          "oklch(59% 0.100 261.2)",
+          "oklch(70% 0.100 261.2)",
+          "oklch(82% 0.100 261.2)",
+          "oklch(95% 0.100 261.2)"
+        ]
+      },
+      "statement-series-2": {
+        "role": "data",
+        "displayName": "Statement Series 2",
+        "canonical": "#8c2f6e",
+        "oklch": "oklch(46.3% 0.145 342.8)",
+        "tonalRamp": [
+          "oklch(15% 0.100 342.8)",
+          "oklch(26% 0.100 342.8)",
+          "oklch(37% 0.100 342.8)",
+          "oklch(48% 0.100 342.8)",
+          "oklch(59% 0.100 342.8)",
+          "oklch(70% 0.100 342.8)",
+          "oklch(82% 0.100 342.8)",
+          "oklch(95% 0.100 342.8)"
+        ]
+      },
+      "statement-series-3": {
+        "role": "data",
+        "displayName": "Statement Series 3",
+        "canonical": "#2e9fd0",
+        "oklch": "oklch(66.2% 0.121 232.0)",
+        "tonalRamp": [
+          "oklch(15% 0.100 232.0)",
+          "oklch(26% 0.100 232.0)",
+          "oklch(37% 0.100 232.0)",
+          "oklch(48% 0.100 232.0)",
+          "oklch(59% 0.100 232.0)",
+          "oklch(70% 0.100 232.0)",
+          "oklch(82% 0.100 232.0)",
+          "oklch(95% 0.100 232.0)"
+        ]
+      },
+      "statement-series-4": {
+        "role": "data",
+        "displayName": "Statement Series 4",
+        "canonical": "#5b3fa8",
+        "oklch": "oklch(45.8% 0.161 291.0)",
+        "tonalRamp": [
+          "oklch(15% 0.100 291.0)",
+          "oklch(26% 0.100 291.0)",
+          "oklch(37% 0.100 291.0)",
+          "oklch(48% 0.100 291.0)",
+          "oklch(59% 0.100 291.0)",
+          "oklch(70% 0.100 291.0)",
+          "oklch(82% 0.100 291.0)",
+          "oklch(95% 0.100 291.0)"
+        ]
+      },
+      "statement-series-5": {
+        "role": "data",
+        "displayName": "Statement Series 5",
+        "canonical": "#c2418f",
+        "oklch": "oklch(58.1% 0.183 347.0)",
+        "tonalRamp": [
+          "oklch(15% 0.100 347.0)",
+          "oklch(26% 0.100 347.0)",
+          "oklch(37% 0.100 347.0)",
+          "oklch(48% 0.100 347.0)",
+          "oklch(59% 0.100 347.0)",
+          "oklch(70% 0.100 347.0)",
+          "oklch(82% 0.100 347.0)",
+          "oklch(95% 0.100 347.0)"
+        ]
+      },
+      "statement-dark-series-1": {
+        "role": "data",
+        "displayName": "Statement Dark Series 1",
+        "canonical": "#4f86e8",
+        "oklch": "oklch(63.0% 0.159 261.0)",
+        "tonalRamp": [
+          "oklch(15% 0.100 261.0)",
+          "oklch(26% 0.100 261.0)",
+          "oklch(37% 0.100 261.0)",
+          "oklch(48% 0.100 261.0)",
+          "oklch(59% 0.100 261.0)",
+          "oklch(70% 0.100 261.0)",
+          "oklch(82% 0.100 261.0)",
+          "oklch(95% 0.100 261.0)"
+        ]
+      },
+      "statement-dark-series-2": {
+        "role": "data",
+        "displayName": "Statement Dark Series 2",
+        "canonical": "#b4508f",
+        "oklch": "oklch(57.8% 0.149 344.1)",
+        "tonalRamp": [
+          "oklch(15% 0.100 344.1)",
+          "oklch(26% 0.100 344.1)",
+          "oklch(37% 0.100 344.1)",
+          "oklch(48% 0.100 344.1)",
+          "oklch(59% 0.100 344.1)",
+          "oklch(70% 0.100 344.1)",
+          "oklch(82% 0.100 344.1)",
+          "oklch(95% 0.100 344.1)"
+        ]
+      },
+      "statement-dark-series-3": {
+        "role": "data",
+        "displayName": "Statement Dark Series 3",
+        "canonical": "#3aa0d0",
+        "oklch": "oklch(66.8% 0.116 232.9)",
+        "tonalRamp": [
+          "oklch(15% 0.100 232.9)",
+          "oklch(26% 0.100 232.9)",
+          "oklch(37% 0.100 232.9)",
+          "oklch(48% 0.100 232.9)",
+          "oklch(59% 0.100 232.9)",
+          "oklch(70% 0.100 232.9)",
+          "oklch(82% 0.100 232.9)",
+          "oklch(95% 0.100 232.9)"
+        ]
+      },
+      "statement-dark-series-4": {
+        "role": "data",
+        "displayName": "Statement Dark Series 4",
+        "canonical": "#7f66d8",
+        "oklch": "oklch(59.0% 0.168 290.4)",
+        "tonalRamp": [
+          "oklch(15% 0.100 290.4)",
+          "oklch(26% 0.100 290.4)",
+          "oklch(37% 0.100 290.4)",
+          "oklch(48% 0.100 290.4)",
+          "oklch(59% 0.100 290.4)",
+          "oklch(70% 0.100 290.4)",
+          "oklch(82% 0.100 290.4)",
+          "oklch(95% 0.100 290.4)"
+        ]
+      },
+      "statement-dark-series-5": {
+        "role": "data",
+        "displayName": "Statement Dark Series 5",
+        "canonical": "#d465a5",
+        "oklch": "oklch(65.9% 0.157 346.6)",
+        "tonalRamp": [
+          "oklch(15% 0.100 346.6)",
+          "oklch(26% 0.100 346.6)",
+          "oklch(37% 0.100 346.6)",
+          "oklch(48% 0.100 346.6)",
+          "oklch(59% 0.100 346.6)",
+          "oklch(70% 0.100 346.6)",
+          "oklch(82% 0.100 346.6)",
+          "oklch(95% 0.100 346.6)"
+        ]
+      },
+      "peach-series-1": {
+        "role": "data",
+        "displayName": "Peach Series 1",
+        "canonical": "#b45031",
+        "oklch": "oklch(55.4% 0.138 37.7)",
+        "tonalRamp": [
+          "oklch(15% 0.100 37.7)",
+          "oklch(26% 0.100 37.7)",
+          "oklch(37% 0.100 37.7)",
+          "oklch(48% 0.100 37.7)",
+          "oklch(59% 0.100 37.7)",
+          "oklch(70% 0.100 37.7)",
+          "oklch(82% 0.100 37.7)",
+          "oklch(95% 0.100 37.7)"
+        ]
+      },
+      "peach-series-2": {
+        "role": "data",
+        "displayName": "Peach Series 2",
+        "canonical": "#51609e",
+        "oklch": "oklch(50.5% 0.100 272.1)",
+        "tonalRamp": [
+          "oklch(15% 0.100 272.1)",
+          "oklch(26% 0.100 272.1)",
+          "oklch(37% 0.100 272.1)",
+          "oklch(48% 0.100 272.1)",
+          "oklch(59% 0.100 272.1)",
+          "oklch(70% 0.100 272.1)",
+          "oklch(82% 0.100 272.1)",
+          "oklch(95% 0.100 272.1)"
+        ]
+      },
+      "peach-series-3": {
+        "role": "data",
+        "displayName": "Peach Series 3",
+        "canonical": "#9a3f6b",
+        "oklch": "oklch(50.3% 0.131 352.7)",
+        "tonalRamp": [
+          "oklch(15% 0.100 352.7)",
+          "oklch(26% 0.100 352.7)",
+          "oklch(37% 0.100 352.7)",
+          "oklch(48% 0.100 352.7)",
+          "oklch(59% 0.100 352.7)",
+          "oklch(70% 0.100 352.7)",
+          "oklch(82% 0.100 352.7)",
+          "oklch(95% 0.100 352.7)"
+        ]
+      },
+      "peach-series-4": {
+        "role": "data",
+        "displayName": "Peach Series 4",
+        "canonical": "#3e5fb0",
+        "oklch": "oklch(50.3% 0.134 265.2)",
+        "tonalRamp": [
+          "oklch(15% 0.100 265.2)",
+          "oklch(26% 0.100 265.2)",
+          "oklch(37% 0.100 265.2)",
+          "oklch(48% 0.100 265.2)",
+          "oklch(59% 0.100 265.2)",
+          "oklch(70% 0.100 265.2)",
+          "oklch(82% 0.100 265.2)",
+          "oklch(95% 0.100 265.2)"
+        ]
+      },
+      "peach-series-5": {
+        "role": "data",
+        "displayName": "Peach Series 5",
+        "canonical": "#c06090",
+        "oklch": "oklch(61.7% 0.135 350.5)",
+        "tonalRamp": [
+          "oklch(15% 0.100 350.5)",
+          "oklch(26% 0.100 350.5)",
+          "oklch(37% 0.100 350.5)",
+          "oklch(48% 0.100 350.5)",
+          "oklch(59% 0.100 350.5)",
+          "oklch(70% 0.100 350.5)",
+          "oklch(82% 0.100 350.5)",
+          "oklch(95% 0.100 350.5)"
+        ]
       }
     },
     "typographyMeta": {
@@ -1097,6 +1337,38 @@
       "description": "Peach's deep-peach button with cream label, rounder 10px corners, and bold Courier pill tags in sage/rose/butter.",
       "html": "<div class=\"ds-prow\"><button class=\"ds-pbtn\">Post bill</button><span class=\"ds-ptag ds-ppaid\">Paid</span><span class=\"ds-ptag ds-punpaid\">Unpaid</span><span class=\"ds-pdue\">Due in 2 days</span></div>",
       "css": ".ds-prow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px;background:#faf3e7}.ds-pbtn{min-height:36px;padding:8px 14px;border-radius:10px;border:1px solid #b45031;background:#b45031;color:#fff6ec;font:500 .875rem Karla,system-ui,sans-serif;cursor:pointer;transition:background-color .1s}.ds-pbtn:hover{background:#a34527;border-color:#a34527}.ds-pbtn:focus-visible{outline:2px solid #b45031;outline-offset:2px}.ds-ptag,.ds-pdue{display:inline-block;border-radius:9999px;padding:2px 8px;font:700 .7rem 'Courier Prime','Courier New',monospace}.ds-ptag{text-transform:uppercase;letter-spacing:.08em}.ds-ppaid{background:rgba(94,133,90,.16);color:#406c45}.ds-punpaid{background:rgba(177,68,61,.1);color:#ae413a}.ds-pdue{font-weight:400;letter-spacing:.02em;background:rgba(216,166,42,.2);color:#845e09}"
+    },
+    {
+      "name": "Portal Tabs",
+      "kind": "navigation",
+      "refersTo": "tab",
+      "description": "Section tabs under the portal title: muted sans labels, ink plus a 2px accent underline for the current one, a soft rule beneath. Email shows only to admins with bulk email on.",
+      "html": "<div class=\"ds-tabs\"><a class=\"ds-tab ds-tab-active\" aria-current=\"page\">Bills</a><a class=\"ds-tab\">Household</a><a class=\"ds-tab\">Settings</a></div>",
+      "css": ".ds-tabs{display:flex;gap:20px;border-bottom:1px solid var(--line-soft, rgba(27,37,48,.08));overflow-x:auto}.ds-tab{display:inline-flex;padding:0 4px 8px;border-bottom:2px solid transparent;font:500 .875rem/1.4 system-ui,sans-serif;color:var(--ink-muted, #5b6875);text-decoration:none}.ds-tab:hover{color:var(--ink, #1b2530)}.ds-tab-active{border-color:var(--accent, #1d5fd6);color:var(--ink, #1b2530)}"
+    },
+    {
+      "name": "Confirm Dialog",
+      "kind": "dialog",
+      "refersTo": "dialog",
+      "description": "Native modal <dialog> before anything that removes, sends or reassigns: a display-voice title naming the action, one or two muted sentences, Cancel (focused first) and the action as the primary button.",
+      "html": "<div class=\"ds-dialog\"><div class=\"ds-dialog-body\"><h2>Remove Water?</h2><p>It disappears from the add-bill list. A type with bills on record can't be removed, so nothing posted is lost.</p></div><div class=\"ds-dialog-foot\"><button class=\"ds-btn\">Cancel</button><button class=\"ds-btn ds-btn-primary\">Remove</button></div></div>",
+      "css": ".ds-dialog{width:min(28rem,100%);border:1px solid var(--line-soft, rgba(27,37,48,.08));border-radius:10px;background:var(--panel, #fff);box-shadow:0 20px 25px -5px rgb(0 0 0/.1),0 8px 10px -6px rgb(0 0 0/.1)}.ds-dialog-body{padding:20px 20px 16px}.ds-dialog-body h2{margin:0;font:600 1.125rem/1.35 system-ui,sans-serif}.ds-dialog-body p{margin:8px 0 0;font:400 .875rem/1.55 system-ui,sans-serif;color:var(--ink-muted, #5b6875)}.ds-dialog-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--line-soft, rgba(27,37,48,.08))}"
+    },
+    {
+      "name": "Phone Menu",
+      "kind": "navigation",
+      "refersTo": "nav-menu",
+      "description": "Below sm the header links fold into one Menu disclosure; its sheet drops full width under the header with the dropdown shadow, links stacked at 44px, the current one marked by a 2px accent rule on its left edge.",
+      "html": "<div class=\"ds-menu\"><a class=\"ds-menu-link ds-current\">Dashboard</a><a class=\"ds-menu-link\">Portal</a><a class=\"ds-menu-link\">Trends</a></div>",
+      "css": ".ds-menu{background:var(--panel, #fff);padding:4px 16px 12px;box-shadow:0 1px 3px 0 rgb(0 0 0/.1),0 1px 2px -1px rgb(0 0 0/.1)}.ds-menu-link{display:flex;align-items:center;min-height:44px;border-bottom:1px solid var(--line-soft, rgba(27,37,48,.08));font:500 .95rem system-ui,sans-serif;color:var(--ink-muted, #5b6875)}.ds-current{color:var(--ink, #1b2530);box-shadow:inset 2px 0 0 var(--accent, #1d5fd6);padding-left:12px}"
+    },
+    {
+      "name": "Trends Legend",
+      "kind": "chart",
+      "refersTo": "legend-toggle",
+      "description": "One toggle button per series with its swatch (stroke plus point shape) in the series color; struck through and dimmed when hidden. Series colors come from --series-N, never from status colors.",
+      "html": "<div class=\"ds-legend\"><button class=\"ds-lt\" aria-pressed=\"true\"><i style=\"background:var(--series-1,#1d5fd6)\"></i>Electric</button><button class=\"ds-lt\" aria-pressed=\"false\"><i style=\"background:var(--series-2,#8c2f6e)\"></i>Gas</button></div>",
+      "css": ".ds-legend{display:flex;gap:8px;flex-wrap:wrap}.ds-lt{display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 10px;border:1px solid var(--line-soft, rgba(27,37,48,.08));border-radius:6px;background:var(--panel, #fff);font:500 .8rem system-ui,sans-serif;color:var(--ink, #1b2530)}.ds-lt i{width:18px;height:2px}.ds-lt[aria-pressed=false]{color:var(--ink-muted, #5b6875);text-decoration:line-through}.ds-lt[aria-pressed=false] i{opacity:.3}"
     }
   ],
   "narrative": {

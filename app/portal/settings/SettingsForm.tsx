@@ -2,54 +2,55 @@
 
 import { useActionState, useState } from "react";
 import { type SettingsState, saveSettingsAction } from "@/app/portal/settings/actions";
+import ConfirmButton from "@/app/components/ConfirmButton";
 import TimezoneSelect from "@/app/components/TimezoneSelect";
 import { BRAND } from "@/lib/brand";
-import type { SettingsForm as Values } from "@/lib/settings";
+import { FEATURES, type Feature } from "@/lib/features";
+import { BILLS_PER_PAGE, NAME_MAX, TAGLINE_MAX, type SettingsForm as Values } from "@/lib/settings-form";
+import { THEME_COLORS } from "@/lib/theme-tokens";
+import type { Household } from "@/lib/types";
 import { hourLabel, scheduleSentence } from "./schedule";
+
+export interface SettingsContext {
+  zones: string[];
+  householdName: string;
+  slug: string;
+  /** As saved: the confirm dialog compares against these. */
+  savedMode: Household["mode"];
+  savedPayerId: string;
+  members: { id: number; name: string }[];
+  overdueEvery: number;
+  readout: React.ReactNode;
+}
 
 /**
  * The admin's settings form: one form, one Save. Errors come back inline with everything that
  * was typed (useActionState); the schedule sentence and the sender preview follow the inputs as
  * they change, so the effect of a number is readable before saving.
  */
-export default function SettingsForm({
-  initial,
-  zones,
-  householdName,
-  overdueEvery,
-  readout,
-}: {
-  initial: Values;
-  zones: string[];
-  householdName: string;
-  overdueEvery: number;
-  readout: React.ReactNode;
-}) {
+export default function SettingsForm({ initial, context }: { initial: Values; context: SettingsContext }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(saveSettingsAction, { errors: [] });
   const v = state.values ?? initial;
   // Keyed on the echoed values so a failed save re-seeds the live previews from what was typed.
-  return <Fields key={JSON.stringify(v)} v={v} state={state} formAction={formAction} pending={pending} zones={zones} householdName={householdName} overdueEvery={overdueEvery} readout={readout} />;
+  return <Fields key={JSON.stringify(v)} v={v} state={state} formAction={formAction} pending={pending} c={context} />;
 }
 
-function Fields({
-  v,
-  state,
-  formAction,
-  pending,
-  zones,
-  householdName,
-  overdueEvery,
-  readout,
-}: {
-  v: Values;
-  state: SettingsState;
-  formAction: (fd: FormData) => void;
-  pending: boolean;
-  zones: string[];
-  householdName: string;
-  overdueEvery: number;
-  readout: React.ReactNode;
-}) {
+function Fields({ v, state, formAction, pending, c }: { v: Values; state: SettingsState; formAction: (fd: FormData) => void; pending: boolean; c: SettingsContext }) {
+  const { zones, householdName, overdueEvery, readout } = c;
+  const [mode, setMode] = useState(v.mode);
+  const [payerId, setPayerId] = useState(v.payerId || c.savedPayerId || String(c.members[0]?.id ?? ""));
+  const [theme, setTheme] = useState(v.theme);
+  const [features, setFeatures] = useState(v.features);
+  const payerName = c.members.find((m) => String(m.id) === payerId)?.name ?? "the payer";
+  // Saving these changes who owns what from now on, so the button asks first.
+  const modeChange =
+    mode !== c.savedMode
+      ? mode === "single_payer"
+        ? { title: "Switch to single payer?", body: `Every bill type will belong to ${payerName}, and the dashboard will say what each person owes them. Bills already posted keep the owner they were posted with, so anything still owed on them is owed to whoever fronted it.` }
+        : { title: "Switch to a ledger?", body: "Each bill type keeps its current owner, and the owner column comes back so you can hand types to different people. Bills already posted don't change." }
+      : mode === "single_payer" && payerId !== c.savedPayerId
+        ? { title: `Make ${payerName} the payer?`, body: `Every bill type will belong to ${payerName} from now on. Bills already posted keep their owner.` }
+        : null;
   const [enabled, setEnabled] = useState(v.remindersEnabled);
   const [first, setFirst] = useState(v.firstReminderDays);
   const [urgent, setUrgent] = useState(v.urgentReminderDays);
@@ -59,6 +60,10 @@ function Fields({
 
   return (
     <form action={formAction} className="space-y-8">
+      {/* While a mode or payer change is pending, Enter in a field must not save past the
+          question: the first submit button is the form's default, and a disabled one blocks
+          implicit submission. Save (which asks) is the only way through. */}
+      {modeChange && <button type="submit" disabled hidden aria-hidden="true" tabIndex={-1} />}
       {state.errors.length > 0 && (
         <div className="flash flash-err" role="alert">
           <ul className={state.errors.length > 1 ? "list-disc pl-5" : ""}>
@@ -69,9 +74,150 @@ function Fields({
         </div>
       )}
 
+      <Group title="Household">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="field-label" htmlFor="name">Name</label>
+            <input className="field-input" id="name" name="name" defaultValue={v.name} maxLength={NAME_MAX} required autoComplete="off" />
+          </div>
+          <div>
+            <label className="field-label" htmlFor="tagline">Tagline</label>
+            <input className="field-input" id="tagline" name="tagline" defaultValue={v.tagline} maxLength={TAGLINE_MAX} placeholder="Optional, like “Utilities, split evenly”" autoComplete="off" />
+            <p className="mt-1 text-xs text-ink-muted">Shown beside the name in the header on wider screens.</p>
+          </div>
+        </div>
+        <p className="text-xs text-ink-muted">
+          Household ID <span className="figure text-ink">{c.slug}</span> stays the same when you rename it.
+        </p>
+
+        <fieldset>
+          <legend className="field-label">How bills are split</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ChoiceCard name="mode" value="single_payer" checked={mode === "single_payer"} onChange={setMode} title="One person pays every bill">
+              Everyone else owes that person their share. The dashboard just says what you owe.
+            </ChoiceCard>
+            <ChoiceCard name="mode" value="ledger" checked={mode === "ledger"} onChange={setMode} title="Each bill type has an owner">
+              Whoever has the account fronts it, and the house ledger shows who owes whom.
+            </ChoiceCard>
+          </div>
+        </fieldset>
+        {mode === "single_payer" && (
+          <div className="sm:max-w-sm">
+            <label className="field-label" htmlFor="payerId">Who pays every bill?</label>
+            <select className="field-input" id="payerId" name="payerId" value={payerId} onChange={(e) => setPayerId(e.target.value)}>
+              {c.members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-ink-muted">They own every bill type. Bills already posted keep the owner they had.</p>
+          </div>
+        )}
+      </Group>
+
+      <Group title="Look">
+        <fieldset>
+          <legend className="field-label">Theme</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ThemeCard value="statement" checked={theme === "statement"} onChange={setTheme} title="Statement" note="Grey paper, one blue, and a monospace ledger. Follows dark mode if you like." />
+            <ThemeCard value="peach" checked={theme === "peach"} onChange={setTheme} title="Peach" note="Cream paper under a striped awning, with a typewriter ledger. Always light." />
+          </div>
+        </fieldset>
+        {theme === "statement" ? (
+          <fieldset>
+            <legend className="field-label">Dark mode</legend>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="colorScheme" value="system" defaultChecked={v.colorScheme !== "light"} className="size-4" />
+                Match each person&apos;s device
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="radio" name="colorScheme" value="light" defaultChecked={v.colorScheme === "light"} className="size-4" />
+                Always light
+              </label>
+            </div>
+          </fieldset>
+        ) : (
+          <input type="hidden" name="colorScheme" value="light" />
+        )}
+        <p className="text-sm text-ink-muted">The theme is for everyone in {householdName}, and household email follows it too.</p>
+      </Group>
+
+      <Group title="Features">
+        <ul className="divide-y divide-line-soft">
+          {(Object.keys(FEATURES) as Feature[]).map((k) => (
+            <li key={k} className="py-3 first:pt-0 last:pb-0">
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  name={`feature_${k}`}
+                  checked={features[k]}
+                  onChange={(e) => setFeatures({ ...features, [k]: e.target.checked })}
+                  className="mt-1 size-4 shrink-0"
+                />
+                <span>
+                  <span className="block text-sm font-semibold">{FEATURES[k].label}</span>
+                  <span className="block text-sm text-ink-muted">{FEATURES[k].hint}</span>
+                </span>
+              </label>
+              {k === "rent" && (
+                <fieldset disabled={!features.rent} hidden={!features.rent} className="mt-3 grid gap-4 pl-7 sm:grid-cols-3">
+                  <legend className="sr-only">Rent</legend>
+                  <div>
+                    <label className="field-label" htmlFor="monthlyRent">Monthly rent</label>
+                    <div className="flex items-center gap-1.5">
+                      <span className="figure text-ink-muted" aria-hidden="true">$</span>
+                      <input className="field-input figure" id="monthlyRent" name="monthlyRent" inputMode="decimal" defaultValue={v.monthlyRent} placeholder="0.00" autoComplete="off" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="leaseStart">Lease starts</label>
+                    <input className="field-input figure" id="leaseStart" name="leaseStart" type="date" defaultValue={v.leaseStart} />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="leaseEnd">Lease ends</label>
+                    <input className="field-input figure" id="leaseEnd" name="leaseEnd" type="date" defaultValue={v.leaseEnd} />
+                  </div>
+                  <p className="text-xs text-ink-muted sm:col-span-3">Rent shows up on the 1st of each month of the lease in everyone&apos;s calendar feed.</p>
+                </fieldset>
+              )}
+            </li>
+          ))}
+        </ul>
+        {/* A disabled fieldset doesn't submit; keep the saved rent while the feature is off. */}
+        {!features.rent && (
+          <>
+            <input type="hidden" name="monthlyRent" value={v.monthlyRent} />
+            <input type="hidden" name="leaseStart" value={v.leaseStart} />
+            <input type="hidden" name="leaseEnd" value={v.leaseEnd} />
+          </>
+        )}
+      </Group>
+
+      <Group title="Bills">
+        <label className="flex items-start gap-3">
+          <input type="checkbox" name="askBillDate" defaultChecked={v.askBillDate} className="mt-1 size-4 shrink-0" />
+          <span>
+            <span className="block text-sm font-semibold">Ask for the statement date when posting a bill</span>
+            <span className="block text-sm text-ink-muted">When it&apos;s off, each bill is dated the day it&apos;s posted.</span>
+          </span>
+        </label>
+        <div className="sm:max-w-48">
+          <label className="field-label" htmlFor="billsPerPage">Bills per page</label>
+          <select className="field-input figure" id="billsPerPage" name="billsPerPage" defaultValue={v.billsPerPage}>
+            {BILLS_PER_PAGE.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Group>
+
       <Group title="Reminders">
         <label className="flex items-start gap-3">
-          <input type="checkbox" name="remindersEnabled" defaultChecked={v.remindersEnabled} onChange={(e) => setEnabled(e.target.checked)} className="mt-1 size-4 accent-(--accent)" />
+          <input type="checkbox" name="remindersEnabled" defaultChecked={v.remindersEnabled} onChange={(e) => setEnabled(e.target.checked)} className="mt-1 size-4" />
           <span>
             <span className="block text-sm font-semibold">Email reminders before bills are due</span>
             <span className="block text-sm text-ink-muted">Only people who still owe get one. The reminder button on each bill works either way.</span>
@@ -139,9 +285,15 @@ function Fields({
       </Group>
 
       <div className="flex items-center gap-3 border-t border-line-soft pt-5">
-        <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
-          {pending ? "Saving…" : "Save settings"}
-        </button>
+        {modeChange ? (
+          <ConfirmButton className="btn btn-primary" title={modeChange.title} body={modeChange.body} confirmLabel="Save settings" pendingLabel="Saving…">
+            {pending ? "Saving…" : "Save settings"}
+          </ConfirmButton>
+        ) : (
+          <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
+            {pending ? "Saving…" : "Save settings"}
+          </button>
+        )}
       </div>
     </form>
   );
@@ -170,5 +322,53 @@ function DaysField({ id, label, value, min, onChange }: { id: string; label: str
         <span className="text-sm text-ink-muted">days before due</span>
       </div>
     </div>
+  );
+}
+
+function ChoiceCard({ name, value, checked, onChange, title, children }: { name: string; value: string; checked: boolean; onChange: (v: string) => void; title: string; children: React.ReactNode }) {
+  return (
+    <label className={`flex cursor-pointer items-start gap-3 rounded-(--radius-md) border p-4 transition-colors duration-100 ${checked ? "border-accent bg-accent-soft" : "border-line hover:border-ink/40"}`}>
+      <input type="radio" name={name} value={value} checked={checked} onChange={() => onChange(value)} className="mt-1 size-4 shrink-0" />
+      <span>
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-sm text-ink-muted">{children}</span>
+      </span>
+    </label>
+  );
+}
+
+/**
+ * A theme choice with a small swatch of that theme drawn from its own tokens and faces, so the
+ * choice reads before saving (the page itself keeps the saved theme until then).
+ */
+function ThemeCard({ value, checked, onChange, title, note }: { value: "statement" | "peach"; checked: boolean; onChange: (v: string) => void; title: string; note: string }) {
+  const t = THEME_COLORS[value];
+  const peach = value === "peach";
+  return (
+    <label className={`flex cursor-pointer flex-col overflow-hidden rounded-(--radius-md) border transition-colors duration-100 ${checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-ink/40"}`}>
+      <span aria-hidden="true" className="block" style={{ background: t.page }}>
+        {peach && <span className="block h-1.5" style={{ background: `repeating-linear-gradient(90deg, ${THEME_COLORS.peach.stripeA} 0 14px, ${THEME_COLORS.peach.stripeB} 14px 28px)` }} />}
+        <span className="flex items-center justify-between gap-3 px-4 py-3">
+          <span className="text-base font-semibold" style={{ color: t.ink, fontFamily: peach ? "var(--nf-fraunces), Georgia, serif" : "system-ui, sans-serif" }}>
+            Hi, Robin
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em]" style={{ color: t.paid, background: t.paidSoft, borderRadius: peach ? 9999 : 4, padding: "1px 6px", fontFamily: peach ? "var(--nf-courier), monospace" : "var(--nf-plex), monospace" }}>
+              Paid
+            </span>
+            <span className="text-sm font-semibold tabular-nums" style={{ color: t.ink, fontFamily: peach ? "var(--nf-courier), monospace" : "var(--nf-plex), monospace" }}>
+              $26.03
+            </span>
+          </span>
+        </span>
+      </span>
+      <span className="flex items-start gap-3 border-t border-line-soft p-4">
+        <input type="radio" name="theme" value={value} checked={checked} onChange={() => onChange(value)} className="mt-1 size-4 shrink-0" />
+        <span>
+          <span className="block text-sm font-semibold">{title}</span>
+          <span className="block text-sm text-ink-muted">{note}</span>
+        </span>
+      </span>
+    </label>
   );
 }

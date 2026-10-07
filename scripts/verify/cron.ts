@@ -13,7 +13,7 @@ import { withHousehold } from "@/lib/db";
 import { ActionError } from "@/lib/errors";
 import { CRON_DAILY_LIMIT, BULK_DAILY_LIMIT, type Mailer, sendsToday } from "@/lib/mail";
 import { OVERDUE_EVERY_DAYS, dueReminders, reminderLevel, reminderMessage } from "@/lib/reminders";
-import { parseSettings } from "@/lib/settings";
+import { type SettingsForm, parseSettings } from "@/lib/settings";
 import { THANKS_DELAY_MINUTES, flushThanks } from "@/lib/thanks";
 import { localDate, localHour } from "@/lib/time";
 import { LOG_MARK, type Results, type Sql, addMember, ctxFor, makeHousehold } from "./harness";
@@ -321,7 +321,12 @@ export async function cron(r: Results, { owner }: { owner: Sql }) {
 
   // ---------------------------------------------------------------------------------------------
   r.section("cron: settings validation (pure)");
-  const base = { remindersEnabled: true, sendHour: "9", firstReminderDays: "7", urgentReminderDays: "3", timezone: "America/New_York", fromName: "", replyTo: "", digestEmail: "" };
+  const base: SettingsForm = {
+    name: "Elm", tagline: "", mode: "ledger", payerId: "", theme: "statement", colorScheme: "system",
+    features: { rent: false, trends: false, bulkEmail: false, documents: false, welcomeTour: false, thanks: true },
+    monthlyRent: "", leaseStart: "", leaseEnd: "", askBillDate: false, billsPerPage: "10",
+    remindersEnabled: true, sendHour: "9", firstReminderDays: "7", urgentReminderDays: "3", timezone: "America/New_York", fromName: "", replyTo: "", digestEmail: "",
+  };
   const parse = (over: Partial<typeof base>) => {
     try {
       return parseSettings({ ...base, ...over });

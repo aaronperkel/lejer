@@ -6,18 +6,19 @@ import { BRAND } from "@/lib/brand";
 import { OVERDUE_EVERY_DAYS } from "@/lib/reminders";
 import { localDate, localHour } from "@/lib/time";
 import type { Household, ReminderRun } from "@/lib/types";
+import { FEATURES, type Feature, hasFeature } from "@/lib/features";
+import { settingsFormFrom } from "@/lib/settings";
 import { loadSettings } from "@/lib/views";
 import SettingsForm from "./SettingsForm";
 import { hourLabel, scheduleSentence } from "./schedule";
 
 export const metadata: Metadata = { title: "Settings" };
 
-// Phase 4's settings: the reminder schedule, the timezone, and email identity. Everyone can read
-// them; only admins get the form. Feature toggles, look, bills and rent join in phase 5.
+// Every household setting (ARCHITECTURE.md §7). Everyone can read them; only admins get the form.
 export default async function SettingsPage({ searchParams }: PageProps<"/portal/settings">) {
   const ctx = await requireUser();
   const { ok, err } = await searchParams;
-  const run = await loadSettings(ctx);
+  const { run, members, payerId } = await loadSettings(ctx);
   const h = ctx.household;
   const isAdmin = ctx.membership.role === "admin" && !ctx.demo;
   const readout = <Readout h={h} run={run} />;
@@ -28,23 +29,20 @@ export default async function SettingsPage({ searchParams }: PageProps<"/portal/
       <Flash ok={ok} err={err} />
       {isAdmin ? (
         <SettingsForm
-          initial={{
-            remindersEnabled: h.remindersEnabled,
-            sendHour: String(h.sendHour),
-            firstReminderDays: String(h.firstReminderDays),
-            urgentReminderDays: String(h.urgentReminderDays),
-            timezone: h.timezone,
-            fromName: h.fromName ?? "",
-            replyTo: h.replyTo ?? "",
-            digestEmail: h.digestEmail ?? "",
+          initial={settingsFormFrom(h, payerId)}
+          context={{
+            zones: Intl.supportedValuesOf("timeZone"),
+            householdName: h.name,
+            slug: h.slug,
+            savedMode: h.mode,
+            savedPayerId: payerId === null ? "" : String(payerId),
+            members,
+            overdueEvery: OVERDUE_EVERY_DAYS,
+            readout,
           }}
-          zones={Intl.supportedValuesOf("timeZone")}
-          householdName={h.name}
-          overdueEvery={OVERDUE_EVERY_DAYS}
-          readout={readout}
         />
       ) : (
-        <ReadOnly h={h} readout={readout} demo={ctx.demo} />
+        <ReadOnly h={h} readout={readout} demo={ctx.demo} payer={members.find((m) => m.id === payerId)?.name ?? null} />
       )}
     </main>
   );
@@ -84,8 +82,33 @@ function Readout({ h, run }: { h: Household; run: ReminderRun }) {
   );
 }
 
-function ReadOnly({ h, readout, demo }: { h: Household; readout: React.ReactNode; demo: boolean }) {
+function ReadOnly({ h, readout, demo, payer }: { h: Household; readout: React.ReactNode; demo: boolean; payer: string | null }) {
+  const on = (Object.keys(FEATURES) as Feature[]).filter((k) => hasFeature(h, k));
   const groups: { title: string; rows: { label: string; value: string }[]; extra?: React.ReactNode; note?: string }[] = [
+    {
+      title: "Household",
+      rows: [
+        { label: "Name", value: h.name },
+        ...(h.tagline ? [{ label: "Tagline", value: h.tagline }] : []),
+        { label: "Bills are split", value: h.mode === "single_payer" ? `${payer ?? "One person"} pays every bill` : "Each bill type has its own owner" },
+      ],
+    },
+    { title: "Look", rows: [{ label: "Theme", value: h.theme === "peach" ? "Peach" : h.colorScheme === "light" ? "Statement, always light" : "Statement, matches your device" }] },
+    {
+      title: "Features",
+      rows: [
+        { label: "Turned on", value: on.length ? on.map((k) => FEATURES[k].label).join(", ") : "None" },
+        ...(h.featureRent && h.monthlyRent !== null ? [{ label: "Monthly rent", value: `$${h.monthlyRent.toFixed(2)}` }] : []),
+        ...(h.featureRent && h.leaseStart && h.leaseEnd ? [{ label: "Lease", value: `${h.leaseStart} to ${h.leaseEnd}` }] : []),
+      ],
+    },
+    {
+      title: "Bills",
+      rows: [
+        { label: "Statement date", value: h.askBillDate ? "Asked when posting" : "The day it's posted" },
+        { label: "Bills per page", value: String(h.billsPerPage) },
+      ],
+    },
     {
       title: "Reminders",
       rows: [{ label: "Reminder emails", value: h.remindersEnabled ? "On" : "Off" }],

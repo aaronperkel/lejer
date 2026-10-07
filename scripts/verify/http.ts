@@ -335,7 +335,11 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   const saveSettings = id("app/portal/settings/actions.ts", "saveSettingsAction");
   const settingsForm = (over: Record<string, string> = {}) => {
     const f = new FormData();
-    const fields: Record<string, string> = { remindersEnabled: "on", sendHour: "8", firstReminderDays: "5", urgentReminderDays: "2", timezone: "America/Chicago", fromName: "Oak Crew", replyTo: "", digestEmail: "", ...over };
+    const fields: Record<string, string> = {
+      name: "Verify HA", tagline: "", mode: "ledger", theme: "statement", colorScheme: "system", billsPerPage: "10", feature_thanks: "on",
+      remindersEnabled: "on", sendHour: "8", firstReminderDays: "5", urgentReminderDays: "2", timezone: "America/Chicago", fromName: "Oak Crew", replyTo: "", digestEmail: "",
+      ...over,
+    };
     for (const [k, v] of Object.entries(fields)) f.set(k, v);
     return f;
   };
@@ -403,4 +407,114 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("verified → session cookie and onboarding", setCookie.startsWith(`${SESSION_COOKIE}=`) && (res.headers.get("location") ?? "").endsWith("/welcome/household"));
   const [{ n: created }] = await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM users WHERE email = ${fresh}`;
   r.check("the users row exists only after verifying", created === 1);
+
+  // ---------------------------------------------------------------------------------------------
+  r.section("http: the calendar feed (/cal.ics?k=)");
+  const tokenOf = async (membershipId: number) => (await owner<{ k: string }[]>`SELECT calendar_token AS k FROM memberships WHERE id = ${membershipId}`)[0]?.k;
+  const feed = async (k: string) => {
+    const x = await fetch(`${base}/cal.ics?k=${encodeURIComponent(k)}`, { redirect: "manual" });
+    return { status: x.status, type: x.headers.get("content-type") ?? "", cache: x.headers.get("cache-control") ?? "", body: await x.text() };
+  };
+  const kA = (await tokenOf(a.member.membershipId))!;
+  let cal = await feed(kA);
+  r.check("a member's token, no cookie → their household's feed", cal.status === 200 && cal.type.startsWith("text/calendar") && cal.body.startsWith("BEGIN:VCALENDAR\r\n"), cal.status);
+  r.check("…cached by the client only, never a shared cache", /private/.test(cal.cache) && !/public|s-maxage/.test(cal.cache), cal.cache);
+  const aBills = (await owner<{ id: number }[]>`SELECT id FROM bills WHERE household_id = ${a.id}`).map((x) => x.id);
+  const bBills = (await owner<{ id: number }[]>`SELECT id FROM bills WHERE household_id = ${b.id}`).map((x) => x.id);
+  r.check("…every bill of that household, and nothing from another", aBills.every((i) => cal.body.includes(`UID:bill-${i}@`)) && !bBills.some((i) => cal.body.includes(`UID:bill-${i}@`)), { aBills, bBills });
+  const empty = (x: { status: number; body: string }) => x.status === 404 && x.body === "";
+  r.check("no token → 404, empty", empty(await feed("")));
+  r.check("a malformed token → 404, empty", empty(await feed("not-a-token")));
+  r.check("a well-formed token nobody holds → 404, empty", empty(await feed("A".repeat(43))));
+  r.check("another household's member's token → only their household", (await feed((await tokenOf(b.member.membershipId))!)).body.includes(`UID:bill-${b.billId}@`));
+
+  const resetAction = id("app/account/actions.ts", "resetCalendarLink");
+  res = await formPost("/account", resetAction, {}, aMember);
+  const kA2 = (await tokenOf(a.member.membershipId))!;
+  r.check("reset my calendar link → ?ok= and a new token", res.status === 303 && (res.headers.get("location") ?? "").includes("ok=") && kA2 !== kA, res.status);
+  r.check("…the old link returns nothing", empty(await feed(kA)));
+  r.check("…the new one works", (await feed(kA2)).status === 200);
+  r.check("…and the admin's link is untouched", (await feed((await tokenOf(a.admin.membershipId))!)).status === 200);
+  const leaver = await addMember(owner, a, `ha-leaver-${RUN}`);
+  const kLeaver = (await tokenOf(leaver.membershipId))!;
+  r.check("a member's feed works while they're in the household", (await feed(kLeaver)).status === 200);
+  await owner`DELETE FROM memberships WHERE id = ${leaver.membershipId}`;
+  r.check("…and returns nothing once they're removed", empty(await feed(kLeaver)));
+  pg = await page("/account", aMember);
+  r.check("/account shows the subscribe buttons and the current link", pg.html.includes("webcal://") && pg.html.includes(encodeURIComponent(kA2)) && pg.html.includes("Reset my calendar link"));
+  pg = await page("/", aMember);
+  r.check("the dashboard has Apple and Google subscribe buttons for the viewer's own link", pg.html.includes(`webcal://`) && pg.html.includes("calendar.google.com/calendar/r?cid=") && pg.html.includes(encodeURIComponent(kA2)) && !pg.html.includes(encodeURIComponent((await tokenOf(a.admin.membershipId))!)));
+
+  // ---------------------------------------------------------------------------------------------
+  r.section("http: disabled features are hidden and refused");
+  await owner`UPDATE households SET feature_trends = false, feature_documents = false, feature_bulk_email = false, feature_welcome_tour = false WHERE id = ${a.id}`;
+  const hrefs = (html: string) => new Set([...html.matchAll(/href="(\/[a-z/]*)"/g)].map((m) => m[1]));
+  pg = await page("/", aAdmin);
+  let nav = hrefs(pg.html);
+  r.check("all off: no Trends or Docs in the nav, no tour link in the footer", !nav.has("/trends") && !nav.has("/documents") && !nav.has("/welcome"), [...nav]);
+  pg = await page("/portal", aAdmin);
+  r.check("…and no Email tab in the portal", !hrefs(pg.html).has("/portal/email"));
+  pg = await page("/trends", aAdmin);
+  r.check("/trends → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Totals by bill type"), pg.status);
+  res = await get("/trends/csv", aAdmin);
+  r.check("/trends/csv → 404", res.status === 404, res.status);
+  pg = await page("/welcome", aMember);
+  r.check("/welcome → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Step 1 of"), pg.status);
+  const finish = id("app/welcome/actions.ts", "finishWelcome");
+  await owner`UPDATE memberships SET welcomed_at = NULL WHERE id = ${a.member.membershipId}`;
+  res = await formPost("/welcome", finish, {}, aMember);
+  let [{ w }] = await owner<{ w: Date | null }[]>`SELECT welcomed_at AS w FROM memberships WHERE id = ${a.member.membershipId}`;
+  r.check("finishing the tour while it's off records nothing", w === null, res.status);
+
+  await owner`UPDATE households SET feature_trends = true, feature_documents = true, feature_bulk_email = true, feature_welcome_tour = true WHERE id = ${a.id}`;
+  pg = await page("/", aAdmin);
+  nav = hrefs(pg.html);
+  r.check("all on: Trends and Docs in the nav, the tour in the footer", nav.has("/trends") && nav.has("/documents") && nav.has("/welcome"), [...nav]);
+  pg = await page("/portal", aAdmin);
+  r.check("…and the Email tab for an admin", hrefs(pg.html).has("/portal/email"));
+  pg = await page("/trends", aMember);
+  r.check("/trends renders the chart and the totals", pg.status === 200 && pg.html.includes("Totals by bill type") && pg.html.includes("Download CSV"), pg.status);
+  res = await get("/trends/csv", aMember);
+  text = await res.text();
+  r.check("/trends/csv: a CSV attachment, one column per type", res.status === 200 && (res.headers.get("content-type") ?? "").startsWith("text/csv") && /attachment/.test(res.headers.get("content-disposition") ?? "") && text.startsWith("Month,Gas,Water,Total"), text.slice(0, 80));
+  res = await get("/trends/csv");
+  r.check("…and not without a session", res.status !== 200, res.status);
+
+  r.section("http: the welcome tour");
+  pg = await page("/", aMember);
+  r.check("a member who hasn't seen it is sent to the tour first", pg.html.includes("/welcome") && !pg.html.includes("The house ledger"), pg.status);
+  pg = await page("/welcome", aMember);
+  r.check("ledger households hear about owners", pg.status === 200 && pg.html.includes("Every bill has an owner") && pg.html.includes("Step 1 of"));
+  res = await formPost("/welcome", finish, {}, aMember);
+  [{ w }] = await owner<{ w: Date | null }[]>`SELECT welcomed_at AS w FROM memberships WHERE id = ${a.member.membershipId}`;
+  r.check("finishing records it and opens the dashboard", w !== null && res.status === 303 && (res.headers.get("location") ?? "").endsWith("/"), res.status);
+  pg = await page("/", aMember);
+  r.check("…which renders normally from then on", pg.html.includes("The house ledger"));
+  await owner`UPDATE households SET mode = 'single_payer' WHERE id = ${a.id}`;
+  pg = await page("/welcome", aMember);
+  r.check("single-payer households hear about the payer instead", pg.html.includes("One person pays every bill") && !pg.html.includes("Every bill has an owner"));
+  await owner`UPDATE households SET mode = 'ledger' WHERE id = ${a.id}`;
+
+  r.section("http: theme");
+  pg = await page("/", aMember);
+  r.check("statement by default: data-theme and the household's scheme on <html>", /<html[^>]*data-theme="statement"[^>]*data-color-scheme="system"/.test(pg.html));
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "peach", colorScheme: "system" }) }, aAdmin);
+  await res.text();
+  pg = await page("/", aMember);
+  r.check("an admin saves peach → every member's next page is peach, light", /<html[^>]*data-theme="peach"[^>]*data-color-scheme="light"/.test(pg.html), pg.html.match(/<html[^>]*>/)?.[0]);
+  r.check("…with the awning and the peach page color in the browser chrome", pg.html.includes('class="awning"') && pg.html.includes('name="theme-color" content="#faf3e7"'));
+  r.check("…while the peach faces stay unpreloaded (only the default ledger face is)", (pg.html.match(/rel="preload"[^>]*as="font"/g) ?? []).length <= 1);
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "statement", colorScheme: "light" }) }, aAdmin);
+  await res.text();
+  pg = await page("/", aMember);
+  r.check("…and back to statement, always light", /<html[^>]*data-theme="statement"[^>]*data-color-scheme="light"/.test(pg.html));
+
+  r.section("http: mode switch over the wire");
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm({ mode: "single_payer", payerId: String(a.admin.membershipId) }) }, aAdmin);
+  await res.text();
+  const [{ mode }] = await owner<{ mode: string }[]>`SELECT mode FROM households WHERE id = ${a.id}`;
+  const typeOwners = await owner<{ o: number }[]>`SELECT owner_id AS o FROM bill_types WHERE household_id = ${a.id}`;
+  r.check("admin switches to single payer → mode saved, every type owned by the payer", mode === "single_payer" && typeOwners.every((t) => t.o === a.admin.membershipId) && (res.headers.get("x-action-redirect") ?? "").includes("ok="), { mode, typeOwners });
+  pg = await page("/portal/household", aAdmin);
+  r.check("…and the owner column is gone from bill types", !pg.html.includes("Owner (pays the provider)"));
 }

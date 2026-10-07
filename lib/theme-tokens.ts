@@ -8,6 +8,23 @@
 // accent and the four status inks are darker than peach-cob's originals so every text pair
 // clears 4.5:1 on both the cream page and the panel.
 
+/**
+ * Chart series (trends), data-only: never a link, a button or a status. Five fixed slots per
+ * theme, assigned to bill types in order and never cycled; a sixth type onward folds into
+ * "Other" in muted ink. No green, red or amber (reserved for paid/unpaid/due soon), and slot 1
+ * is the theme's accent. Each palette passes the dataviz validator for its surface (lightness
+ * band, chroma floor, protan/deutan separation of neighbors, 3:1 on the panel); see DESIGN.md,
+ * Colors > Data series.
+ */
+const SERIES = {
+  statement: { series1: "#1d5fd6", series2: "#8c2f6e", series3: "#2e9fd0", series4: "#5b3fa8", series5: "#c2418f" },
+  statementDark: { series1: "#4f86e8", series2: "#b4508f", series3: "#3aa0d0", series4: "#7f66d8", series5: "#d465a5" },
+  peach: { series1: "#b45031", series2: "#51609e", series3: "#9a3f6b", series4: "#3e5fb0", series5: "#c06090" },
+} as const;
+
+/** Number of chart series slots; types past this fold into "Other". */
+export const SERIES_SLOTS = 5;
+
 export const THEME_COLORS = {
   statement: {
     page: "#f4f5f6",
@@ -28,6 +45,7 @@ export const THEME_COLORS = {
     unpaidSoft: "rgba(192, 53, 56, 0.1)",
     warn: "#8a5b00",
     warnSoft: "rgba(216, 146, 0, 0.16)",
+    ...SERIES.statement,
   },
   peach: {
     page: "#faf3e7",
@@ -52,6 +70,7 @@ export const THEME_COLORS = {
     warnSoft: "rgba(216, 166, 42, 0.2)",
     stripeA: "#eb9a76",
     stripeB: "#f8e3d3",
+    ...SERIES.peach,
   },
 } as const;
 
@@ -75,6 +94,7 @@ export const STATEMENT_DARK = {
   unpaidSoft: "rgba(238, 115, 120, 0.12)",
   warn: "#e0b24c",
   warnSoft: "rgba(224, 178, 76, 0.14)",
+  ...SERIES.statementDark,
 } as const;
 
 /** The awning's stripe width, shared by the app's .awning and the email masthead stripe. */

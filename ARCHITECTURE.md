@@ -571,8 +571,8 @@ and for the import script.
 
 | Group | Settings |
 |---|---|
-| Household | name, tagline (shown in nav and email masthead), slug (read-only after creation), **mode** switch (§3) |
-| Features | `feature_rent` (rent + calendar), `feature_trends`, `feature_bulk_email`, `feature_documents`, `feature_welcome_tour`, `feature_thanks` |
+| Household | name, tagline (shown in the nav from `md`; the email masthead doesn't carry it yet), slug (read-only after creation), **mode** switch (§3) |
+| Features | `feature_rent` (the monthly rent event in the calendar feed, and the rent fields), `feature_trends`, `feature_bulk_email`, `feature_documents`, `feature_welcome_tour`, `feature_thanks` |
 | Look | `theme` (statement / peach, with preview), `color_scheme` (statement: system / light; peach: light only) |
 | Bills | `ask_bill_date`, `bills_per_page` |
 | Reminders | `reminders_enabled`, `send_hour` (in the household's timezone), `first_reminder_days`, `urgent_reminder_days`, read-only "last tick / last send" from the cron columns |
@@ -580,7 +580,10 @@ and for the import script.
 | Email | `from_name`, `reply_to`, `digest_email` |
 | Rent | `monthly_rent`, `lease_start`, `lease_end` (shown when `feature_rent`) |
 
-Disabled features disappear from nav, footer, the portal tabs and the iCal feed. Themes are
+Disabled features disappear from nav, footer, the portal tabs and the iCal feed, and their
+routes answer not-found (`lib/features.ts`: `requireFeature` for pages, `assertFeature` for
+actions, `navLinks` for the header). The calendar feed itself is not a feature: every member
+always has one (decided 2026-10-07); `feature_rent` only adds the rent event to it. Themes are
 `<html data-theme="peach">` with per-theme token blocks in `globals.css` (`:root` = statement;
 `[data-theme="peach"]` overrides). The statement dark block is gated on
 `[data-color-scheme="system"]`. All four faces (IBM Plex Mono, Fraunces, Karla, Courier Prime)
@@ -588,6 +591,27 @@ load via `next/font` with `preload: false` on the non-default theme's fonts so a
 downloads what its theme uses.
 
 ---
+
+### Phase 5 decisions (2026-10-07)
+
+- **Mode switch.** Saving `single_payer` always bulk-sets every type's owner to the chosen payer,
+  so the same control changes the payer while staying in single-payer mode. `ledger` only
+  changes the mode. Bills keep their `owner_id` in both directions (§3). Saving a change of mode
+  or payer goes through the confirm dialog.
+- **Chart colors.** Trends uses data-only series tokens (`--series-1..5` per theme and for
+  statement dark, in `lib/theme-tokens.ts`), validated for colorblind separation, with no
+  status hues. A sixth type onward folds into "Other". See DESIGN.md, Colors > Data series.
+- **Calendar feed.** One all-day event per bill, worded for the token's owner, with stable UIDs
+  (`bill-{id}@{domain}`), plus the rent RRULE. `Cache-Control: private, max-age=3600` (never a
+  shared cache, so a reset link dies at once) and refresh hints of 6 hours, because every
+  fetch wakes Neon. Bad, reset and removed tokens all get the same empty 404.
+- **Welcome tour.** The dashboard redirects a member whose `welcomed_at` is NULL to `/welcome`
+  while the tour is on, which covers login, the switcher and invites in one place. Finishing
+  stamps `welcomed_at`; the footer's "How this works" brings it back.
+- **Icons.** `app/icon.tsx`, `app/apple-icon.tsx` and `app/opengraph-image.tsx` render with
+  `next/og` at build time from `BRAND` and the theme tokens. There is no logo, so the icon is a
+  typographic stand-in (the name's initial over a double rule) until the final brand. The
+  create-next-app `favicon.ico` is gone.
 
 ## 8. Cron
 
@@ -712,7 +736,7 @@ flush, bulk email tab, `/api/cron/tick` with the budget rule, `.github/workflows
 `scripts/send-reminders.ts`, settings page groups for reminders, timezone and email (feature
 toggles, look, bills and rent stay phase 5). Verify suite `cron`.
 
-**Phase 5 — Features and themes.** Trends over all types (CSV too), rent + `/cal.ics?k=`
+**Phase 5 — Features and themes.** (Done 2026-10-07.) Trends over all types (CSV too), rent + `/cal.ics?k=`
 (per-membership token via `calendar_context()`; RRULE when `feature_rent`), welcome tour behind `feature_welcome_tour`, both theme token
 blocks + dark mode for statement, OG and apple icons via `next/og`, the rest of the settings
 page, nav/footer gating.

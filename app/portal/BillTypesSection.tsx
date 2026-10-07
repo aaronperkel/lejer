@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ConfirmButton from "@/app/components/ConfirmButton";
 import { removeBillTypeAction, saveBillTypeAction } from "@/app/portal/actions";
 
 export interface BillTypeRow {
@@ -45,7 +46,7 @@ export default function BillTypesSection({
         )}
       </div>
       <div className="panel overflow-x-auto">
-        <table className="data-table">
+        <table className="data-table table-stack table-stack-types">
           <thead>
             <tr>
               <th>Bill type</th>
@@ -61,26 +62,31 @@ export default function BillTypesSection({
           <tbody>
             {types.map((t) => (
               <tr key={t.id}>
-                <td className="font-medium">
+                <td className="cell-type font-medium">
                   {t.emoji} {t.name}
                 </td>
-                {ledger && <td className="text-ink-muted">{t.ownerName ?? "Nobody (split by everyone)"}</td>}
-                <td className="num figure text-ink-muted">${t.processingFee.toFixed(2)}</td>
+                {ledger && <td className="cell-owner text-ink-muted">{t.ownerName ?? "Nobody (split by everyone)"}</td>}
+                <td className="num figure cell-fee text-ink-muted">
+                  ${t.processingFee.toFixed(2)}
+                  <span className="sm:hidden"> fee</span>
+                </td>
                 {canEdit && (
-                  <td className="num">
+                  <td className="num cell-actions">
                     <div className="flex justify-end gap-1.5">
                       <button type="button" className="btn btn-sm" onClick={() => setModal({ mode: "edit", type: t })}>
                         Edit
                       </button>
-                      <form
-                        action={removeBillTypeAction}
-                        onSubmit={(e) => {
-                          if (!confirm(`Remove ${t.name}?`)) e.preventDefault();
-                        }}
-                        className="inline"
-                      >
+                      <form action={removeBillTypeAction} className="inline">
                         <input type="hidden" name="typeId" value={t.id} />
-                        <button type="submit" className="btn btn-sm">Remove</button>
+                        <ConfirmButton
+                          className="btn btn-sm"
+                          title={`Remove ${t.name}?`}
+                          body="It disappears from the add-bill list. A type with bills on record can't be removed, so nothing posted is lost."
+                          confirmLabel="Remove"
+                          pendingLabel="Removing…"
+                        >
+                          Remove
+                        </ConfirmButton>
                       </form>
                     </div>
                   </td>

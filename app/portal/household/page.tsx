@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ConfirmButton from "@/app/components/ConfirmButton";
 import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
 import BillTypesSection from "@/app/portal/BillTypesSection";
@@ -103,7 +104,20 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
                           {m.id !== ctx.membership.id && (
                             <form action={removeMember}>
                               <input type="hidden" name="membershipId" value={m.id} />
-                              <SubmitButton className="btn btn-sm text-unpaid" pendingLabel="Removing…">Remove</SubmitButton>
+                              <ConfirmButton
+                                className="btn btn-sm"
+                                title={`Remove ${m.name} from ${ctx.household.name}?`}
+                                body={
+                                  <>
+                                    <p>Their unpaid shares on bills already posted are dropped, and any bill type they own goes back to nobody.</p>
+                                    <p className="mt-2">Bills they fronted stay on record, owed to a former member. They can be invited again later.</p>
+                                  </>
+                                }
+                                confirmLabel="Remove"
+                                pendingLabel="Removing…"
+                              >
+                                Remove
+                              </ConfirmButton>
                             </form>
                           )}
                         </div>

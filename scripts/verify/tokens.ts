@@ -1,6 +1,6 @@
 // Theme colors live in lib/theme-tokens.ts. The stylesheet can't import it, and the design
 // docs are prose with a token header, so this fails the gate when any of them drift from it:
-// app/globals.css (statement light and dark, and peach once phase 5 adds its block),
+// app/globals.css (statement light and dark, and peach),
 // DESIGN.md's frontmatter colors, and .impeccable/design.json's canonical values. Emails
 // import the module directly, so the check there is that no color literal sneaks back in.
 
@@ -73,6 +73,13 @@ const DESIGN_SLUGS: Record<string, [keyof typeof SOURCES, string]> = {
   "peach-butter-wash": ["peach", "warnSoft"],
   "peach-awning-stripe": ["peach", "stripeA"],
   "peach-awning-cream": ["peach", "stripeB"],
+  ...Object.fromEntries(
+    [1, 2, 3, 4, 5].flatMap((n) => [
+      [`statement-series-${n}`, ["statement", `series${n}`]],
+      [`statement-dark-series-${n}`, ["statement-dark", `series${n}`]],
+      [`peach-series-${n}`, ["peach", `series${n}`]],
+    ]),
+  ),
 };
 
 /** Custom properties declared directly inside the first block whose selector matches. */
@@ -105,14 +112,23 @@ export async function tokens(r: Results) {
 
   const css = read("app/globals.css");
   const light = block(css, /^:root\s*\{/m);
-  const dark = block(css, /@media \(prefers-color-scheme: dark\)\s*\{\s*:root\[data-color-scheme="system"\]\s*\{/);
-  const peach = block(css, /\[data-theme="peach"\]\s*\{/);
+  const dark = block(css, /@media \(prefers-color-scheme: dark\)\s*\{\s*:root\[data-color-scheme="system"\]:not\(\[data-theme="peach"\]\)\s*\{/);
+  const peach = block(css, /^:root\[data-theme="peach"\]\s*\{/m);
   r.check("globals.css has the statement :root block", !!light);
-  r.check("globals.css has the statement dark block", !!dark);
+  r.check("globals.css has the statement dark block, never applied to peach", !!dark);
+  r.check("globals.css has the peach block", !!peach);
   if (light) compare(r, "globals.css statement", light, THEME_COLORS.statement as Palette);
   if (dark) compare(r, "globals.css statement dark", dark, STATEMENT_DARK as Palette);
-  // Peach's block arrives in phase 5; until then DESIGN.md and the module are its only homes.
   if (peach) compare(r, "globals.css peach", peach, THEME_COLORS.peach as Palette);
+  // Peach is light-only: nothing may switch it to a dark color scheme.
+  r.check("peach declares color-scheme: light", /color-scheme:\s*light;/.test(css.slice(css.search(/^:root\[data-theme="peach"\]/m)).split("}")[0]));
+
+  // Fonts: statement's ledger face preloads; peach's three faces load only when used.
+  const layout = read("app/layout.tsx");
+  const face = (fn: string) => layout.match(new RegExp(`${fn}\\(\\{[^}]*\\}`))?.[0] ?? "";
+  r.check("IBM Plex Mono (the default theme's face) preloads", face("IBM_Plex_Mono").length > 0 && !/preload:\s*false/.test(face("IBM_Plex_Mono")));
+  for (const fn of ["Fraunces", "Karla", "Courier_Prime"])
+    r.check(`${fn} (peach) is preload: false`, /preload:\s*false/.test(face(fn)), face(fn) || "not declared in app/layout.tsx");
 
   const front = read("DESIGN.md").split(/^---$/m)[1] ?? "";
   const colorsYaml = front.split(/^colors:$/m)[1]?.split(/^\S/m)[0] ?? "";

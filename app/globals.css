@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 /*
- * Statement theme (from utilities): paper ledger in light mode, graphite in dark. Raw values
- * live on :root and are mapped into Tailwind utilities by @theme inline (bg-panel, etc.).
- * One accent blue; green/red/amber are reserved for paid/unpaid/due-soon. The root layout
- * sets <html data-theme data-color-scheme> from the household; dark mode applies only to
- * data-color-scheme="system". The peach theme block arrives in phase 5.
- * These values are mirrored in lib/theme-tokens.ts (email reads them there); the `tokens`
- * verify suite fails if the two disagree, so change both together.
+ * Two themes over one component set. Raw values live on :root (statement: paper ledger, one
+ * accent blue, graphite in dark mode) and :root[data-theme="peach"] (cream paper under a peach
+ * awning, light-only), and @theme inline maps them into Tailwind utilities (bg-panel, etc.).
+ * Green/red/amber (sage/rose/butter) are reserved for paid/unpaid/due-soon; --series-* are
+ * chart-only. The root layout sets <html data-theme data-color-scheme> from the household;
+ * dark mode applies only to statement with data-color-scheme="system".
+ * Colors are mirrored from lib/theme-tokens.ts (email reads them there); the `tokens` verify
+ * suite fails if the two disagree, so change the module first.
  */
 :root {
   color-scheme: light;
@@ -32,14 +33,30 @@
   --unpaid-soft: rgba(192, 53, 56, 0.1);
   --warn: #8a5b00;
   --warn-soft: rgba(216, 146, 0, 0.16);
+
+  /* Chart series (trends only) */
+  --series-1: #1d5fd6;
+  --series-2: #8c2f6e;
+  --series-3: #2e9fd0;
+  --series-4: #5b3fa8;
+  --series-5: #c2418f;
+
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  /* Faces: next/font sets --nf-* on <html> (app/layout.tsx) */
+  --face-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --face-display: var(--face-sans);
+  --face-ledger: var(--nf-plex), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-:root[data-color-scheme="system"] {
+:root[data-color-scheme="system"]:not([data-theme="peach"]) {
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-color-scheme="system"] {
+  :root[data-color-scheme="system"]:not([data-theme="peach"]) {
     --page: #14181d;
     --panel: #1b2128;
     --panel-2: #20262e;
@@ -60,7 +77,63 @@
     --unpaid-soft: rgba(238, 115, 120, 0.12);
     --warn: #e0b24c;
     --warn-soft: rgba(224, 178, 76, 0.14);
+
+    --series-1: #4f86e8;
+    --series-2: #b4508f;
+    --series-3: #3aa0d0;
+    --series-4: #7f66d8;
+    --series-5: #d465a5;
   }
+}
+
+/*
+ * Peach (from peach-cob, with DESIGN.md's corrected inks): cream page, espresso ink, deep-peach
+ * accent, periwinkle as the second voice, and the cabana awning. Light-only on purpose.
+ */
+:root[data-theme="peach"] {
+  color-scheme: light;
+
+  --page: #faf3e7;
+  --panel: #fffcf7;
+  --panel-2: #f5ead9;
+  --ink: #43302b;
+  --ink-muted: #7a6559;
+  --line: rgba(67, 48, 43, 0.22);
+  --line-soft: rgba(67, 48, 43, 0.1);
+
+  --accent: #b45031; /* deep peach: links, active states */
+  --accent-soft: rgba(231, 138, 104, 0.16);
+  --primary: #b45031;
+  --primary-hover: #a34527;
+  --on-primary: #fff6ec;
+  --peri: #51609e; /* periwinkle: the second voice (info tags) */
+  --peri-soft: rgba(95, 111, 174, 0.13);
+
+  --paid: #406c45;
+  --paid-soft: rgba(94, 133, 90, 0.16);
+  --unpaid: #ae413a;
+  --unpaid-soft: rgba(177, 68, 61, 0.1);
+  --warn: #845e09;
+  --warn-soft: rgba(216, 166, 42, 0.2);
+
+  /* The awning: peach + cream cabana stripes */
+  --stripe-a: #eb9a76;
+  --stripe-b: #f8e3d3;
+
+  --series-1: #b45031;
+  --series-2: #51609e;
+  --series-3: #9a3f6b;
+  --series-4: #3e5fb0;
+  --series-5: #c06090;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+
+  /* Karla for prose, Fraunces for display, Courier Prime as the typed ledger voice */
+  --face-sans: var(--nf-karla), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --face-display: var(--nf-fraunces), Georgia, "Times New Roman", serif;
+  --face-ledger: var(--nf-courier), "Courier New", Courier, monospace;
 }
 
 @theme inline {
@@ -82,15 +155,16 @@
   --color-unpaid-soft: var(--unpaid-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
+  --color-peri: var(--peri);
+  --color-peri-soft: var(--peri-soft);
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
 
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
-  --font-mono: var(--font-ledger), ui-monospace, SFMono-Regular, Menlo,
-    monospace;
+  --font-sans: var(--face-sans);
+  --font-display: var(--face-display);
+  --font-mono: var(--face-ledger);
 }
 
 html {
@@ -99,6 +173,18 @@ html {
   font-size: clamp(15px, 1vw + 12px, 16px);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* Native carets and checkboxes take the theme's accent, never the browser's blue */
+input,
+textarea,
+select {
+  caret-color: var(--accent);
+  accent-color: var(--accent);
 }
 
 @layer components {
@@ -114,6 +200,16 @@ html {
 
   .page-title {
     @apply text-xl font-bold tracking-tight;
+  }
+
+  /* Display voice: the sans in statement, Fraunces in peach (hero moments, empty states) */
+  .display {
+    @apply font-display;
+  }
+
+  /* The household name in the header: mono caps in statement, Fraunces in peach */
+  .wordmark {
+    @apply font-mono text-[0.8rem] font-semibold uppercase tracking-[0.14em] whitespace-nowrap;
   }
 
   /* Money, dates, counts — everything numeric reads in the ledger face */
@@ -159,6 +255,11 @@ html {
 
   .tag-unpaid {
     @apply bg-unpaid-soft text-unpaid;
+  }
+
+  /* Informational tag, not money status: accent in statement, periwinkle in peach */
+  .tag-info {
+    @apply bg-accent-soft text-accent;
   }
 
   /* Due-date chips (classes consumed by DueChip) */
@@ -246,6 +347,214 @@ html {
   }
 
   /*
+   * Peach's signature rules: rounder radii come from the tokens; these add Fraunces titles,
+   * bolder Courier eyebrows and table heads, and pill tags and chips.
+   */
+  [data-theme="peach"] .page-title {
+    @apply font-display text-[1.6rem] font-semibold tracking-[-0.01em] leading-tight;
+  }
+
+  [data-theme="peach"] .wordmark {
+    @apply font-display text-lg font-semibold normal-case leading-none tracking-tight;
+  }
+
+  [data-theme="peach"] .eyebrow {
+    @apply font-bold tracking-[0.16em];
+  }
+
+  [data-theme="peach"] .data-table th {
+    @apply font-bold tracking-[0.14em];
+  }
+
+  [data-theme="peach"] .tag {
+    @apply rounded-full px-2 font-bold;
+  }
+
+  [data-theme="peach"] .due-chip {
+    @apply rounded-full px-2;
+  }
+
+  [data-theme="peach"] .tag-info {
+    @apply bg-peri-soft text-peri;
+  }
+
+  /*
+   * The awning: peach + cream cabana stripes with a scalloped hem, once, under the header.
+   * Two offset radial-gradient layers draw the alternating scallops. Statement has none.
+   */
+  .awning {
+    display: none;
+  }
+
+  [data-theme="peach"] .awning {
+    display: block;
+    position: relative;
+    height: 10px;
+    background: repeating-linear-gradient(90deg, var(--stripe-a) 0 14px, var(--stripe-b) 14px 28px);
+  }
+
+  [data-theme="peach"] .awning::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    height: 7px;
+    z-index: 1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle 7px at 7px -1px, var(--stripe-a) 6px, transparent 6.5px),
+      radial-gradient(circle 7px at 7px -1px, var(--stripe-b) 6px, transparent 6.5px);
+    background-size: 28px 7px;
+    background-position: 0 0, 14px 0;
+    background-repeat: repeat-x;
+  }
+
+  /* A featured panel with a slim striped top edge (no scallop); a plain panel in statement */
+  /* The stripes fill only the top border; the sheet shows under the other (translucent) edges. */
+  [data-theme="peach"] .panel-awning {
+    border-top: 6px solid transparent;
+    background:
+      linear-gradient(var(--panel), var(--panel)) padding-box,
+      repeating-linear-gradient(90deg, var(--stripe-a) 0 14px, var(--stripe-b) 14px 28px) top / 100% 6px no-repeat border-box,
+      linear-gradient(var(--panel), var(--panel)) border-box;
+  }
+
+  /* Header links: muted sans, ink on hover, a 2px accent underline the full bar height when active */
+  .nav-link {
+    @apply flex h-full items-center border-b-2 border-transparent px-0.5 text-sm font-medium
+      text-ink-muted no-underline transition-colors duration-100 hover:text-ink
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .nav-link[aria-current="page"] {
+    @apply border-accent text-ink;
+  }
+
+  /*
+   * Below sm the links fold into one disclosure: the sheet drops under the header (the only
+   * floating layer there, so it gets the dropdown shadow) and the same links stack with the
+   * accent rule on the left edge of the current one.
+   */
+  .nav-menu > summary {
+    @apply flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-(--radius-md) border border-line
+      px-3 text-sm font-medium text-ink transition-colors duration-100 hover:border-ink/40
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .nav-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .nav-menu-sheet {
+    @apply absolute inset-x-0 top-full z-20 border-b border-line-soft bg-panel px-4 pb-3 pt-1;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .nav-menu-link {
+    @apply flex min-h-11 w-full items-center border-b border-line-soft text-[0.95rem] font-medium
+      text-ink-muted no-underline hover:text-ink;
+  }
+
+  .nav-menu-link[aria-current="page"] {
+    @apply text-ink;
+    box-shadow: inset 2px 0 0 var(--accent);
+    padding-left: 0.75rem;
+  }
+
+  /*
+   * Confirm dialog (app/components/ConfirmButton.tsx): a native <dialog> panel, the dialog
+   * shadow, a scrim of ink. Opens for destructive or consequential actions only.
+   */
+  .dialog {
+    @apply m-auto w-[min(28rem,calc(100vw-2rem))] rounded-(--radius-lg) border border-line-soft bg-panel p-0 text-ink;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  }
+
+  .dialog::backdrop {
+    background: rgb(0 0 0 / 0.35);
+  }
+
+  /* Chart legend toggles: a real button per series, its swatch drawn in the series color */
+  .legend-toggle {
+    @apply inline-flex min-h-8 cursor-pointer items-center gap-2 rounded-(--radius-md) border border-line-soft
+      bg-panel px-2.5 text-[0.8rem] font-medium text-ink transition-colors duration-100 hover:border-line
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent;
+  }
+
+  .legend-toggle[aria-pressed="false"] {
+    @apply text-ink-muted line-through decoration-ink-muted/60;
+  }
+
+  .legend-toggle[aria-pressed="false"] .legend-swatch {
+    opacity: 0.3;
+  }
+
+  /* An option (not a series): off just reads muted, never struck through */
+  .legend-option[aria-pressed="false"] {
+    @apply no-underline;
+  }
+
+  .legend-option[aria-pressed="true"] {
+    @apply border-accent bg-accent-soft;
+  }
+
+  /*
+   * Welcome-tour vignettes (app/welcome/Tour.tsx): elements enter staggered via inline
+   * animation-delay; `backwards` keeps each one invisible until its turn. The global
+   * reduced-motion rule below settles all of it at once.
+   */
+  .tour-pop {
+    animation: tour-pop 0.4s cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
+  }
+
+  .tour-slide {
+    animation: tour-slide 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+
+  .tour-check {
+    animation: tour-pop 0.3s cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
+  }
+
+  /* The PAID stamp: drops oversized and settles slightly askew */
+  .tour-stamp {
+    animation: tour-stamp 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
+    rotate: -3deg;
+  }
+
+  @keyframes tour-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes tour-slide {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes tour-stamp {
+    from {
+      opacity: 0;
+      transform: scale(1.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /*
    * Stacked tables: below sm a .table-stack table reflows into ledger cards —
    * one grid per row, cells placed by the .cell-* classes — so nothing scrolls
    * sideways on a phone. Desktop keeps the ruled table untouched.
@@ -305,6 +614,59 @@ html {
         "name role"
         "email email"
         "actions actions";
+    }
+
+    .table-stack-types tr {
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "type fee"
+        "owner actions";
+    }
+
+    .table-stack .cell-owner {
+      grid-area: owner;
+    }
+
+    .table-stack .cell-fee {
+      grid-area: fee;
+    }
+
+    /* One line per figure: its label on the left, the amount on the right */
+    .table-stack-trends tr {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "type"
+        "ytd"
+        "last"
+        "all";
+      row-gap: 0.375rem;
+    }
+
+    .table-stack-trends td.num {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .table-stack-trends .trend-label {
+      margin: 0;
+    }
+
+    .table-stack .cell-type {
+      grid-area: type;
+    }
+
+    .table-stack .cell-ytd {
+      grid-area: ytd;
+    }
+
+    .table-stack .cell-last {
+      grid-area: last;
+    }
+
+    .table-stack .cell-all {
+      grid-area: all;
     }
 
     .table-stack-docs tr {

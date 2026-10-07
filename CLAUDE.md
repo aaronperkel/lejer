@@ -52,9 +52,11 @@ checks that each connection reports dev's `neon.branch_id`. Suites build their o
 throwaway households (`verify-<run>-*`, users `@verify.invalid`) and delete them, sweeping
 leftovers from crashed runs first, so they never depend on or disturb the seed data. **Every
 phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `index.ts`).
-Suites: `brand`, `tokens` (`lib/theme-tokens.ts` against `globals.css`, `DESIGN.md`'s frontmatter and
-`.impeccable/design.json`; no color literals in `emails/`), `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
-`ctxFor()`), `http` (starts `next start` on gate 1's build, refusing a build older than the
+Suites: `brand`, `tokens` (`lib/theme-tokens.ts` against `globals.css`'s statement, statement-dark
+and peach blocks, `DESIGN.md`'s frontmatter and `.impeccable/design.json`, series colors included;
+peach's faces `preload: false`; no color literals in `emails/`), `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
+`ctxFor()`), `cron`, `features` (mode switch, settings persistence, gating, trends math, calendar
+contents), `http` (starts `next start` on gate 1's build, refusing a build older than the
 sources; fixed port 4317 or `VERIFY_PORT`, in its own process group, pid in the gitignored
 `.verify/server.json`: a run that died without cleaning up is found and its server group
 killed on the next run, and a `next` process still holding the port is freed, while anything
@@ -352,8 +354,12 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
   travel as `?ok=`/`?err=` query params via `done()`/`fail()` in `lib/flash.ts` (plain
   functions, so they aren't exposed as actions), rendered by `app/components/Flash.tsx`
 - `app/documents/` — household paperwork (feature-gated); everyone reads, admins manage
-- `app/trends/` — Chart.js per bill type, CSV at `/trends/csv` (feature-gated)
-- `app/welcome/` — onboarding wizard for new users and the animated tour (feature-gated)
+- `app/trends/` — Chart.js line per bill type (series slots from `--series-N`, HTML legend
+  toggles, rebuilt on theme/scheme change), totals table, CSV of the whole history at
+  `/trends/csv` (feature-gated; `lib/trends.ts` is pure, so the demo shares it)
+- `app/welcome/` — `household/` is the onboarding wizard for new users; `/welcome` itself is the
+  animated tour (feature-gated), told for the household's mode; the dashboard sends each member
+  there once (`welcomed_at`)
 - `app/households/` — the switcher (+ "start a new household")
 - `app/account/` — your name (all households) and "reset my calendar link" for the current one
 - `app/login/` — the code flow and `signOut`
@@ -361,25 +367,36 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
   `lib/demo.ts`; `signed-in/` is the notice for signed-in visitors; data functions branch on
   `ctx.demo`, mutations refuse politely
 - `app/cal.ics/route.ts` — public iCal feed per membership (`/cal.ics?k=<calendar_token>`, no
-  household param), resolved through `calendar_context()`; removing the membership kills the
-  feed, and "reset my calendar link" issues a new token
+  household param), resolved through `calendar_context()` and built by `lib/ics.ts` inside
+  `withHousehold` (events worded for the token's owner, rent RRULE only with `feature_rent`);
+  removing the membership kills the feed, "reset my calendar link" issues a new token, and
+  every bad token gets the same empty 404. Subscribe buttons: `app/components/CalendarLinks.tsx`
+- `lib/features.ts` — the one place features are asked about: `hasFeature`, `requireFeature`
+  (pages: not-found), `assertFeature` (actions), `navLinks` (the header)
+- `app/icon.tsx`, `app/apple-icon.tsx`, `app/opengraph-image.tsx` — `next/og` at build time
+  from `BRAND` and the theme tokens (`lib/mark.tsx` holds the stand-in mark and the font loader)
 
 ### Styling
 
 Tailwind v4, CSS-first config in `app/globals.css`. Raw values live on `:root` (the
 "statement" theme: paper ledger, one accent blue, IBM Plex Mono as the ledger face) and are
-mapped to utilities in `@theme inline`; `[data-theme="peach"]` overrides them with the peach
-awning theme (cream/espresso/deep peach, Fraunces display, Karla body, Courier Prime ledger,
-the `.awning` band). `<html data-theme data-color-scheme>` is set by the root layout from the
-household. The statement dark block is gated on `data-color-scheme="system"`; peach is
-light-only. Green/red/amber (sage/rose/butter in peach) are reserved for paid/unpaid/due-soon.
+mapped to utilities in `@theme inline`; `:root[data-theme="peach"]` overrides them with the
+peach awning theme (cream/espresso/deep peach, Fraunces display, Karla body, Courier Prime
+ledger, the `.awning` band, radii one step rounder, pill tags). Faces come from `next/font` as
+`--nf-*` variables on `<html>` and are picked per theme through `--face-*`; only Plex Mono
+preloads. `<html data-theme data-color-scheme>` is set by the root layout from the household
+(peach always renders `light`). The statement dark block is gated on
+`data-color-scheme="system"` and excludes peach. Green/red/amber (sage/rose/butter in peach) are reserved for paid/unpaid/due-soon.
 Theme color values have one home, `lib/theme-tokens.ts`: email reads it directly, and the stylesheet
 mirrors it under the `tokens` suite, so change the module first. Peach's values there are the
-corrected spec from `DESIGN.md` (darker inks than peach-cob, all text ≥ 4.5:1), which phase 5
-ports instead of peach-cob's originals. A global `prefers-reduced-motion` rule ends `globals.css`.
+corrected spec from `DESIGN.md` (darker inks than peach-cob, all text ≥ 4.5:1), not
+peach-cob's originals. A global `prefers-reduced-motion` rule ends `globals.css`.
 Shared component classes (`.panel`, `.eyebrow`, `.figure`, `.btn*`, `.tag*`, `.due-*`,
-`.field-*`, `.data-table`, `.tab*`, `.flash*`, `.table-stack*`) live in `@layer components` —
-Tailwind v4 cannot `@apply` a custom class from the same layer.
+`.field-*`, `.data-table`, `.tab*`, `.flash*`, `.table-stack*`, `.nav-link`, `.nav-menu*`,
+`.dialog`, `.legend-toggle`, `.awning`, `.panel-awning`, `.tour-*`) live in `@layer components` —
+Tailwind v4 cannot `@apply` a custom class from the same layer. Anything that removes, sends or
+reassigns asks first through `app/components/ConfirmButton.tsx` (a native `<dialog>`), never
+`window.confirm()`.
 
 ## Verifying changes locally
 
