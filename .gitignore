@@ -52,3 +52,8 @@ next-env.d.ts
 # launcher fetches the pinned, checksum-verified version on first run)
 .claude/settings.local.json
 .claude/skills/impeccable/scripts/bin/
+
+# survey (silk): local password, responses and form secret
+survey/config.php
+survey/data/responses.php
+survey/data/secret.php
