@@ -1,4 +1,5 @@
 import type { Ctx } from "@/lib/context";
+import type { Bill, BillType, Debt, Person } from "@/lib/bills";
 import type { Household } from "@/lib/types";
 
 // The /demo household: in memory, ledger mode, no database. getCtx() returns demoCtx() for a
@@ -34,26 +35,48 @@ export const DEMO_PEOPLE: DemoPerson[] = [
 /** Who the demo visitor is signed in as. */
 export const DEMO_VIEWER = DEMO_PEOPLE[0];
 
-export const DEMO_BILL_TYPES = [
+export const DEMO_BILL_TYPES: BillType[] = [
   { id: 1, name: "Electric", emoji: "⚡", processingFee: 0, ownerId: 2, ownerName: "Jordan" },
   { id: 2, name: "Gas", emoji: "🔥", processingFee: 0, ownerId: 3, ownerName: "Casey" },
   { id: 3, name: "Water", emoji: "💧", processingFee: 0, ownerId: 4, ownerName: "Morgan" },
   { id: 4, name: "Wifi", emoji: "🛜", processingFee: 0, ownerId: 1, ownerName: "Robin" },
 ];
 
-export const DEMO_BILLS = [
-  { id: 1, typeName: "Gas", typeEmoji: "🔥", ownerId: 3, ownerName: "Casey", billDate: ymd(-11), dueDate: ymd(5), total: 62.4, perPersonCost: 15.6, status: "unpaid" as const, pdfPath: null, addedByName: "Casey" },
-  { id: 2, typeName: "Wifi", typeEmoji: "🛜", ownerId: 1, ownerName: "Robin", billDate: ymd(-12), dueDate: ymd(12), total: 79.99, perPersonCost: 20.0, status: "unpaid" as const, pdfPath: null, addedByName: "Robin" },
-  { id: 3, typeName: "Water", typeEmoji: "💧", ownerId: 4, ownerName: "Morgan", billDate: ymd(-3), dueDate: ymd(19), total: 43.16, perPersonCost: 10.79, status: "unpaid" as const, pdfPath: null, addedByName: "Morgan" },
-  { id: 4, typeName: "Electric", typeEmoji: "⚡", ownerId: 2, ownerName: "Jordan", billDate: ymd(-38), dueDate: ymd(-23), total: 104.12, perPersonCost: 26.03, status: "paid" as const, pdfPath: null, addedByName: "Jordan" },
+const bill = (id: number, typeId: number, billOffset: number, dueOffset: number, total: number, perPersonCost: number): Bill => {
+  const t = DEMO_BILL_TYPES.find((x) => x.id === typeId)!;
+  return {
+    id, typeId, typeName: t.name, typeEmoji: t.emoji, ownerId: t.ownerId, ownerName: t.ownerName,
+    billDate: ymd(billOffset), dueDate: ymd(dueOffset), total, perPersonCost,
+    status: "unpaid", pdfPath: null, addedByName: t.ownerName,
+  };
+};
+
+const BILLS: Bill[] = [
+  bill(1, 2, -11, 5, 62.4, 15.6),
+  bill(2, 4, -12, 12, 79.99, 20.0),
+  bill(3, 3, -3, 19, 43.16, 10.79),
+  bill(4, 1, -38, -23, 104.12, 26.03),
 ];
 
-/** billId → membership ids who still owe (Jordan already paid Robin back for Wifi). */
-export const DEMO_DEBTS = new Map<number, Set<number>>([
-  [1, new Set([1, 2, 4])],
-  [2, new Set([3, 4])],
-  [3, new Set([1, 2, 3])],
+/** billId → membership ids who have paid back (everyone else in the fixed debtor set owes). */
+const PAID = new Map<number, number[]>([
+  [1, [2]],
+  [2, [2]],
+  [3, []],
+  [4, [1, 3, 4]],
 ]);
+
+const SPLITTERS = DEMO_PEOPLE.filter((p) => p.splitsBills);
+
+/** Each bill's fixed debtor set: every splitter except the type's owner. */
+export function demoDebts(billId: number): Debt[] {
+  const b = BILLS.find((x) => x.id === billId)!;
+  return SPLITTERS.filter((p) => p.id !== b.ownerId).map((p) => ({ personId: p.id, name: p.name, paid: PAID.get(billId)!.includes(p.id) }));
+}
+
+export const DEMO_BILLS: Bill[] = BILLS.map((b) => ({ ...b, status: demoDebts(b.id).every((d) => d.paid) ? "paid" : "unpaid" }));
+
+export const DEMO_SPLITTERS: Person[] = SPLITTERS.map(({ id, name }) => ({ id, name }));
 
 const DEMO_HOUSEHOLD: Household = {
   id: -1, // never a database id; withHousehold refuses demo scopes anyway

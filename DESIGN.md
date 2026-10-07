@@ -61,7 +61,7 @@ Decided here; override by editing this table:
 
 | Topic | utilities | peach-cob | Lejer |
 |---|---|---|---|
-| Payer's own share | payer gets a debt row and checks themself off | owner never gets a row | Owner-based everywhere: the payer gets no row. The import drops Aaron's self-debt rows and flips bills with no remaining debtors to `paid`, and reports the count. |
+| Payer's own share | payer gets a debt row and checks themself off | owner never gets a row | Owner-based everywhere: the payer gets no row. The import drops Aaron's self-debt rows, synthesizes paid rows for debtors the old data no longer has (§11), and reports the counts. |
 | Split denominator | all people | `splits_bills = 1` | Splitters. The owner counts in the denominator but gets no debt. |
 | "Admin" | one admin | all residents | `memberships.role` in (`admin`, `member`). Peach-cob imports with its current admin flags. |
 | Thank-you receipts | yes | no | Feature toggle `feature_thanks`, default on. |
@@ -200,7 +200,8 @@ bill_types      id, household_id, name, emoji, processing_fee NUMERIC(10,2), own
                 UNIQUE (household_id, name), UNIQUE (id, household_id)
 bills           id, household_id, type_id, bill_date DATE, due_date DATE, total, per_person_cost,
                 status, pdf_path TEXT NULL, added_by_id NULL, UNIQUE (id, household_id)
-bill_debts      household_id, bill_id, person_id, PRIMARY KEY (bill_id, person_id)
+bill_debts      household_id, bill_id, person_id, paid_at TIMESTAMPTZ NULL,  PRIMARY KEY (bill_id, person_id)
+                                                                     -- permanent rows (0003)
 payment_thanks  household_id, bill_id, person_id, queued_at, PRIMARY KEY (bill_id, person_id)
 documents       id, household_id, title, category, file_path, content_type, file_size, uploaded_at, uploaded_by NULL
 login_codes     id, user_id, code_hash CHAR(64), attempts SMALLINT, ip_hash CHAR(64) NULL,
@@ -233,9 +234,27 @@ and simplifies the UI; it never changes how debts are stored.
 ### Split math (unchanged from peach-cob, which generalizes utilities)
 
 `total = amount + processing_fee`, `per_person_cost = round(total / splitters, 2)` where
-splitters = memberships with `splits_bills` true (owner included). Debt rows for every splitter
-**except** the owner. A bill is `paid` when no debt rows remain (`updateOwes`, transactional).
-Non-splitters (the maintainer pattern) sign in, see everything, never owe, never get emails.
+splitters = memberships with `splits_bills` true (owner included; pending invites too). Debt
+rows for every splitter **except** the owner. Non-splitters (the maintainer pattern) sign in,
+see everything, never owe, never get emails. Money math is done in cents.
+
+### Debt rows are permanent (0003, decided 2026-10-06)
+
+Both source apps deleted a `bill_debts` row when someone paid, so the original debtor set was
+lost; unchecking a payment had to rebuild debts from *today's* splitters, which re-added the
+wrong people (anyone who joined after the bill). Lejer keeps the rows:
+
+- The row set is written once, when the bill is posted (`createBill`), and never rebuilt.
+- Paying sets `paid_at = now()`; un-paying sets it `NULL` (`setPaid`, one row at a time,
+  transactional). Unchecking therefore restores exactly the original debtor, and someone who
+  joined later can never gain a row on an old bill.
+- A bill is `paid` exactly when none of its rows has `paid_at IS NULL`. `bills.status` is kept
+  in step in the same transaction (`refreshBillStatus`), including when removing a member
+  cascades their rows away.
+- Balances, the owed-pairs ledger and reminders all read `paid_at IS NULL`.
+- Not chosen: comparing `memberships.invited_at` to the bill's date to decide eligibility.
+  Imported memberships get `invited_at` = import time, after every historical bill, so nobody
+  could ever be re-added on old bills.
 
 ---
 
@@ -395,7 +414,7 @@ mode is fixed at creation). Private means blob URLs are not fetchable without a 
 Keys are household-prefixed:
 
 ```
-h/{household_id}/bills/{year}/{type}/{MMDD}.pdf        deterministic; allowOverwrite: true
+h/{household_id}/bills/{year}/{type-slug}/{MMDD}-{billId}.pdf   deterministic per bill; allowOverwrite: true
 h/{household_id}/documents/{slug}-{randomSuffix}.{ext} addRandomSuffix: true
 ```
 
@@ -410,10 +429,20 @@ h/{household_id}/documents/{slug}-{randomSuffix}.{ext} addRandomSuffix: true
    `Content-Disposition: inline`, `Cache-Control: private, max-age=3600`.
 5. `get(key, { access: 'private' })` and stream the body.
 
-Bill PDFs upload through the add-bill server action (4 MB `bodySizeLimit`, under Vercel's
-4.5 MB cap). Documents upload client-direct via `handleUpload` in `/api/documents/upload`;
-`onBeforeGenerateToken` runs `requireAdminAction()` and **rewrites** the pathname under
-`h/{id}/documents/` rather than trusting the client's; `onUploadCompleted` stays a no-op
+The bill id in the key (revised 2026-10-06) keeps two same-type bills posted the same day
+apart; with `ask_bill_date` off every bill is dated today, so `{MMDD}` alone would collide.
+The type is slugified. The `pdf_path` CHECK pins only the `h/{id}/bills/` prefix, so it needed
+no change. `addBill` reserves the bill id (`nextval`) first, uploads under the final key, then
+inserts the row, so a bill never points at a missing file.
+
+Bill PDFs upload through the add-bill server action (`experimental.serverActions.bodySizeLimit`
+4.4 MB; the action caps the file at 4 MB and checks the `%PDF-` magic bytes; under Vercel's
+4.5 MB request cap). Documents upload client-direct via `handleUpload` in `/api/documents/upload`;
+`onBeforeGenerateToken` runs `requireAdminAction()` and **refuses** any pathname outside
+`h/{id}/documents/` (revised 2026-10-06: `@vercel/blob` binds the client token to the pathname
+the browser requested and offers no way to substitute another, so the original plan to rewrite
+it was impossible; the page tells the browser its prefix, and the bound token means the upload
+cannot land anywhere else); `onUploadCompleted` stays a no-op
 (never fires against localhost) and `addDocument()` `head()`s the key before inserting. That
 route stays excluded from `proxy.ts` for the same callback reason as today; the OIDC token is
 preferred on Vercel, `BLOB_READ_WRITE_TOKEN` is still needed for client-upload token minting
@@ -613,15 +642,17 @@ members page with invites, roles helpers, `/households` switcher, `/demo`, `emai
 `ask_bill_date DEFAULT false`, plus the "reset my calendar link" action (the feed itself
 ships in phase 5).
 
-**Phase 3 — Core ledger.** Bill types with owners (mode-aware form), add bill
-(`ask_bill_date`, optional PDF → private Blob), payment checkboxes (`updateOwes`, thanks
-queue hooks), per-bill reminder, dashboard (mode-aware summary strip, owed pairs, year
-groups), portal bills + household tabs, `/files`, documents (client-direct upload, list,
-edit, remove). Port the zero-diff components verbatim (`DueChip`, `Pagination`,
-`SubmitButton`, `PaymentCheckboxes`, `RemindersSection`, loading skeletons).
+**Phase 3 — Core ledger.** `0003` (permanent debt rows, §3), bill types with owners
+(mode-aware form), add bill (`ask_bill_date`, optional PDF → private Blob), payment checkboxes
+(`setPaid`, thanks queue hooks), per-bill reminder, the new-bill and reminder templates (moved
+up from phase 4 because phase 3 sends them), dashboard (mode-aware summary strip, owed pairs,
+year groups), portal bills + household tabs, `/files`, documents (client-direct upload, list,
+edit, remove). Port the zero-diff components (`DueChip`, `Pagination`, `SubmitButton`,
+`PaymentCheckboxes`, loading skeletons). `RemindersSection` (the reminder schedule form) moves
+to phase 4 with the settings it edits. Verify suites `bills` and `http`.
 
-**Phase 4 — Email, reminders, cron.** Remaining templates (new bill, reminder, thanks, custom,
-batch confirmation, bulk receipt), `lib/reminders.ts` per household with timezone, thanks
+**Phase 4 — Email, reminders, cron.** Remaining templates (thanks, custom, batch confirmation,
+bulk receipt), `RemindersSection`, `lib/reminders.ts` per household with timezone, thanks
 flush, bulk email tab, `/api/cron/tick` with the budget rule, `.github/workflows/tick.yml`,
 `scripts/send-reminders.ts`, settings page groups for reminders and email.
 
@@ -643,17 +674,24 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
 3. Household **"77 N Union #3"** (`mode = single_payer`, theme statement, `color_scheme`
    system, `ask_bill_date` on, rent/trends/bulk/documents/thanks on, tour off): people →
    memberships with existing admin flags; all types owned by Aaron's membership; bills and
-   debts copied **minus Aaron's own debt rows**; any bill left with zero debtors flips to
-   `paid` (count printed); `rent_config` and `reminder_config` → household columns; documents
-   copied.
+   debts copied **minus Aaron's own debt rows**; `rent_config` and `reminder_config` →
+   household columns; documents copied.
 4. Household **"404 Parke Ave"** (`mode = ledger`, theme peach, `ask_bill_date` off, tour and
    thanks on, rent/trends/bulk/documents off): people → memberships (everyone admin, Aaron
    `splits_bills = false`), `welcomed_at` carried, owners mapped, `added_by_id` mapped, debts
    copied as-is.
+   **Debt rows, both households (0003):** the old apps deleted a row when someone paid, so the
+   source data holds only *unpaid* rows. Copy those with `paid_at NULL`. Then, for every bill,
+   **synthesize** a row for each splitter (as of import) who is not the type's owner and has
+   no row: those people already paid. Their `paid_at` is the bill's `due_date` at 12:00 in the
+   household's timezone. That timestamp is **synthetic** (the real payment time was never
+   recorded) and should be read as "paid by around the due date", nothing more. Finally set
+   every bill's `status` from its rows (`refreshBillStatus`), and print how many rows were
+   copied, synthesized and dropped (self-debts) and how many bills flipped to `paid`.
 5. Blobs: `list()` each old (public) store, fetch each blob, `put()` into the new private
    store under `h/{id}/…`, rewrite `pdf_path` / `file_path`. Idempotent (`allowOverwrite`).
-6. Verification block per household: row counts, `SUM(total)`, unpaid count, debt count
-   (adjusted for the dropped self-debts), blob count vs. rows with paths. Non-zero exit on
+6. Verification block per household: row counts, `SUM(total)`, unpaid count, unpaid debt
+   rows (= source rows minus dropped self-debts), synthesized paid rows, blob count vs. rows with paths. Non-zero exit on
    mismatch. `--force` deletes the two households (cascades) and their blob prefixes first.
 7. Dry-run against a Neon branch, then production; DNS for lejer.app; disable both old
    GitHub Actions workflows; old domains redirect to lejer.app; TiDB left read-only for a month.
@@ -665,6 +703,12 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
 - ~~Neon role creation via SQL vs. the console.~~ SQL (§4 "Roles"): console roles join
   `neon_superuser`. Verified 2026-10-06: `lejer_app` `rolbypassrls = false`, not a member.
 - Resend's daily counter boundary (UTC assumed). The budget rule is conservative either way.
+- **Blob store shared across environments.** There is one store (`lejer-blob`) and keys are
+  `h/{household_id}/…`, but household ids come from different databases in dev and prod. Once
+  Production uses the store, dev household 7 and prod household 7 share a prefix: dev uploads
+  could overwrite prod files, and `npm run verify`'s sweep deletes `h/{id}/` for its fixture
+  ids. Harmless today (prod has no data). To decide before any prod data exists: a separate
+  dev/preview store, or an environment segment in the key.
 - `mail.lejer.app` domain verification at Resend (Aaron's DNS). Until then dev uses the test
   sender (§6); nothing in phase 2 blocks on it.
 - ~~Whether `households_read`'s subquery needs a `SECURITY DEFINER` helper.~~ It does not.

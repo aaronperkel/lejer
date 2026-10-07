@@ -56,11 +56,11 @@ FROM (VALUES ('elm-street', 'Gas',      -40, -20,  84.20, 'paid'),
 JOIN households h ON h.slug = b.slug
 JOIN bill_types bt ON bt.household_id = h.id AND bt.name = b.type;
 
--- Every splitter except the type's owner owes on each unpaid bill.
-INSERT INTO bill_debts (household_id, bill_id, person_id)
-SELECT b.household_id, b.id, m.id
+-- Every splitter except the type's owner has a debt row on every bill (rows are permanent);
+-- on the bill that's already paid, each row carries paid_at.
+INSERT INTO bill_debts (household_id, bill_id, person_id, paid_at)
+SELECT b.household_id, b.id, m.id, CASE WHEN b.status = 'paid' THEN b.due_date - 1 + time '12:00' END
 FROM bills b
 JOIN households h ON h.id = b.household_id AND h.slug IN ('elm-street', 'oak-lane')
 JOIN bill_types bt ON bt.id = b.type_id
-JOIN memberships m ON m.household_id = b.household_id AND m.splits_bills AND m.id <> bt.owner_id
-WHERE b.status = 'unpaid';
+JOIN memberships m ON m.household_id = b.household_id AND m.splits_bills AND m.id <> bt.owner_id;

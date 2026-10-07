@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
+import BillTypesSection from "@/app/portal/BillTypesSection";
+import PortalTabs from "@/app/portal/PortalTabs";
 import { requireUser } from "@/lib/auth";
+import { getBillTypes } from "@/lib/bills";
+import { BRAND } from "@/lib/brand";
 import { withHousehold } from "@/lib/db";
-import { DEMO_PEOPLE } from "@/lib/demo";
+import { DEMO_BILL_TYPES, DEMO_PEOPLE } from "@/lib/demo";
 import type { Role } from "@/lib/types";
 import { inviteMember, removeMember, resendInvite, updateMember } from "../actions";
-import { BRAND } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Members" };
+export const metadata: Metadata = { title: "Household" };
 
 interface MemberView {
   id: number;
@@ -20,32 +23,33 @@ interface MemberView {
   invitedAt: Date | null;
 }
 
-// Phase 2 ships the members half of /portal/household; bill types join it in phase 3.
-// Everyone in the household can read it; only admins see the controls.
+// Members and bill types. Everyone in the household can read it; only admins see the controls.
 export default async function MembersPage({ searchParams }: PageProps<"/portal/household">) {
   const ctx = await requireUser();
   const { ok, err } = await searchParams;
   const isAdmin = ctx.membership.role === "admin";
 
-  const members: MemberView[] = ctx.demo
-    ? DEMO_PEOPLE.map((p) => ({ ...p, joinedAt: new Date(), invitedAt: null }))
-    : await withHousehold(ctx, (tx) => tx<MemberView[]>`
-        SELECT m.id, u.name, u.email, m.role, m.splits_bills AS "splitsBills",
-               m.joined_at AS "joinedAt", m.invited_at AS "invitedAt"
-        FROM memberships m JOIN users u ON u.id = m.user_id
-        WHERE m.household_id = ${ctx.household.id} -- memberships_read also admits my rows elsewhere
-        ORDER BY m.joined_at IS NULL, u.name`);
+  const { members, types } = ctx.demo
+    ? { members: DEMO_PEOPLE.map((p) => ({ ...p, joinedAt: new Date(), invitedAt: null })), types: DEMO_BILL_TYPES }
+    : await withHousehold(ctx, async (tx) => ({
+        members: await tx<MemberView[]>`
+          SELECT m.id, u.name, u.email, m.role, m.splits_bills AS "splitsBills",
+                 m.joined_at AS "joinedAt", m.invited_at AS "invitedAt"
+          FROM memberships m JOIN users u ON u.id = m.user_id
+          WHERE m.household_id = ${ctx.household.id} -- memberships_read also admits my rows elsewhere
+          ORDER BY m.joined_at IS NULL, u.name`,
+        types: await getBillTypes(tx),
+      }));
 
   const shortDate = (d: Date) =>
     d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: ctx.household.timezone });
 
   return (
     <main className="space-y-8">
-      <header>
-        <span className="eyebrow mb-1">{ctx.household.name}</span>
-        <h1 className="page-title">Members</h1>
-      </header>
-      <Flash ok={ok} err={err} />
+      <div>
+        <PortalTabs active="household" householdName={ctx.household.name} />
+        <Flash ok={ok} err={err} />
+      </div>
 
       <section className="panel overflow-hidden">
         <table className="data-table table-stack table-stack-people">
@@ -112,6 +116,13 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
           </tbody>
         </table>
       </section>
+
+      <BillTypesSection
+        types={types}
+        people={members.map(({ id, name }) => ({ id, name }))}
+        ledger={ctx.household.mode === "ledger"}
+        canEdit={isAdmin}
+      />
 
       {isAdmin && (
         <section className="panel p-5">

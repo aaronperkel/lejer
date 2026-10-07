@@ -48,6 +48,15 @@ checks that each connection reports dev's `neon.branch_id`. Suites build their o
 throwaway households (`verify-<run>-*`, users `@verify.invalid`) and delete them, sweeping
 leftovers from crashed runs first, so they never depend on or disturb the seed data. **Every
 phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `index.ts`).
+Suites: `brand`, `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
+`ctxFor()`), `http` (starts `next start` on gate 1's build, refusing a build older than the
+sources; mints sessions with `SESSION_SECRET`; forces console mail; drives server actions the
+way the client does: plain forms as `$ACTION_ID_<id>` posts, `useActionState`/direct calls with
+a `Next-Action` header and React's `encodeReply` body, referenced `_1_*` fields **before** the
+root `"0"`). Suites write real blobs, so `verify` also refuses unless `BLOB_READ_WRITE_TOKEN`
+belongs to lejer-blob (the store id is embedded in the token), and its sweep deletes each
+fixture household's `h/{id}/` prefix **before** its rows, so a crashed run is cleaned up by the
+next one.
 `npx tsc --noEmit` typechecks alone.
 
 ## Configuration
@@ -173,8 +182,12 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
   memberships, SET NULL on delete)
 - `bills` (`type_id` RESTRICT, `bill_date`, `due_date`, `total`, `per_person_cost`, `status`
   `unpaid`|`paid` as a CHECK, `pdf_path`, `added_by_id`)
-- `bill_debts` (`bill_id`, `person_id`) — who still owes; **rows are deleted as people pay**;
-  the owner never gets a row; bill flips to `paid` when none remain (`updateOwes`, transactional)
+- `bill_debts` (`bill_id`, `person_id`, `paid_at`) — the bill's debtor set, **written once when
+  the bill is posted and never rebuilt** (0003). Paying sets `paid_at`, un-paying clears it, so
+  unchecking restores exactly the original debtor and late joiners never get rows on old bills.
+  The owner never gets a row. A bill is `paid` when no row has `paid_at IS NULL`; `setPaid` and
+  `refreshBillStatus` keep `bills.status` in step transactionally (also after a member removal
+  cascades their rows). Everything "still owed" filters `paid_at IS NULL`
 - `payment_thanks` — debounced thank-you receipts (`lib/thanks.ts`), only when `feature_thanks`
 - `documents` (`file_path` always under `h/{id}/documents/`, `uploaded_by` SET NULL)
 - `login_codes` (`email` citext, `code_hash`, `attempts`, `ip_hash`, `created_at`, `expires_at`) —
@@ -217,6 +230,12 @@ which reserves Resend headroom for household mail. A send that fails releases it
 Verifying also accepts every pending invite (`joined_at`), one `withHousehold` per household,
 since `memberships_write` only admits the current one.
 
+**Library mutations take `ctx` and authorize themselves** (`assertAdmin(ctx)`,
+`assertBillManager(tx, ctx, typeId)` in `lib/auth.ts`), throwing `ActionError` (`lib/errors.ts`)
+for anything the person should be told; actions turn it into `?err=` or an inline error, and
+anything else propagates as a bug. Pages read through one loader each in `lib/views.ts`, which
+is where the `ctx.demo` branch lives.
+
 **Page-level authorization** is `requireUser()` (no ctx → onboarding if signed in, else
 `/login`) / `requireAdmin()` (`/no-access`) in `lib/auth.ts`, and `requireUserAction()` /
 `requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions (throw). Every
@@ -240,9 +259,11 @@ out to view the demo, or go back.") and is never dropped into either household s
 
 ### Stored files
 
-One private Blob store. Keys: bill PDFs `h/{household_id}/bills/{year}/{type}/{MMDD}.pdf`
-(MMDD from the bill date, `allowOverwrite: true`, the upload's own filename is ignored because
-providers reuse one name per statement); documents
+One private Blob store. Keys (`lib/blob.ts`): bill PDFs
+`h/{household_id}/bills/{year}/{type-slug}/{MMDD}-{billId}.pdf` (MMDD from the bill date; the
+bill id keeps same-day bills apart; `allowOverwrite: true`; the upload's own filename is ignored
+because providers reuse one name per statement; `addBill` reserves the id with `prepareBill`,
+uploads, then inserts); documents
 `h/{household_id}/documents/{slug}-{suffix}.{ext}` (`addRandomSuffix: true`).
 
 `app/files/[...path]/route.ts` is the only read path: requires a ctx, rejects keys not under
@@ -252,8 +273,9 @@ allowlist (pdf/png/jpg/jpeg/heic/heif, no SVG) + `nosniff`, and streams `get()`.
 
 Bill PDFs go through the `addBill` server action (4 MB `bodySizeLimit` under Vercel's 4.5 MB
 cap, optional). Documents upload client-direct via `handleUpload` in
-`app/api/documents/upload/route.ts`, which gates on `requireAdminAction()` and **rewrites** the
-pathname under the household's documents prefix; `onUploadCompleted` is intentionally a no-op
+`app/api/documents/upload/route.ts`, which gates on `requireAdminAction()` and **refuses** any
+pathname outside the household's documents prefix (the client token is bound to the requested
+pathname and can't be rewritten; the page passes the prefix to the form); `onUploadCompleted` is intentionally a no-op
 (never fires against localhost) and `addDocument()` `head()`s the key before inserting.
 
 ### Email
@@ -265,6 +287,10 @@ the row under that household; without it the row is `household_id NULL`. From is
 `"{from_name ?? household name} via Lejer" <notify@mail.lejer.app>`; Reply-To is
 `households.reply_to`, except reminder and new-bill emails use the bill owner's email.
 Login codes and invites come from `"Lejer" <login@mail.lejer.app>` with no Reply-To.
+
+New-bill and reminder mail (`lib/notify.ts`) goes only to members who have **joined**: a
+pending invite's address isn't proven, so it gets nothing but the invite. Reminders are urgent
+within the household's `urgent_reminder_days`, counted in its own calendar (`lib/time.ts`).
 
 Templates are React Email components in `emails/`, all wrapped in `emails/Shell.tsx`, which
 renders the statement or peach shell from `households.theme` (inline styles only, light-only,
@@ -326,7 +352,9 @@ Tailwind v4 cannot `@apply` a custom class from the same layer.
 
 ## Verifying changes locally
 
-Start with the two gates (`npm run build`, `npm run verify`). Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
+Start with the two gates (`npm run build`, `npm run verify`). Pages stream under the root
+`loading.tsx`, so `notFound()` renders the not-found UI with a 200 status (the status line has
+already gone out); check for the UI, not the code. Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
 (seed users `alex@example.com` / `sam@example.com`, households `elm-street` single-payer and
 `oak-lane` ledger, both users in both). Set `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` to skip
 login. With `RESEND_API_KEY` empty, login codes print to the dev server's output

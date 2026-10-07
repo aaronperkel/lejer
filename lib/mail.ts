@@ -16,7 +16,7 @@ import { BRAND } from "@/lib/brand";
 //   until the mail domain (BRAND.mailDomain) verifies. Resend only delivers that sender's mail to the Resend
 //   account's own address.
 
-export type MailKind = "login_code" | "invite";
+export type MailKind = "login_code" | "invite" | "new_bill" | "reminder";
 
 /** Kinds sent as "{BRAND.name}" <login@…> with no Reply-To; everything else is household mail. */
 const ACCOUNT_KINDS: ReadonlySet<MailKind> = new Set(["login_code", "invite"]);

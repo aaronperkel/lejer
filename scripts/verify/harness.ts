@@ -8,12 +8,15 @@
 
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
+import type { Ctx } from "@/lib/context";
 
 // The dev branch of Neon project "lejer" (CLAUDE.md, Deployment). main is ep-little-cake.
+// blobStore is lejer-blob's id: the Blob token must belong to it and nothing else.
 export const DEV = {
   project: "round-grass-59501457",
   branch: "br-spring-wildflower-b8jxabk0",
   endpoint: "ep-cold-shadow-b8s9z1fi",
+  blobStore: "kmuAqgMI8w1nbg75",
 } as const;
 
 export type Sql = postgres.Sql<Record<string, never>>;
@@ -26,6 +29,7 @@ const opts = { prepare: false, max: 1, onnotice: () => {} } as const;
  * pooled dev endpoint), then by the branch the server reports after connecting.
  */
 export async function connectDev(): Promise<{ owner: Sql; app: Sql; appDirect: Sql }> {
+  guardBlobStore();
   const ownerUrl = new URL(required("DATABASE_URL_ADMIN"));
   const appUrl = new URL(required("DATABASE_URL"));
   if (!ownerUrl.hostname.startsWith(`${DEV.endpoint}.`)) {
@@ -52,6 +56,18 @@ export async function connectDev(): Promise<{ owner: Sql; app: Sql; appDirect: S
     if (r.usr !== expected) refuse(`${name} connection is ${r.usr}, expected ${expected}`);
   }
   return { owner, app, appDirect };
+}
+
+/**
+ * Suites write real blobs (and the sweep deletes by prefix), so the token must be lejer-blob's.
+ * A read-write token embeds its store id: vercel_blob_rw_<storeId>_<secret>.
+ */
+function guardBlobStore(): void {
+  const token = required("BLOB_READ_WRITE_TOKEN");
+  const store = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec(token)?.[1];
+  if (store !== DEV.blobStore) refuse(`BLOB_READ_WRITE_TOKEN belongs to store ${store ?? "(unrecognized token)"}, not lejer-blob`);
+  const id = process.env.BLOB_STORE_ID;
+  if (id && id.replace(/^store_/, "") !== DEV.blobStore) refuse(`BLOB_STORE_ID ${id} is not lejer-blob`);
 }
 
 function required(name: string): string {
@@ -120,6 +136,11 @@ export const email = (who: string) => `${who}-${RUN}@${FIXTURE_DOMAIN}`;
 export const LOG_MARK = "f".repeat(64);
 
 export async function sweep(owner: Sql): Promise<void> {
+  // Blobs first, by prefix, for every fixture household still in the database (including ones
+  // a crashed run left behind); only then the rows, so a crash mid-sweep is retried next time.
+  const { deletePrefix, householdPrefix } = await import("@/lib/blob");
+  const leftovers = await owner<{ id: number }[]>`SELECT id FROM households WHERE slug LIKE 'verify-%'`;
+  for (const { id } of leftovers) await deletePrefix(householdPrefix(id));
   await owner`DELETE FROM households WHERE slug LIKE 'verify-%'`;
   await owner`DELETE FROM users WHERE email LIKE ${"%@" + FIXTURE_DOMAIN}`;
   await owner`DELETE FROM login_codes WHERE email LIKE ${"%@" + FIXTURE_DOMAIN}`;
@@ -174,4 +195,26 @@ export async function makeHousehold(owner: Sql, tag: string, mode: "single_payer
     memberTypeId: types[1].id,
     billId: bill.id,
   };
+}
+
+/** A real request context for a fixture user in a fixture household (no cookies involved). */
+export async function ctxFor(userId: number, householdId: number): Promise<Ctx> {
+  const { withUser } = await import("@/lib/db");
+  const { findMembership, getUserById } = await import("@/lib/households");
+  return withUser(userId, async (tx) => {
+    const user = (await getUserById(tx, userId))!;
+    const found = await findMembership(tx, userId, householdId);
+    if (!found || found.household.id !== householdId) throw new Error(`user ${userId} is not in household ${householdId}`);
+    return { user, ...found, demo: false };
+  });
+}
+
+/** Adds a member to a fixture household (owner connection). */
+export async function addMember(owner: Sql, h: { id: number }, tag: string, opts: { splits?: boolean; role?: "admin" | "member"; joined?: boolean } = {}) {
+  const [u] = await owner<{ id: number }[]>`INSERT INTO users (email, name) VALUES (${email(tag)}, ${tag}) RETURNING id`;
+  const [m] = await owner<{ id: number }[]>`
+    INSERT INTO memberships (household_id, user_id, role, splits_bills, joined_at)
+    VALUES (${h.id}, ${u.id}, ${opts.role ?? "member"}, ${opts.splits ?? true}, ${opts.joined === false ? null : new Date()})
+    RETURNING id`;
+  return { userId: u.id, membershipId: m.id };
 }

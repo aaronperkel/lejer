@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Body, Container, Head, Html, Link, Preview, Section, Text } from "@react-email/components";
+import { Body, Column, Container, Head, Html, Link, Preview, Row, Section, Text } from "@react-email/components";
 import type { Theme } from "../lib/types";
 
 // The wrapper every email renders in, in the household's theme. Inline styles only
@@ -10,14 +10,14 @@ import type { Theme } from "../lib/types";
 const PALETTES = {
   statement: {
     page: "#f4f5f6", panel: "#ffffff", ink: "#1b2530", muted: "#5b6875",
-    line: "#dfe2e6", accent: "#1d5fd6", onAccent: "#ffffff",
+    line: "#dfe2e6", accent: "#1d5fd6", onAccent: "#ffffff", unpaid: "#c03538",
     body: "system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
     mono: "ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace",
     headingSize: 19, bodySize: 14, stripe: null as string | null,
   },
   peach: {
     page: "#faf3e7", panel: "#fffcf7", ink: "#43302b", muted: "#8a7468",
-    line: "#dcc9b4", accent: "#b95536", onAccent: "#fffcf7",
+    line: "#dcc9b4", accent: "#b95536", onAccent: "#fffcf7", unpaid: "#b1443d",
     body: "Georgia,'Times New Roman',serif",
     mono: "'Courier New',Courier,monospace",
     headingSize: 22, bodySize: 15,
@@ -85,10 +85,10 @@ export function Shell({
   );
 }
 
-export function Eyebrow({ theme, children }: { theme: Theme; children: ReactNode }) {
+export function Eyebrow({ theme, urgent, children }: { theme: Theme; urgent?: boolean; children: ReactNode }) {
   const p = palette(theme);
   return (
-    <Text style={{ fontFamily: p.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: p.muted, margin: "0 0 10px" }}>
+    <Text style={{ fontFamily: p.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: urgent ? p.unpaid : p.muted, margin: "0 0 10px" }}>
       {children}
     </Text>
   );
@@ -124,3 +124,37 @@ export function ButtonLink({ theme, href, children }: { theme: Theme; href: stri
   );
 }
 
+
+/** Ruled label/value rows, the email cousin of the site's .data-table. */
+export function Rows({ theme, rows }: { theme: Theme; rows: { label: string; value: string; strong?: boolean; urgent?: boolean }[] }) {
+  const p = palette(theme);
+  return (
+    <Section style={{ margin: "4px 0 18px", borderTop: `1px solid ${p.line}`, borderBottom: `1px solid ${p.line}` }}>
+      {rows.map((r, i) => (
+        <Row key={r.label} style={{ borderTop: i === 0 ? undefined : `1px solid ${p.line}` }}>
+          <Column style={{ padding: "9px 2px", fontFamily: p.mono, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: p.muted }}>
+            {r.label}
+          </Column>
+          <Column align="right" style={{ padding: "9px 2px", fontFamily: p.mono, fontSize: r.strong ? 15 : 13, fontWeight: r.strong ? 700 : 400, color: r.urgent ? p.unpaid : p.ink }}>
+            {r.value}
+          </Column>
+        </Row>
+      ))}
+    </Section>
+  );
+}
+
+export function money(n: number): string {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** "2026-10-14" → "October 14, 2026" (no timezone shift: it's a calendar date). */
+export function longDate(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+/** "Robin, Jordan & Casey". */
+export function nameList(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}

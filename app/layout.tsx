@@ -25,7 +25,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const links = ctx
     ? [
         { href: "/", label: "Dashboard" },
-        { href: "/portal/household", label: "Members" },
+        { href: "/portal", label: "Portal" },
+        ...(ctx.household.featureDocuments ? [{ href: "/documents", label: "Docs" }] : []),
         ...(ctx.demo ? [] : [{ href: "/account", label: "Account" }]),
       ]
     : user
