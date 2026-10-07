@@ -44,10 +44,12 @@ JOIN users u ON u.email = t.owner
 JOIN memberships m ON m.household_id = h.id AND m.user_id = u.id;
 
 -- total = amount + fee; per_person_cost = round(total / 2 splitters, 2); status follows debts.
+-- Both splitters hold a share (the owner included), and every seeded bill has been emailed.
 INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, added_by_id,
-                   owner_id, had_owner)
+                   owner_id, had_owner, fee, shares, owner_share, notified_at)
 SELECT h.id, bt.id, current_date + b.bill_offset, current_date + b.due_offset,
-       b.total, round(b.total / 2, 2), b.status, bt.owner_id, bt.owner_id, bt.owner_id IS NOT NULL
+       b.total, round(b.total / 2, 2), b.status, bt.owner_id, bt.owner_id, bt.owner_id IS NOT NULL,
+       bt.processing_fee, 2, bt.owner_id IS NOT NULL, now()
 FROM (VALUES ('elm-street', 'Gas',      -40, -20,  84.20, 'paid'),
              ('elm-street', 'Gas',      -10,  12,  61.75, 'unpaid'),
              ('elm-street', 'Electric', -12,   3,  50.33, 'unpaid'),

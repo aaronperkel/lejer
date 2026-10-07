@@ -55,7 +55,8 @@ phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `
 Suites: `brand`, `tokens` (`lib/theme-tokens.ts` against `globals.css`'s statement, statement-dark
 and peach blocks, `DESIGN.md`'s frontmatter and `.impeccable/design.json`, series colors included;
 peach's faces `preload: false`; no color literals in `emails/`), `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
-`ctxFor()`), `cron`, `features` (mode switch, settings persistence, gating, trends math, calendar
+`ctxFor()`), `cron`, `edits` (the new-bill email queue, edit/delete over the frozen split set,
+the paid lock, `netPairs`), `features` (mode switch, settings persistence, gating, trends math, calendar
 contents), `http` (starts `next start` on gate 1's build, refusing a build older than the
 sources; fixed port 4317 or `VERIFY_PORT`, in its own process group, pid in the gitignored
 `.verify/server.json`: a run that died without cleaning up is found and its server group
@@ -194,13 +195,16 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
   memberships, SET NULL on delete)
 - `bills` (`type_id` RESTRICT, `bill_date`, `due_date`, `total`, `per_person_cost`, `status`
   `unpaid`|`paid` as a CHECK, `pdf_path`, `added_by_id`, `owner_id` → memberships SET NULL +
-  `had_owner`, both set at post time from the type's owner, 0004). The ledger, balances,
+  `had_owner`, both set at post time from the type's owner, 0004; `fee`, `shares`,
+  `owner_share`, the frozen split, and `notice_kind`/`notice_queued_at`/`notice_extra`/
+  `notified_at`, the new-bill email queue, 0005). The ledger, balances,
   reminders' Reply-To and permission checks on an existing bill (`assertCanManage(ctx,
   bill.ownerId)`) all use the bill's owner; `assertBillManager(tx, ctx, typeId)` (the type's
   current owner) only gates posting new bills. A removed owner reads as `FORMER_MEMBER`
   ("former member"); a bill posted for an ownerless type is owed to "the house"
 - `bill_debts` (`bill_id`, `person_id`, `paid_at`) — the bill's debtor set, **written once when
-  the bill is posted and never rebuilt** (0003). Paying sets `paid_at`, un-paying clears it, so
+  the bill is posted** (0003) and rebuilt only by an edit before anyone has paid, over the same
+  frozen split set (0005). Paying sets `paid_at`, un-paying clears it, so
   unchecking restores exactly the original debtor and late joiners never get rows on old bills.
   The owner never gets a row. A bill is `paid` when no row has `paid_at IS NULL`; `setPaid` and
   `refreshBillStatus` keep `bills.status` in step transactionally (also after a member removal
@@ -215,9 +219,20 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
 Bill math: `total = amount + processing_fee`, `per_person_cost = round(total / splitters, 2)`
 where splitters are memberships with `splits_bills`; debt rows for every splitter except the
 owner. `getOwedPairs(tx)` in `lib/bills.ts` is the who-owes-whom ledger and works in both
-modes. SQL aliases snake_case to camelCase (`per_person_cost AS perPersonCost`); bill queries
+modes; the dashboard nets it to one amount per pair with `netPairs()` (display only).
+SQL aliases snake_case to camelCase (`per_person_cost AS perPersonCost`); bill queries
 join `bill_types` and the bill's owner/poster memberships so each `Bill` carries
 `typeName`/`typeEmoji`/`ownerId`/`ownerName`/`addedByName`.
+
+**Fixing a posted bill** (0005, ARCHITECTURE.md §3). Posting queues the new-bill email on the
+bill row (`lib/notices.ts`, `NOTICE_DELAY_MINUTES` = 10 in `lib/notice-delay.ts`); the cron
+tick and every bill mutation's `after()` flush what has waited out the window. Until any debt
+row has `paid_at`, the bill's owner or an admin can `updateBill` (recomputes over the bill's
+frozen `shares` and never consults today's splitters; a type change re-snapshots the owner
+inside the same set) or `deleteBill` (its PDF is deleted after commit). An edit still inside
+the window restarts it; one after the email went out queues a single "Corrected" email to
+everyone on the bill before or after the edit plus both owners. Deleting an already-emailed
+bill sends a "Bill removed" note right away.
 
 ### Auth flow
 
@@ -307,7 +322,7 @@ the row under that household; without it the row is `household_id NULL`. From is
 `households.reply_to`, except reminder and new-bill emails use the bill owner's email.
 Login codes and invites come from `"Lejer" <login@mail.lejer.app>` with no Reply-To.
 
-New-bill and reminder mail (`lib/notify.ts`) goes only to members who have **joined**: a
+New-bill mail (`lib/notices.ts`, queued) and reminder mail (`lib/notify.ts`) go only to members who have **joined**: a
 pending invite's address isn't proven, so it gets nothing but the invite. Reminders are urgent
 within the household's `urgent_reminder_days`, counted in its own calendar (`lib/time.ts`).
 
@@ -322,7 +337,8 @@ renders the statement or peach shell from `households.theme` (inline styles only
 enumerates households with `adminSql` and runs `tickHousehold()` for each with a system scope
 (`user: null`), in **short** transactions only: reads and stamps, never a send inside one. Per
 household: stamp `last_run_at`; flush the thanks queue (`lib/thanks.ts`, own 10-minute debounce,
-every tick, if `feature_thanks`; payment edits also flush via `after()`); then, on the first tick
+every tick, if `feature_thanks`; payment edits also flush via `after()`) and the new-bill email
+queue (`lib/notices.ts`, every tick, never deferred); then, on the first tick
 at or after `send_hour` in the household's timezone, **claim the day** atomically (`last_send_date
 < today`, never `!=`), check the account-wide UTC-day budget (`email_sends_since()`, batch plus
 confirmation copy past 80 → release and **defer**), and send. A batch where every send failed
@@ -347,7 +363,7 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
   house ledger (hidden in single-payer when the viewer is the payer), bills grouped by year,
   calendar subscribe buttons
 - `app/portal/` — `/portal` bills (add-bill disclosure honoring `ask_bill_date`, payment
-  checkboxes, per-bill reminders), `/portal/household` members (invite/edit/remove) + bill
+  checkboxes, per-bill reminders, the edit/delete dialog while nobody has paid), `/portal/household` members (invite/edit/remove) + bill
   types (owner column in ledger mode), `/portal/settings` (features, theme, reminders,
   timezone, email identity, rent, mode switch), `/portal/email` bulk email (feature-gated).
   All mutations are server actions (portal ones in `app/portal/actions.ts`); flash messages
@@ -394,9 +410,12 @@ peach-cob's originals. A global `prefers-reduced-motion` rule ends `globals.css`
 Shared component classes (`.panel`, `.eyebrow`, `.figure`, `.btn*`, `.tag*`, `.due-*`,
 `.field-*`, `.data-table`, `.tab*`, `.flash*`, `.table-stack*`, `.nav-link`, `.nav-menu*`,
 `.dialog`, `.legend-toggle`, `.awning`, `.panel-awning`, `.tour-*`) live in `@layer components` —
-Tailwind v4 cannot `@apply` a custom class from the same layer. Anything that removes, sends or
-reassigns asks first through `app/components/ConfirmButton.tsx` (a native `<dialog>`), never
-`window.confirm()`.
+Tailwind v4 cannot `@apply` a custom class from the same layer. There is one modal,
+`app/components/Dialog.tsx` (a native `<dialog>`: Escape, backdrop, focus back to the opener,
+display-face title); form dialogs (bill types, editing a bill) render inside it, and anything
+that removes, sends or reassigns asks first through `app/components/ConfirmButton.tsx`, built
+on it, never `window.confirm()`. Status reads through `StatusTag` (Paid / Unpaid, red only once
+past due) and `DueChip` (server-rendered from the household's today and urgent window).
 
 ## Verifying changes locally
 

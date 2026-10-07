@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { type SettingsState, saveSettingsAction } from "@/app/portal/settings/actions";
 import ConfirmButton from "@/app/components/ConfirmButton";
 import TimezoneSelect from "@/app/components/TimezoneSelect";
@@ -26,7 +26,9 @@ export interface SettingsContext {
 /**
  * The admin's settings form: one form, one Save. Errors come back inline with everything that
  * was typed (useActionState); the schedule sentence and the sender preview follow the inputs as
- * they change, so the effect of a number is readable before saving.
+ * they change, so the effect of a number is readable before saving. The form counts what has
+ * changed since it loaded, and on a phone the Save row sticks to the bottom of the screen
+ * ("2 changes · Save settings") as soon as anything has, so a long page never hides it.
  */
 export default function SettingsForm({ initial, context }: { initial: Values; context: SettingsContext }) {
   const [state, formAction, pending] = useActionState<SettingsState, FormData>(saveSettingsAction, { errors: [] });
@@ -57,9 +59,10 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
   const [hour, setHour] = useState(v.sendHour);
   const [fromName, setFromName] = useState(v.fromName);
   const sender = `${fromName.replace(/["<>\\]/g, "").trim() || householdName} via ${BRAND.name}`;
+  const { formRef, changes, recount } = useChangeCount();
 
   return (
-    <form action={formAction} className="space-y-8">
+    <form ref={formRef} action={formAction} className="space-y-8" onChange={recount} onInput={recount}>
       {/* While a mode or payer change is pending, Enter in a field must not save past the
           question: the first submit button is the form's default, and a disabled one blocks
           implicit submission. Save (which asks) is the only way through. */}
@@ -83,10 +86,10 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <div>
             <label className="field-label" htmlFor="tagline">Tagline</label>
             <input className="field-input" id="tagline" name="tagline" defaultValue={v.tagline} maxLength={TAGLINE_MAX} placeholder="Optional, like “Utilities, split evenly”" autoComplete="off" />
-            <p className="mt-1 text-xs text-ink-muted">Shown beside the name in the header on wider screens.</p>
+            <p className="field-hint">Shown beside the name in the header on wider screens.</p>
           </div>
         </div>
-        <p className="text-xs text-ink-muted">
+        <p className="field-hint">
           Household ID <span className="figure text-ink">{c.slug}</span> stays the same when you rename it.
         </p>
 
@@ -111,7 +114,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-ink-muted">They own every bill type. Bills already posted keep the owner they had.</p>
+            <p className="field-hint">They own every bill type. Bills already posted keep the owner they had.</p>
           </div>
         )}
       </Group>
@@ -128,11 +131,11 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <fieldset>
             <legend className="field-label">Dark mode</legend>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input type="radio" name="colorScheme" value="system" defaultChecked={v.colorScheme !== "light"} className="size-4" />
                 Match each person&apos;s device
               </label>
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex min-h-9 items-center gap-2 text-sm">
                 <input type="radio" name="colorScheme" value="light" defaultChecked={v.colorScheme === "light"} className="size-4" />
                 Always light
               </label>
@@ -141,7 +144,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
         ) : (
           <input type="hidden" name="colorScheme" value="light" />
         )}
-        <p className="text-sm text-ink-muted">The theme is for everyone in {householdName}, and household email follows it too.</p>
+        <p className="max-w-[60ch] text-sm text-ink-muted">The theme is for everyone in {householdName}, and household email follows it too.</p>
       </Group>
 
       <Group title="Features">
@@ -158,7 +161,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
                 />
                 <span>
                   <span className="block text-sm font-semibold">{FEATURES[k].label}</span>
-                  <span className="block text-sm text-ink-muted">{FEATURES[k].hint}</span>
+                  <span className="block max-w-[60ch] text-sm text-ink-muted">{FEATURES[k].hint}</span>
                 </span>
               </label>
               {k === "rent" && (
@@ -179,7 +182,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
                     <label className="field-label" htmlFor="leaseEnd">Lease ends</label>
                     <input className="field-input figure" id="leaseEnd" name="leaseEnd" type="date" defaultValue={v.leaseEnd} />
                   </div>
-                  <p className="text-xs text-ink-muted sm:col-span-3">Rent shows up on the 1st of each month of the lease in everyone&apos;s calendar feed.</p>
+                  <p className="field-hint sm:col-span-3">Rent shows up on the 1st of each month of the lease in everyone&apos;s calendar feed.</p>
                 </fieldset>
               )}
             </li>
@@ -200,7 +203,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <input type="checkbox" name="askBillDate" defaultChecked={v.askBillDate} className="mt-1 size-4 shrink-0" />
           <span>
             <span className="block text-sm font-semibold">Ask for the statement date when posting a bill</span>
-            <span className="block text-sm text-ink-muted">When it&apos;s off, each bill is dated the day it&apos;s posted.</span>
+            <span className="block max-w-[60ch] text-sm text-ink-muted">When it&apos;s off, each bill is dated the day it&apos;s posted.</span>
           </span>
         </label>
         <div className="sm:max-w-48">
@@ -220,7 +223,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <input type="checkbox" name="remindersEnabled" defaultChecked={v.remindersEnabled} onChange={(e) => setEnabled(e.target.checked)} className="mt-1 size-4" />
           <span>
             <span className="block text-sm font-semibold">Email reminders before bills are due</span>
-            <span className="block text-sm text-ink-muted">Only people who still owe get one. The reminder button on each bill works either way.</span>
+            <span className="block max-w-[60ch] text-sm text-ink-muted">Only people who still owe get one. The reminder button on each bill works either way.</span>
           </span>
         </label>
 
@@ -248,7 +251,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           </>
         )}
 
-        <p className="text-sm text-ink-muted" aria-live="polite">
+        <p className="max-w-[60ch] text-sm text-ink-muted" aria-live="polite">
           {enabled ? scheduleSentence({ first, urgent, hour, overdueEvery }) : "No reminder emails go out on their own. People can still be reminded from each bill."}
         </p>
         {readout}
@@ -259,7 +262,7 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <label className="field-label" htmlFor="timezone">Time zone</label>
           <TimezoneSelect zones={zones} fallback={v.timezone} />
         </div>
-        <p className="text-sm text-ink-muted">Today&apos;s date, due-date countdowns and the send time all follow this zone.</p>
+        <p className="max-w-[60ch] text-sm text-ink-muted">Today&apos;s date, due-date countdowns and the send time all follow this zone.</p>
       </Group>
 
       <Group title="Email">
@@ -267,24 +270,31 @@ function Fields({ v, state, formAction, pending, c }: { v: Values; state: Settin
           <div className="sm:col-span-2 sm:max-w-sm">
             <label className="field-label" htmlFor="fromName">Sender name</label>
             <input className="field-input" id="fromName" name="fromName" defaultValue={v.fromName} placeholder={householdName} maxLength={80} autoComplete="off" onChange={(e) => setFromName(e.target.value)} />
-            <p className="mt-1 text-xs text-ink-muted">
+            <p className="field-hint">
               Inboxes show <span className="font-medium text-ink">{sender}</span>
             </p>
           </div>
           <div>
             <label className="field-label" htmlFor="replyTo">Reply-to address</label>
             <input className="field-input" id="replyTo" name="replyTo" type="email" defaultValue={v.replyTo} autoComplete="off" spellCheck={false} />
-            <p className="mt-1 text-xs text-ink-muted">Where replies to household mail go. Reminders and new-bill emails reply to the person who paid the bill instead.</p>
+            <p className="field-hint">Where replies to household mail go. Reminders and new-bill emails reply to the person who paid the bill instead.</p>
           </div>
           <div>
             <label className="field-label" htmlFor="digestEmail">Digest copies to</label>
             <input className="field-input" id="digestEmail" name="digestEmail" type="email" defaultValue={v.digestEmail} placeholder="Nobody" autoComplete="off" spellCheck={false} />
-            <p className="mt-1 text-xs text-ink-muted">Gets a copy of new bills, reminder batches and bulk email. Each copy counts toward the daily email limit, so leave it empty unless someone reads them.</p>
+            <p className="field-hint">Gets a copy of new bills, reminder batches and bulk email. Each copy counts toward the daily email limit, so leave it empty unless someone reads them.</p>
           </div>
         </div>
       </Group>
 
-      <div className="flex items-center gap-3 border-t border-line-soft pt-5">
+      <div
+        className={`flex items-center justify-end gap-3 border-t border-line-soft pt-5 sm:justify-start ${
+          changes > 0 ? "max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-4 max-sm:bg-page max-sm:px-4 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:pt-3" : ""
+        }`}
+      >
+        <span className="mr-auto text-sm text-ink-muted sm:order-last sm:mr-0" aria-live="polite">
+          {changes > 0 ? <><span className="figure">{changes}</span> {changes === 1 ? "change" : "changes"} not saved yet</> : ""}
+        </span>
         {modeChange ? (
           <ConfirmButton className="btn btn-primary" title={modeChange.title} body={modeChange.body} confirmLabel="Save settings" pendingLabel="Saving…">
             {pending ? "Saving…" : "Save settings"}
@@ -353,7 +363,7 @@ function ThemeCard({ value, checked, onChange, title, note }: { value: "statemen
             Hi, Robin
           </span>
           <span className="flex items-center gap-2">
-            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em]" style={{ color: t.paid, background: t.paidSoft, borderRadius: peach ? 9999 : 4, padding: "1px 6px", fontFamily: peach ? "var(--nf-courier), monospace" : "var(--nf-plex), monospace" }}>
+            <span className="text-[0.7rem] font-bold uppercase tracking-[0.08em]" style={{ color: t.paid, background: t.paidSoft, borderRadius: peach ? 9999 : 4, padding: "1px 6px", fontFamily: peach ? "var(--nf-courier), monospace" : "var(--nf-plex), monospace" }}>
               Paid
             </span>
             <span className="text-sm font-semibold tabular-nums" style={{ color: t.ink, fontFamily: peach ? "var(--nf-courier), monospace" : "var(--nf-plex), monospace" }}>
@@ -371,4 +381,36 @@ function ThemeCard({ value, checked, onChange, title, note }: { value: "statemen
       </span>
     </label>
   );
+}
+
+/**
+ * How many fields differ from what the form showed when it loaded. Fields that only exist on
+ * one side (the payer picker appears with single-payer mode) don't count on their own: the
+ * choice that revealed them already did.
+ */
+function useChangeCount() {
+  const formRef = useRef<HTMLFormElement>(null);
+  const initial = useRef<Map<string, string> | null>(null);
+  const [changes, setChanges] = useState(0);
+  const snapshot = (form: HTMLFormElement) => {
+    const out = new Map<string, string>();
+    const fd = new FormData(form);
+    for (const name of new Set(fd.keys())) out.set(name, JSON.stringify(fd.getAll(name).map(String)));
+    return out;
+  };
+  useEffect(() => {
+    if (formRef.current) initial.current = snapshot(formRef.current);
+  }, []);
+  // After React has re-rendered whatever the change revealed or hid.
+  const recount = () =>
+    setTimeout(() => {
+      const form = formRef.current;
+      const before = initial.current;
+      if (!form || !before) return;
+      const now = snapshot(form);
+      let n = 0;
+      for (const [name, value] of now) if (before.has(name) && before.get(name) !== value) n++;
+      setChanges(n);
+    });
+  return { formRef, changes, recount };
 }

@@ -80,25 +80,29 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
                 {isAdmin && (
                   <td className="cell-actions num">
                     <details className="inline-block text-left">
-                      <summary className="btn btn-sm cursor-pointer list-none">Edit</summary>
+                      <summary className="btn btn-sm cursor-pointer list-none" aria-label={`Edit ${m.name}`}>Edit</summary>
                       <div className="mt-2 space-y-3 sm:w-64">
                         <form action={updateMember} className="space-y-2">
                           <input type="hidden" name="membershipId" value={m.id} />
-                          <select className="field-input" name="role" defaultValue={m.role} aria-label="Role">
+                          <select className="field-input" name="role" defaultValue={m.role} aria-label={`Role for ${m.name}`}>
                             <option value="member">Member</option>
                             <option value="admin">Admin</option>
                           </select>
                           <label className="flex items-center gap-2 text-sm">
                             <input type="checkbox" name="splitsBills" defaultChecked={m.splitsBills} />
-                            Splits bills
+                            Splits bills<span className="sr-only"> ({m.name})</span>
                           </label>
-                          <SubmitButton className="btn btn-sm btn-primary" pendingLabel="Saving…">Save</SubmitButton>
+                          <SubmitButton className="btn btn-sm btn-primary" pendingLabel="Saving…">
+                            Save<span className="sr-only"> {m.name}</span>
+                          </SubmitButton>
                         </form>
                         <div className="flex flex-wrap gap-2">
                           {!m.joinedAt && (
                             <form action={resendInvite}>
                               <input type="hidden" name="membershipId" value={m.id} />
-                              <SubmitButton className="btn btn-sm" pendingLabel="Sending…">Resend invite</SubmitButton>
+                              <SubmitButton className="btn btn-sm" pendingLabel="Sending…">
+                                Resend invite<span className="sr-only"> to {m.name}</span>
+                              </SubmitButton>
                             </form>
                           )}
                           {m.id !== ctx.membership.id && (
@@ -106,6 +110,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
                               <input type="hidden" name="membershipId" value={m.id} />
                               <ConfirmButton
                                 className="btn btn-sm"
+                                buttonProps={{ "aria-label": `Remove ${m.name}` }}
                                 title={`Remove ${m.name} from ${ctx.household.name}?`}
                                 body={
                                   <>
@@ -141,7 +146,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
       {isAdmin && (
         <section className="panel p-5">
           <span className="eyebrow mb-1">Invite a roommate</span>
-          <p className="mb-4 text-sm text-ink-muted">
+          <p className="mb-4 max-w-[60ch] text-sm text-ink-muted">
             They&apos;ll get an email from {BRAND.name}. Signing in with that address joins {ctx.household.name}.
           </p>
           <form action={inviteMember} className="grid gap-4 sm:grid-cols-2">
@@ -160,9 +165,12 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
                 <option value="admin">Admin: manages the whole household</option>
               </select>
             </div>
-            <label className="flex items-center gap-2 self-end pb-2 text-sm">
-              <input type="checkbox" name="splitsBills" defaultChecked />
-              Splits bills (uncheck for someone who only needs to see the ledger)
+            <label className="flex items-start gap-2 self-end pb-2 text-sm">
+              <input type="checkbox" name="splitsBills" defaultChecked className="mt-1" />
+              <span>
+                Splits bills
+                <span className="field-hint">Uncheck for someone who only needs to see the ledger.</span>
+              </span>
             </label>
             <div className="sm:col-span-2">
               <SubmitButton className="btn btn-primary" pendingLabel="Inviting…">Send invite</SubmitButton>

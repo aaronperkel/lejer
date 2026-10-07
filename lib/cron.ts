@@ -3,6 +3,7 @@ import { adminSql, type TenantScope, withHousehold } from "@/lib/db";
 import { getCurrentHousehold } from "@/lib/households";
 import { CRON_DAILY_LIMIT, type Mailer, mailer as defaultMailer, sendsToday } from "@/lib/mail";
 import { batchConfirmationMessage, dueReminders, reminderMessage } from "@/lib/reminders";
+import { type NoticeResult, flushBillNotices } from "@/lib/notices";
 import { type ThanksResult, flushThanks } from "@/lib/thanks";
 import { localDate, localHour } from "@/lib/time";
 
@@ -36,6 +37,8 @@ export interface HouseholdTick {
   id: number;
   slug: string;
   thanks: ThanksResult;
+  /** The new-bill email queue (lib/notices.ts), flushed every tick like thanks. */
+  notices: NoticeResult;
   sent: number;
   failed: number;
   /** Why no batch ran: "reminders off", "before 9:00", "already sent today", "nothing due". */
@@ -57,9 +60,11 @@ export async function tickHousehold(householdId: number, opts: TickOptions = {})
   });
   if (!household) throw new Error(`household ${householdId} not found`);
   const scope = { household, user: null };
-  const out: HouseholdTick = { id: household.id, slug: household.slug, thanks: { sent: 0, failed: 0, pending: 0 }, sent: 0, failed: 0, tried: false };
+  const out: HouseholdTick = { id: household.id, slug: household.slug, thanks: { sent: 0, failed: 0, pending: 0 }, notices: { sent: 0, failed: 0, pending: 0 }, sent: 0, failed: 0, tried: false };
 
+  // Neither queue is ever deferred for the budget: each email answers something a person just did.
   out.thanks = await flushThanks(scope, { now, mailer: mail });
+  out.notices = await flushBillNotices(scope, { now, mailer: mail });
 
   if (!household.remindersEnabled && !opts.force) return { ...out, skipped: "reminders off" };
   const today = localDate(household.timezone, now);

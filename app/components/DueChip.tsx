@@ -1,41 +1,31 @@
-"use client";
+import { daysBetween } from "@/lib/time";
 
-import { useEffect, useState } from "react";
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+function dayMonth(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
 
 /**
- * Due-date chip, computed in the browser so "days until due" reflects the
- * viewer's local date (same behavior as the PHP site's app.js).
+ * Due-date chip, counted in the household's own calendar (`today` is its localDate) and amber
+ * inside its urgent window (urgent_reminder_days), the same rules the reminder emails use. Red
+ * once past due. Screen readers get the whole sentence rather than the "3d" shorthand.
  */
-export default function DueChip({ due, paid }: { due: string; paid: boolean }) {
-  const [state, setState] = useState<{ label: string; cls: string } | null>(null);
-
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(due + "T00:00:00");
-    const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / 86400000);
-    const dateDisplay = new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-    }).format(dueDate);
-
-    if (paid) {
-      setState({ label: dateDisplay, cls: "due-paid" });
-    } else if (diffDays < 0) {
-      setState({ label: `${dateDisplay} • Past due ${Math.abs(diffDays)}d`, cls: "due-past" });
-    } else if (diffDays === 0) {
-      setState({ label: `${dateDisplay} • Due today`, cls: "due-soon" });
-    } else if (diffDays <= 3) {
-      setState({ label: `${dateDisplay} • Due in ${diffDays}d`, cls: "due-soon" });
-    } else {
-      setState({ label: `${dateDisplay} • Due in ${diffDays}d`, cls: "due-future" });
-    }
-  }, [due, paid]);
-
-  if (!state) return <span className="due-chip due-future">&nbsp;</span>;
+export default function DueChip({ due, paid, today, urgentDays }: { due: string; paid: boolean; today: string; urgentDays: number }) {
+  const date = dayMonth(due);
+  const days = daysBetween(today, due);
+  const [label, spoken, cls] = paid
+    ? [date, `Due ${date}, paid`, "due-paid"]
+    : days < 0
+      ? [`${date} • Past due ${-days}d`, `Due ${date}, past due by ${plural(-days, "day")}`, "due-past"]
+      : days === 0
+        ? [`${date} • Due today`, `Due today, ${date}`, "due-soon"]
+        : [`${date} • Due in ${days}d`, `Due ${date}, in ${plural(days, "day")}`, days <= urgentDays ? "due-soon" : "due-future"];
   return (
-    <span className={`due-chip ${state.cls}`} aria-label={`Due date: ${due}`}>
-      {state.label}
+    <span className={`due-chip ${cls}`}>
+      <span aria-hidden="true">{label}</span>
+      <span className="sr-only">{spoken}</span>
     </span>
   );
 }

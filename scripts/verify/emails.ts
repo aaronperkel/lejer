@@ -12,6 +12,7 @@ export async function emails(r: Results) {
     LoginCode: { mod: await import("@/emails/LoginCode"), expect: ["482913", "expires in 10 minutes"] },
     Invite: { mod: await import("@/emails/Invite"), expect: ["Join 7 Oak Lane", "login?email=alex%40example.com", "repeating-linear-gradient"] },
     NewBill: { mod: await import("@/emails/NewBill"), expect: ["New bill posted", "21.09", "Pay to", "Sam"] },
+    BillRemoved: { mod: await import("@/emails/BillRemoved"), expect: ["Bill removed", "Alex removed the Gas bill", "30.88"] },
     Reminder: { mod: await import("@/emails/Reminder"), expect: ["Due soon", "25.17", "Pay to", "October 9, 2026"] },
     Thanks: { mod: await import("@/emails/Thanks"), expect: ["Payment recorded", "Thanks, Sam", "45.17", "Electric · due October 9, 2026"] },
     CustomNote: { mod: await import("@/emails/CustomNote"), expect: ["A note from Alex", "Internet is switching providers", "the 20th.", "router stays"] },

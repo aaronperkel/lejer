@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import CalendarLinks from "@/app/components/CalendarLinks";
 import DueChip from "@/app/components/DueChip";
 import Pagination from "@/app/components/Pagination";
+import StatusTag from "@/app/components/StatusTag";
 import { DownloadIcon, EyeIcon } from "@/app/components/icons";
 import { requireUser } from "@/lib/auth";
 import type { Bill } from "@/lib/bills";
 import { hasFeature } from "@/lib/features";
 import { fileHref } from "@/lib/files";
-import { localDate } from "@/lib/time";
+import { daysBetween } from "@/lib/time";
 import { loadDashboard } from "@/lib/views";
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -37,7 +38,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const me = ctx.membership.id;
   // The viewer's own pairs first: what you owe, then what you're owed, then everyone else's.
   const mine = (p: (typeof data.pairs)[number]) => (p.debtorId === me ? 0 : p.ownerId === me ? 1 : 2);
-  const pairs = [...data.pairs].sort((a, b) => mine(a) - mine(b));
+  const pairs = [...data.net].sort((a, b) => mine(a) - mine(b));
   const owedToMe = data.pairs.filter((p) => p.ownerId === me);
   const iOweTo = [...new Set(data.pairs.filter((p) => p.debtorId === me).map((p) => p.owner ?? "the house"))];
   const names = (list: string[]) =>
@@ -46,7 +47,16 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const singlePayer = ctx.household.mode === "single_payer";
   const iAmPayer = singlePayer && data.ownsTypes;
   const myUnpaid = new Set(data.owed.billIds);
-  const today = new Date(`${localDate(ctx.household.timezone)}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const today = new Date(`${data.today}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const nextDue = data.owed.nextDue;
+  const late = nextDue ? -daysBetween(data.today, nextDue.dueDate) : 0;
+  const urgentDays = ctx.household.urgentReminderDays;
+  const calendar = data.calendarToken && (
+    <div>
+      <span className="sr-only">Add every due date to your calendar:</span>
+      <CalendarLinks token={data.calendarToken} />
+    </div>
+  );
 
   return (
     <main>
@@ -57,12 +67,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             {ctx.household.name} as of {today}
           </p>
         </div>
-        {data.calendarToken && (
-          <div>
-            <span className="sr-only">Add every due date to your calendar:</span>
-            <CalendarLinks token={data.calendarToken} />
-          </div>
-        )}
+        {/* Beside the greeting from sm up; on a phone it waits below the money (after the strip). */}
+        {calendar && <div className="hidden sm:block">{calendar}</div>}
       </div>
 
       <div className="panel mb-8 grid divide-y divide-line-soft sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -97,8 +103,18 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </div>
         <div className="px-5 py-4">
           <span className="eyebrow mb-1">Next due</span>
-          <div className="figure text-[1.7rem] font-semibold leading-tight">{data.owed.nextDue ? dayMonth(data.owed.nextDue.dueDate) : "—"}</div>
-          <div className="mt-0.5 text-xs text-ink-muted">{data.owed.nextDue ? data.owed.nextDue.typeName : "nothing due from you"}</div>
+          <div className={`figure text-[1.7rem] font-semibold leading-tight ${nextDue ? "" : "text-ink-muted"}`}>{nextDue ? dayMonth(nextDue.dueDate) : "None"}</div>
+          <div className="mt-0.5 text-xs text-ink-muted">
+            {!nextDue ? (
+              "nothing due from you"
+            ) : late > 0 ? (
+              <>
+                {nextDue.typeName} · <span className="font-semibold text-unpaid">{late === 1 ? "1 day late" : `${late} days late`}</span>
+              </>
+            ) : (
+              nextDue.typeName
+            )}
+          </div>
         </div>
         <div className="px-5 py-4">
           <span className="eyebrow mb-1">Bills on record</span>
@@ -106,6 +122,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <div className="mt-0.5 text-xs text-ink-muted">{data.totalBills ? "in this household" : "none posted yet"}</div>
         </div>
       </div>
+
+      {calendar && <div className="mb-8 -mt-4 sm:hidden">{calendar}</div>}
 
       {!iAmPayer && (
         <section className="mb-8">
@@ -118,13 +136,21 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           ) : (
             <div className="panel divide-y divide-line-soft">
               {pairs.map((p) => (
-                <div key={`${p.debtorId}->${p.ownerId ?? "house"}`} className="flex items-baseline justify-between gap-3 px-5 py-2.5 text-sm">
-                  <span>
-                    <strong className={p.debtorId === me ? "text-unpaid" : ""}>{p.debtorId === me ? "You" : p.debtor}</strong>{" "}
-                    <span className="text-ink-muted">{p.debtorId === me ? "owe" : "owes"}</span>{" "}
-                    <strong>{p.ownerId === me ? "you" : (p.owner ?? "the house")}</strong>
-                  </span>
-                  <span className="figure font-semibold">${money(p.amount)}</span>
+                <div key={`${p.debtorId}->${p.ownerId ?? `house-${p.owner}`}`} className="px-5 py-2.5 text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span>
+                      <strong className={p.debtorId === me ? "text-unpaid" : ""}>{p.debtorId === me ? "You" : p.debtor}</strong>{" "}
+                      <span className="text-ink-muted">{p.debtorId === me ? "owe" : "owes"}</span>{" "}
+                      <strong>{p.ownerId === me ? "you" : (p.owner ?? "the house")}</strong>
+                    </span>
+                    <span className="figure font-semibold">${money(p.amount)}</span>
+                  </div>
+                  {/* Both owe each other: one net amount, with the arithmetic in plain view. */}
+                  {p.gross && (
+                    <div className="mt-0.5 text-xs text-ink-muted">
+                      <span className="figure">${money(p.gross.owed)}</span> owed, less <span className="figure">${money(p.gross.offset)}</span> the other way
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -161,6 +187,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                     const href = bill.pdfPath ? fileHref(bill.pdfPath) : null;
                     // Non-splitters and owners see the bill's own state; debtors see theirs.
                     const own = ctx.membership.splitsBills && !mine;
+                    const paid = own ? !iOwe : bill.status === "paid";
                     return (
                       <tr key={bill.id}>
                         <td className="cell-bill">
@@ -173,21 +200,17 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                           </div>
                         </td>
                         <td className="cell-due">
-                          <DueChip due={bill.dueDate} paid={own ? !iOwe : bill.status === "paid"} />
+                          <DueChip due={bill.dueDate} paid={paid} today={data.today} urgentDays={urgentDays} />
                         </td>
                         <td className="cell-status">
-                          {own ? (
-                            <span className={`tag ${iOwe ? "tag-unpaid" : "tag-paid"}`}>{iOwe ? "Unpaid" : "Paid"}</span>
-                          ) : (
-                            <span className={`tag ${bill.status === "paid" ? "tag-paid" : "tag-unpaid"}`}>{bill.status === "paid" ? "Settled" : "Open"}</span>
-                          )}
+                          <StatusTag paid={paid} overdue={bill.dueDate < data.today} />
                         </td>
                         <td className="num cell-amount">
                           <div className="figure font-medium">${money(bill.total)}</div>
                           <div className="figure text-xs text-ink-muted">${money(bill.perPersonCost)} ea</div>
                         </td>
                         <td className="num cell-actions">
-                          {href ? (
+                          {href && (
                             <div className="flex justify-end gap-1.5">
                               <a href={href} target="_blank" className="btn-icon" title="View bill" aria-label={`View ${bill.typeName} bill`}>
                                 <EyeIcon />
@@ -196,8 +219,6 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
                                 <DownloadIcon />
                               </a>
                             </div>
-                          ) : (
-                            <span className="text-ink-muted">—</span>
                           )}
                         </td>
                       </tr>

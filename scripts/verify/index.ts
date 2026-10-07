@@ -6,6 +6,7 @@ import { adminSql } from "@/lib/db";
 import { bills } from "./bills";
 import { brand } from "./brand";
 import { cron } from "./cron";
+import { edits } from "./edits";
 import { emails } from "./emails";
 import { features } from "./features";
 import { Results, connectDev, sweep } from "./harness";
@@ -14,7 +15,7 @@ import { identity } from "./identity";
 import { rls } from "./rls";
 import { tokens } from "./tokens";
 
-const SUITES = { brand, tokens, emails, rls, identity, bills, cron, features, http } as const;
+const SUITES = { brand, tokens, emails, rls, identity, bills, cron, edits, features, http } as const;
 
 async function main() {
   const picked = process.argv.slice(2).filter((a) => !a.startsWith("-"));

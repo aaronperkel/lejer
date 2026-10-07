@@ -2,6 +2,7 @@ import {
   type Bill,
   type BillType,
   type Debt,
+  type NetPair,
   type OwedPair,
   type Person,
   countBills,
@@ -13,6 +14,7 @@ import {
   getOwedPairs,
   getPayer,
   getSplitters,
+  netPairs,
 } from "@/lib/bills";
 import type { Ctx } from "@/lib/context";
 import { type Tx, withHousehold } from "@/lib/db";
@@ -61,6 +63,10 @@ function demoPairs(): OwedPair[] {
 export interface Dashboard extends Paged {
   owed: { amount: number; billIds: number[]; nextDue: { dueDate: string; typeName: string } | null };
   pairs: OwedPair[];
+  /** The house ledger: one amount per pair of people (netPairs). */
+  net: NetPair[];
+  /** The household's today (YYYY-MM-DD), for due chips and "days late". */
+  today: string;
   /** The viewer owns at least one bill type (in single_payer mode: the viewer is the payer). */
   ownsTypes: boolean;
   /** The viewer's own calendar feed token (never anyone else's); null in the demo. */
@@ -69,6 +75,7 @@ export interface Dashboard extends Paged {
 
 export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Dashboard> {
   const perPage = ctx.household.billsPerPage;
+  const today = localDate(ctx.household.timezone);
   if (ctx.demo) {
     const { page, totalPages } = pageInfo(DEMO_BILLS.length, perPage, requestedPage);
     const mine = DEMO_BILLS.filter((b) => demoDebts(b.id).some((d) => d.personId === ctx.membership.id && !d.paid));
@@ -81,6 +88,8 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
         nextDue: next ? { dueDate: next.dueDate, typeName: next.typeName } : null,
       },
       pairs: demoPairs(),
+      net: netPairs(demoPairs()),
+      today,
       ownsTypes: DEMO_BILL_TYPES.some((t) => t.ownerId === ctx.membership.id),
       calendarToken: null,
     };
@@ -89,11 +98,14 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
     const totalBills = await countBills(tx);
     const { page, totalPages } = pageInfo(totalBills, perPage, requestedPage);
     const [{ owns }] = await tx<{ owns: boolean }[]>`SELECT EXISTS (SELECT 1 FROM bill_types WHERE owner_id = ${ctx.membership.id}) AS owns`;
+    const pairs = await getOwedPairs(tx);
     return {
       page, totalPages, totalBills,
       bills: await getBillsPage(tx, perPage, (page - 1) * perPage),
       owed: await getMyBalance(tx, ctx.membership.id),
-      pairs: await getOwedPairs(tx),
+      pairs,
+      net: netPairs(pairs),
+      today,
       ownsTypes: owns,
       calendarToken: await myCalendarToken(tx, ctx),
     };
@@ -101,6 +113,8 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
 }
 
 export interface Portal extends Paged {
+  /** The household's today (YYYY-MM-DD). */
+  today: string;
   types: BillType[];
   splitters: Person[];
   debts: Record<number, Debt[]>;
@@ -109,11 +123,12 @@ export interface Portal extends Paged {
 
 export async function loadPortal(ctx: Ctx, requestedPage: number): Promise<Portal> {
   const perPage = ctx.household.billsPerPage;
+  const today = localDate(ctx.household.timezone);
   if (ctx.demo) {
     const { page, totalPages } = pageInfo(DEMO_BILLS.length, perPage, requestedPage);
     const bills = paginate(DEMO_BILLS, page, perPage);
     return {
-      page, totalPages, totalBills: DEMO_BILLS.length, bills,
+      page, totalPages, totalBills: DEMO_BILLS.length, bills, today,
       types: DEMO_BILL_TYPES, splitters: DEMO_SPLITTERS,
       debts: Object.fromEntries(bills.map((b) => [b.id, demoDebts(b.id)])),
       pairs: demoPairs(),
@@ -125,7 +140,7 @@ export async function loadPortal(ctx: Ctx, requestedPage: number): Promise<Porta
     const bills = await getBillsPage(tx, perPage, (page - 1) * perPage);
     const debts = await getDebts(tx, bills.map((b) => b.id));
     return {
-      page, totalPages, totalBills, bills,
+      page, totalPages, totalBills, bills, today,
       types: await getBillTypes(tx),
       splitters: await getSplitters(tx),
       debts: Object.fromEntries(debts),

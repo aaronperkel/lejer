@@ -20,6 +20,8 @@ export type MailKind =
   | "login_code"
   | "invite"
   | "new_bill"
+  | "bill_updated"
+  | "bill_removed"
   | "reminder"
   | "thanks"
   | "custom"

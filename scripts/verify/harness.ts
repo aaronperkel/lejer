@@ -9,6 +9,7 @@
 import { randomBytes } from "node:crypto";
 import postgres from "postgres";
 import type { Ctx } from "@/lib/context";
+import type { Mailer } from "@/lib/mail";
 
 // The dev branch of Neon project "lejer" (CLAUDE.md, Deployment). main is ep-little-cake.
 // blobStore is lejer-blob's id: the Blob token must belong to it and nothing else.
@@ -217,4 +218,35 @@ export async function addMember(owner: Sql, h: { id: number }, tag: string, opts
     VALUES (${h.id}, ${u.id}, ${opts.role ?? "member"}, ${opts.splits ?? true}, ${opts.joined === false ? null : new Date()})
     RETURNING id`;
   return { userId: u.id, membershipId: m.id };
+}
+
+export interface Sent {
+  kind: string;
+  to: string;
+  subject: string;
+  replyTo?: string | null;
+}
+
+/** A Mailer that records instead of sending. `fail(to)` decides failures; `gate` holds sends. */
+export function recorder(opts: { fail?: (to: string) => boolean; gate?: Promise<void>; entered?: () => void } = {}) {
+  const sent: Sent[] = [];
+  const failed: Sent[] = [];
+  const one = (m: Sent) => {
+    const ok = !opts.fail?.(m.to);
+    (ok ? sent : failed).push(m);
+    return ok;
+  };
+  const mailer: Mailer = {
+    send: async (a) => {
+      opts.entered?.();
+      await opts.gate;
+      return one({ kind: a.kind, to: a.to, subject: a.subject, replyTo: a.replyTo });
+    },
+    sendBatch: async (_ctx, msgs) => {
+      opts.entered?.();
+      await opts.gate;
+      return msgs.map((a) => one({ kind: a.kind, to: a.to, subject: a.subject, replyTo: a.replyTo }));
+    },
+  };
+  return { mailer, sent, failed };
 }

@@ -7,7 +7,7 @@
 import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { billPdfKey, putBillPdf } from "@/lib/blob";
+import { billPdfKey, blobExists, putBillPdf } from "@/lib/blob";
 import { DEMO_COOKIE, SESSION_COOKIE, createDemoToken, createSessionToken } from "@/lib/session";
 import { RUN, type Results, type Sql, addMember, email, makeHousehold } from "./harness";
 
@@ -181,6 +181,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
     return fetch(base + page, { method: "POST", body, headers: { cookie, origin: base, "next-action": actionId, accept: "text/x-component" }, redirect: "manual" });
   };
   const err = (res: Response) => new URL(res.headers.get("location") ?? "/", base).searchParams.get("err") ?? "";
+  const ok = (res: Response) => new URL(res.headers.get("location") ?? "/", base).searchParams.get("ok") ?? "";
 
   // Fixtures: two ledger households with documents on.
   const a = await makeHousehold(owner, "ha", "ledger");
@@ -253,7 +254,9 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("a non-PDF upload is refused", text.includes("isn't a PDF") && (await count(a.id)) === before);
   res = await callAction("/portal", addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "12.345", null) }, aMember);
   r.check("a malformed amount is refused", (await res.text()).includes("Enter the amount"));
-  r.check("new-bill mail went to the console, never to Resend", /\[mail:console\] new_bill to /.test(server.log) && !/sendMail\(new_bill\) failed/.test(server.log));
+  const [queued] = await owner<{ kind: string | null; queued: boolean }[]>`
+    SELECT notice_kind AS kind, notice_queued_at IS NOT NULL AS queued FROM bills WHERE id = ${posted.id}`;
+  r.check("posting queues the new-bill email instead of sending it", queued?.kind === "new" && queued.queued && !/new_bill to /.test(server.log), queued);
 
   r.section("http: marking payments over the wire");
   const setPaidAction = id("app/portal/actions.ts", "setPaidAction");
@@ -280,6 +283,39 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   const lateBill = await owner<{ id: number }[]>`SELECT id FROM bills WHERE id = ${posted.id}`;
   res = await callAction("/portal", setPaidAction, [lateBill[0].id, roomie.membershipId, true], aAdmin);
   r.check("someone who joined after a bill can't be marked on it", (await res.text()).includes("doesn't owe"));
+
+  r.section("http: editing and deleting a bill over the wire");
+  const editBill = id("app/portal/actions.ts", "editBill");
+  const deleteBill = id("app/portal/actions.ts", "deleteBillAction");
+  const editForm = (amount: string) => {
+    const f = billForm(a.memberTypeId, amount, null);
+    f.set("billId", String(posted.id));
+    return f;
+  };
+  res = await callAction("/portal", editBill, { state: { errors: [] }, form: editForm("60.00") }, aMember);
+  await res.text();
+  const [edited] = await owner<{ per: string; kind: string }[]>`SELECT per_person_cost AS per, notice_kind AS kind FROM bills WHERE id = ${posted.id}`;
+  r.check("the bill's owner edits it (redirect back with ?ok=, 60.00 → 30.00 each, email still queued)",
+    (res.headers.get("x-action-redirect") ?? "").startsWith("/portal?ok=") && Number(edited.per) === 30 && edited.kind === "new", { redirect: res.headers.get("x-action-redirect"), edited });
+  const [{ n: roomieRows }] = await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM bill_debts WHERE bill_id = ${posted.id} AND person_id = ${roomie.membershipId}`;
+  r.check("…and the member who joined after the post still isn't a debtor", roomieRows === 0);
+  res = await callAction("/portal", editBill, { state: { errors: [] }, form: editForm("60.00") }, bAdmin);
+  r.check("someone from another household can't edit it", (await res.text()).includes("no longer exists"));
+  res = await callAction("/portal", setPaidAction, [posted.id, a.admin.membershipId, true], aMember);
+  await res.text();
+  res = await callAction("/portal", editBill, { state: { errors: [] }, form: editForm("70.00") }, aMember);
+  r.check("once someone is marked paid, an edit is refused inline", (await res.text()).includes("already been marked paid"));
+  res = await formPost("/portal", deleteBill, { billId: String(posted.id) }, aMember);
+  r.check("…and so is a delete", err(res).includes("already been marked paid"), err(res));
+  res = await callAction("/portal", setPaidAction, [posted.id, a.admin.membershipId, false], aMember);
+  await res.text();
+  res = await formPost("/portal", deleteBill, { billId: String(posted.id) }, aMember);
+  const gone = (await owner`SELECT 1 FROM bills WHERE id = ${posted.id}`).length === 0;
+  r.check("unchecked again, the owner deletes it (nobody had been emailed)", gone && ok(res).includes("Nobody had been emailed"), ok(res));
+  r.check("…and its PDF is gone from Blob", (await blobExists(posted.pdf!)) === null);
+  res = await get("/portal", aAdmin);
+  text = await res.text();
+  r.check("the portal speaks one status vocabulary (no Settled / Open)", !/>(Settled|Open)</.test(text) && />(Paid|Unpaid)</.test(text));
 
   r.section("http: document upload tokens");
   const tokenReq = (pathname: string, cookie?: string) =>

@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import DueChip from "@/app/components/DueChip";
 import Flash from "@/app/components/Flash";
 import Pagination from "@/app/components/Pagination";
+import StatusTag from "@/app/components/StatusTag";
 import { DownloadIcon, EyeIcon } from "@/app/components/icons";
 import AddBillForm from "@/app/portal/AddBillForm";
+import EditBillDialog from "@/app/portal/EditBillDialog";
 import PaymentCheckboxes from "@/app/portal/PaymentCheckboxes";
 import PortalTabs from "@/app/portal/PortalTabs";
 import ReminderButton from "@/app/portal/ReminderButton";
@@ -22,7 +24,8 @@ function shortDate(ymd: string): string {
 }
 
 // Everyone in the household can see this page. Admins manage every bill; a member manages
-// (posts, marks payments, reminds) only bills of the types they own.
+// (posts, marks payments, reminds, and edits or deletes until someone has paid) only bills they
+// own.
 export default async function PortalPage({ searchParams }: PageProps<"/portal">) {
   const ctx = await requireUser();
   const sp = await searchParams;
@@ -33,6 +36,9 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
   const isAdmin = ctx.membership.role === "admin";
   const manages = (ownerId: number | null) => isAdmin || (ownerId !== null && ownerId === ctx.membership.id);
   const ledger = ctx.household.mode === "ledger";
+  const typeOption = ({ id, name, emoji, processingFee }: (typeof data.types)[number]) => ({ id, name, emoji, processingFee });
+  const postable = data.types.filter((t) => manages(t.ownerId)).map(typeOption);
+  const urgentDays = ctx.household.urgentReminderDays;
 
   return (
     <main>
@@ -51,7 +57,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                 <span className="eyebrow mb-0.5">
                   {p.debtor} → {p.owner ?? "the house"}
                 </span>
-                <div className="figure font-semibold text-unpaid">${money(p.amount)}</div>
+                <div className="figure font-semibold">${money(p.amount)}</div>
               </div>
             ))}
           </div>
@@ -59,7 +65,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
       )}
 
       <AddBillForm
-        types={data.types.filter((t) => manages(t.ownerId)).map(({ id, name, emoji, processingFee }) => ({ id, name, emoji, processingFee }))}
+        types={postable}
         splitterCount={data.splitters.length}
         askBillDate={ctx.household.askBillDate}
       />
@@ -93,6 +99,8 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                 const debts = data.debts[bill.id] ?? [];
                 const canManage = manages(bill.ownerId);
                 const href = bill.pdfPath ? fileHref(bill.pdfPath) : null;
+                const label = `${bill.typeName}, ${shortDate(bill.billDate)}`;
+                const paid = bill.status === "paid";
                 return (
                   <tr key={bill.id}>
                     <td className="cell-bill">
@@ -105,14 +113,14 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                       </div>
                     </td>
                     <td className="cell-due">
-                      <DueChip due={bill.dueDate} paid={bill.status === "paid"} />
+                      <DueChip due={bill.dueDate} paid={paid} today={data.today} urgentDays={urgentDays} />
                     </td>
                     <td className="cell-status">
-                      <span className={`tag ${bill.status === "paid" ? "tag-paid" : "tag-unpaid"}`}>{bill.status === "paid" ? "Settled" : "Open"}</span>
+                      <StatusTag paid={paid} overdue={bill.dueDate < data.today} />
                     </td>
                     <td className="cell-owes">
-                      <span className="eyebrow mb-1.5 sm:hidden">Paid {bill.ownerName ?? "back"}</span>
-                      {debts.length > 0 ? <PaymentCheckboxes billId={bill.id} billLabel={`${bill.typeName}, ${shortDate(bill.billDate)}`} debts={debts} canEdit={canManage && !ctx.demo} /> : <span className="text-ink-muted">Nobody owes</span>}
+                      <span className="eyebrow mb-1.5 sm:hidden">{bill.ownerName ? `Paid back to ${bill.ownerName}` : "Paid back"}</span>
+                      {debts.length > 0 ? <PaymentCheckboxes billId={bill.id} billLabel={label} debts={debts} canEdit={canManage && !ctx.demo} /> : <span className="text-ink-muted">Nobody owes</span>}
                     </td>
                     <td className="num cell-amount">
                       <div className="figure font-medium">${money(bill.total)}</div>
@@ -130,7 +138,18 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
                             </a>
                           </>
                         )}
-                        {canManage && bill.status !== "paid" && <ReminderButton billId={bill.id} typeName={bill.typeName} />}
+                        {canManage && !paid && <ReminderButton billId={bill.id} typeName={bill.typeName} />}
+                        {canManage && !bill.locked && (
+                          <EditBillDialog
+                            bill={{
+                              id: bill.id, typeId: bill.typeId, typeName: bill.typeName, label, amount: bill.amount, fee: bill.fee,
+                              shares: bill.shares, billDate: bill.billDate, dueDate: bill.dueDate, hasPdf: bill.pdfPath !== null, notified: bill.notified,
+                            }}
+                            // What the viewer may post, plus the bill's own type (its owner keeps editing it after a reassignment).
+                            types={postable.some((t) => t.id === bill.typeId) ? postable : [...postable, ...data.types.filter((t) => t.id === bill.typeId).map(typeOption)]}
+                            askBillDate={ctx.household.askBillDate}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

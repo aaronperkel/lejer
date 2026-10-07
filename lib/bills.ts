@@ -14,6 +14,11 @@ import { isYmd } from "@/lib/time";
 // gets a bill_debts row; both are fixed for the life of the bill. Reassigning a type only
 // changes who owns *new* bills. Paying sets paid_at, un-paying clears it, and the bill is paid exactly when no row has
 // paid_at IS NULL (bills.status is kept in step in the same transaction).
+//
+// Until someone is marked paid, a bill can be edited or deleted (0005). Its split set (the
+// shares it was split over: the debtors, plus the owner when they held one) is frozen at post
+// time, so an edit recomputes the figures over the same people and never consults today's
+// splitters. Its new-bill email waits in a queue on the bill row (lib/notices.ts).
 
 export interface BillType {
   id: number;
@@ -38,6 +43,16 @@ export interface Bill {
   status: "paid" | "unpaid";
   pdfPath: string | null;
   addedByName: string | null;
+  /** The amount typed when posting: total − fee. */
+  amount: number;
+  /** The processing fee the bill was posted with. */
+  fee: number;
+  /** How many shares it was split over (frozen at post time). */
+  shares: number;
+  /** Someone has been marked paid, so the bill can no longer be edited or deleted. */
+  locked: boolean;
+  /** The first new-bill email has gone out. */
+  notified: boolean;
 }
 
 export interface Debt {
@@ -79,7 +94,9 @@ const billSelect = (tx: Tx) => tx`
          b.owner_id AS "ownerId", ${ownerLabel(tx)} AS "ownerName",
          b.bill_date AS "billDate", b.due_date AS "dueDate", b.total,
          b.per_person_cost AS "perPersonCost", b.status, b.pdf_path AS "pdfPath",
-         au.name AS "addedByName"
+         au.name AS "addedByName", b.total - b.fee AS amount, b.fee, b.shares,
+         EXISTS (SELECT 1 FROM bill_debts x WHERE x.bill_id = b.id AND x.paid_at IS NOT NULL) AS locked,
+         b.notified_at IS NOT NULL AS notified
   FROM bills b
   JOIN bill_types t ON t.id = b.type_id
   LEFT JOIN memberships om ON om.id = b.owner_id
@@ -274,21 +291,18 @@ export async function createBill(
   const { type, splitters } = await validateBill(tx, ctx, input);
   const split = computeSplit({ amount: input.amount, fee: type.processingFee, splitterIds: splitters.map((s) => s.id), ownerId: type.ownerId });
   const status = split.debtorIds.length > 0 ? "unpaid" : "paid";
-
+  const ownerShare = splitters.some((s) => s.id === type.ownerId);
+  // The new-bill email waits NOTICE_DELAY_MINUTES in the queue (lib/notices.ts): time to fix a bad post.
+  const values = tx`
+    ${ctx.household.id}, ${type.id}, ${input.billDate}, ${input.dueDate}, ${split.total}, ${split.perPersonCost}, ${status},
+    ${opts.pdfPath ?? null}, ${ctx.membership.id}, ${type.ownerId}, ${type.ownerId !== null}, ${type.processingFee},
+    ${splitters.length}, ${ownerShare}, 'new', now()`;
+  const columns = tx`household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path,
+    added_by_id, owner_id, had_owner, fee, shares, owner_share, notice_kind, notice_queued_at`;
   const [{ id }] = opts.billId
     ? await tx<{ id: number }[]>`
-        INSERT INTO bills (id, household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path,
-                           added_by_id, owner_id, had_owner)
-        OVERRIDING SYSTEM VALUE
-        VALUES (${opts.billId}, ${ctx.household.id}, ${type.id}, ${input.billDate}, ${input.dueDate}, ${split.total},
-                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id}, ${type.ownerId}, ${type.ownerId !== null})
-        RETURNING id`
-    : await tx<{ id: number }[]>`
-        INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path,
-                           added_by_id, owner_id, had_owner)
-        VALUES (${ctx.household.id}, ${type.id}, ${input.billDate}, ${input.dueDate}, ${split.total},
-                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id}, ${type.ownerId}, ${type.ownerId !== null})
-        RETURNING id`;
+        INSERT INTO bills (id, ${columns}) OVERRIDING SYSTEM VALUE VALUES (${opts.billId}, ${values}) RETURNING id`
+    : await tx<{ id: number }[]>`INSERT INTO bills (${columns}) VALUES (${values}) RETURNING id`;
 
   if (split.debtorIds.length > 0) {
     await tx`
@@ -343,6 +357,197 @@ export async function setPaid(tx: Tx, ctx: Ctx, billId: number, membershipId: nu
     await tx`DELETE FROM payment_thanks WHERE bill_id = ${billId} AND person_id = ${membershipId}`;
   }
   return (await refreshBillStatus(tx, [billId])).get(billId)!;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Fixing a posted bill (0005)
+
+export const LOCKED_BILL = "Someone has already been marked paid on this bill, so it can't be changed. Uncheck them first if it's wrong.";
+
+interface LockedRow {
+  typeId: number;
+  ownerId: number | null;
+  hadOwner: boolean;
+  ownerShare: boolean;
+  shares: number;
+  fee: number;
+  billDate: string;
+  pdfPath: string | null;
+  notified: boolean;
+  extra: number[];
+  locked: boolean;
+}
+
+/**
+ * Locks one bill for an edit or a delete and checks the rules: it exists, the caller may manage
+ * it (its own owner, or an admin), and nobody has been marked paid. setPaid takes the same row
+ * lock, so an edit and a payment can't interleave.
+ */
+async function lockForChange(tx: Tx, ctx: Ctx, billId: number): Promise<LockedRow> {
+  if (ctx.demo) throw new ActionError(DEMO_REFUSAL);
+  const [bill] = await tx<LockedRow[]>`
+    SELECT type_id AS "typeId", owner_id AS "ownerId", had_owner AS "hadOwner", owner_share AS "ownerShare", shares, fee,
+           bill_date AS "billDate", pdf_path AS "pdfPath", notified_at IS NOT NULL AS notified, notice_extra AS extra,
+           EXISTS (SELECT 1 FROM bill_debts d WHERE d.bill_id = bills.id AND d.paid_at IS NOT NULL) AS locked
+    FROM bills WHERE id = ${billId} FOR UPDATE`;
+  if (!bill) throw new ActionError("That bill no longer exists.");
+  assertCanManage(ctx, bill.ownerId);
+  if (bill.locked) throw new ActionError(LOCKED_BILL);
+  return bill;
+}
+
+async function debtorIds(tx: Tx, billId: number): Promise<number[]> {
+  return (await tx<{ id: number }[]>`SELECT person_id AS id FROM bill_debts WHERE bill_id = ${billId} ORDER BY person_id`).map((r) => r.id);
+}
+
+export interface BillEdit {
+  typeId: number;
+  amount: number;
+  billDate: string; // ignored unless the household asks for statement dates
+  dueDate: string;
+}
+
+export interface EditedBill {
+  billId: number;
+  typeName: string;
+  /** The key the bill pointed at before; the caller deletes it after commit if it changed. */
+  oldPdfPath: string | null;
+  pdfPath: string | null;
+  /** True when the first email had already gone, so this edit queued an "Updated bill" email. */
+  updateQueued: boolean;
+}
+
+/**
+ * Edits a bill nobody has paid on. The split set is frozen at post time (the debtors, plus the
+ * owner if they held a share): the figures are recomputed over the same `shares`, and today's
+ * splitters are never consulted, so someone who joined since never becomes a debtor.
+ *
+ * Changing the type re-snapshots the owner from the new type. The set stays the same size: the
+ * new owner (if they're in it) stops owing, the old owner (if they held a share) starts, and a
+ * type with no owner means everyone in the set owes. The type's fee applies on a type change;
+ * otherwise the bill keeps the fee it was posted with.
+ *
+ * The email: still queued → the 10-minute window restarts (one email, with the final figures).
+ * Already sent → an "updated" email is queued for everyone on the bill before or after the
+ * edit, so anyone it dropped hears about it. `pdfPath`: undefined keeps the file, null removes it.
+ */
+export async function updateBill(tx: Tx, ctx: Ctx, billId: number, input: BillEdit, opts: { pdfPath?: string | null } = {}): Promise<EditedBill> {
+  const cur = await lockForChange(tx, ctx, billId);
+  const type = await getBillType(tx, input.typeId);
+  if (!type) throw new ActionError("Pick a bill type.");
+  const typeChanged = type.id !== cur.typeId;
+  if (typeChanged) await assertBillManager(tx, ctx, type.id);
+  if (!(input.amount > 0 && input.amount < 1_000_000)) throw new ActionError("Enter the amount on the bill.");
+  const billDate = ctx.household.askBillDate ? input.billDate : cur.billDate;
+  if (!isYmd(billDate)) throw new ActionError("Enter the statement date as a date.");
+  if (!isYmd(input.dueDate)) throw new ActionError("Enter the due date as a date.");
+
+  const before = await debtorIds(tx, billId);
+  // The frozen split set: everyone who held a share and is still a member.
+  const set = [...before, ...(cur.ownerShare && cur.ownerId !== null ? [cur.ownerId] : [])];
+  const ownerId = typeChanged ? type.ownerId : cur.ownerId;
+  const hadOwner = typeChanged ? type.ownerId !== null : cur.hadOwner;
+  const debtors = set.filter((id) => id !== ownerId);
+  const fee = typeChanged ? type.processingFee : cur.fee;
+  const totalCents = Math.round(input.amount * 100) + Math.round(fee * 100);
+  const perPersonCost = Math.round(totalCents / cur.shares) / 100;
+
+  // Who an "updated" email must also reach: everyone on the bill before this edit.
+  const extra = cur.notified ? [...new Set([...cur.extra, ...before, ...(cur.ownerId !== null ? [cur.ownerId] : [])])] : [];
+  const pdfPath = opts.pdfPath === undefined ? cur.pdfPath : opts.pdfPath;
+
+  await tx`
+    UPDATE bills SET
+      type_id = ${type.id}, bill_date = ${billDate}, due_date = ${input.dueDate},
+      total = ${totalCents / 100}, per_person_cost = ${perPersonCost}, fee = ${fee},
+      owner_id = ${ownerId}, had_owner = ${hadOwner}, owner_share = ${ownerId !== null && set.includes(ownerId)},
+      pdf_path = ${pdfPath},
+      notice_kind = ${cur.notified ? "updated" : "new"}, notice_queued_at = now(), notice_extra = ${extra}::int[]
+    WHERE id = ${billId}`;
+  // Nobody has paid, so the rows carry no history: rebuild them for the (possibly new) owner.
+  await tx`DELETE FROM bill_debts WHERE bill_id = ${billId}`;
+  if (debtors.length > 0) {
+    await tx`
+      INSERT INTO bill_debts (household_id, bill_id, person_id)
+      SELECT ${ctx.household.id}, ${billId}, unnest(${debtors}::int[])`;
+  }
+  await refreshBillStatus(tx, [billId]);
+  return { billId, typeName: type.name, oldPdfPath: cur.pdfPath, pdfPath, updateQueued: cur.notified };
+}
+
+export interface RemovedBill {
+  billId: number;
+  typeName: string;
+  total: number;
+  perPersonCost: number;
+  dueDate: string;
+  ownerId: number | null;
+  ownerName: string | null;
+  /** Everyone who owed on it (or heard they did, if an update was still queued). */
+  debtorIds: number[];
+  pdfPath: string | null;
+  /** The first email had gone out, so the people on the bill should hear it's gone. */
+  notified: boolean;
+}
+
+/** Deletes a bill nobody has paid on. Its debts, thanks and queued email go with it. */
+export async function deleteBill(tx: Tx, ctx: Ctx, billId: number): Promise<RemovedBill> {
+  const cur = await lockForChange(tx, ctx, billId);
+  const bill = (await getBill(tx, billId))!;
+  const debtors = await debtorIds(tx, billId);
+  await tx`DELETE FROM bills WHERE id = ${billId}`;
+  return {
+    billId,
+    typeName: bill.typeName,
+    total: bill.total,
+    perPersonCost: bill.perPersonCost,
+    dueDate: bill.dueDate,
+    ownerId: bill.ownerId,
+    ownerName: bill.ownerName,
+    debtorIds: [...new Set([...debtors, ...cur.extra])].filter((id) => id !== bill.ownerId),
+    pdfPath: cur.pdfPath,
+    notified: cur.notified,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// The net ledger
+
+export interface NetPair extends OwedPair {
+  /** Set when both people owe each other: the gross amount this way and the amount the other way. */
+  gross: { owed: number; offset: number } | null;
+}
+
+/**
+ * One amount per pair of people (the dashboard's house ledger): Alex owes Sam $30 and Sam owes
+ * Alex $12 → Alex owes Sam $18. Display only; every debt row stays as posted. Pairs owed to the
+ * house or a former member have nobody to offset against, and pass through as they are. A pair
+ * that comes out even disappears.
+ */
+export function netPairs(pairs: OwedPair[]): NetPair[] {
+  const cents = (n: number) => Math.round(n * 100);
+  const byKey = new Map(pairs.filter((p) => p.ownerId !== null).map((p) => [`${p.debtorId}->${p.ownerId}`, p]));
+  const out: NetPair[] = [];
+  const done = new Set<string>();
+  for (const p of pairs) {
+    if (p.ownerId === null) {
+      out.push({ ...p, gross: null });
+      continue;
+    }
+    const key = `${p.debtorId}->${p.ownerId}`;
+    if (done.has(key)) continue;
+    const back = byKey.get(`${p.ownerId}->${p.debtorId}`);
+    done.add(key).add(`${p.ownerId}->${p.debtorId}`);
+    if (!back) {
+      out.push({ ...p, gross: null });
+      continue;
+    }
+    const diff = cents(p.amount) - cents(back.amount);
+    if (diff === 0) continue;
+    const [a, b] = diff > 0 ? [p, back] : [back, p];
+    out.push({ ...a, amount: Math.abs(diff) / 100, gross: { owed: a.amount, offset: b.amount } });
+  }
+  return out;
 }
 
 export interface BillTypeInput {

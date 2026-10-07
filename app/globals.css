@@ -257,6 +257,11 @@ select {
     @apply bg-unpaid-soft text-unpaid;
   }
 
+  /* Unpaid but not yet due: still "Unpaid", in a neutral chip, so red means late (overdue) */
+  .tag-open {
+    @apply bg-panel-2 text-ink-muted;
+  }
+
   /* Informational tag, not money status: accent in statement, periwinkle in peach */
   .tag-info {
     @apply bg-accent-soft text-accent;
@@ -283,6 +288,20 @@ select {
 
   .field-label {
     @apply block text-[0.82rem] font-semibold mb-1.5;
+  }
+
+  /* Helper text under a field or choice, capped to a readable line */
+  .field-hint {
+    @apply mt-1 block max-w-[60ch] text-xs text-ink-muted;
+  }
+
+  /* A computed figure beside a form (Total, Each): read-only output, not a field */
+  .field-output {
+    @apply flex flex-wrap items-baseline gap-x-5 gap-y-1 border-y border-line-soft py-2.5 text-sm text-ink-muted;
+  }
+
+  .field-output output {
+    @apply font-mono tabular-nums font-semibold text-ink;
   }
 
   /* text-base below sm: fields under 16px make iOS Safari zoom in on focus */
@@ -470,6 +489,11 @@ select {
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   }
 
+  /* Form dialogs (a bill) need room for two fields side by side */
+  .dialog-wide {
+    @apply w-[min(36rem,calc(100vw-2rem))];
+  }
+
   .dialog::backdrop {
     background: rgb(0 0 0 / 0.35);
   }
@@ -601,11 +625,20 @@ select {
         "due status actions";
     }
 
+    /* The portal's bills carry up to four row actions (view, download, remind, edit), so on a
+       phone they get their own row under the check-offs instead of crowding the due date. */
     .table-stack-owes tr {
+      grid-template-columns: 1fr auto;
       grid-template-areas:
-        "bill bill amount"
-        "due status actions"
-        "owes owes owes";
+        "bill amount"
+        "due status"
+        "owes owes"
+        "actions actions";
+    }
+
+    .table-stack-owes .cell-status,
+    .table-stack-owes .cell-actions {
+      justify-self: end;
     }
 
     .table-stack-people tr {

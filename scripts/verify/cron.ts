@@ -11,43 +11,12 @@ import type { Ctx } from "@/lib/context";
 import { authorizeCron, tick, tickHousehold } from "@/lib/cron";
 import { withHousehold } from "@/lib/db";
 import { ActionError } from "@/lib/errors";
-import { CRON_DAILY_LIMIT, BULK_DAILY_LIMIT, type Mailer, sendsToday } from "@/lib/mail";
+import { CRON_DAILY_LIMIT, BULK_DAILY_LIMIT, sendsToday } from "@/lib/mail";
 import { OVERDUE_EVERY_DAYS, dueReminders, reminderLevel, reminderMessage } from "@/lib/reminders";
 import { type SettingsForm, parseSettings } from "@/lib/settings";
 import { THANKS_DELAY_MINUTES, flushThanks } from "@/lib/thanks";
 import { localDate, localHour } from "@/lib/time";
-import { LOG_MARK, type Results, type Sql, addMember, ctxFor, makeHousehold } from "./harness";
-
-interface Sent {
-  kind: string;
-  to: string;
-  subject: string;
-  replyTo?: string | null;
-}
-
-/** A Mailer that records instead of sending. `fail(to)` decides failures; `gate` holds sends. */
-function recorder(opts: { fail?: (to: string) => boolean; gate?: Promise<void>; entered?: () => void } = {}) {
-  const sent: Sent[] = [];
-  const failed: Sent[] = [];
-  const one = (m: Sent) => {
-    const ok = !opts.fail?.(m.to);
-    (ok ? sent : failed).push(m);
-    return ok;
-  };
-  const mailer: Mailer = {
-    send: async (a) => {
-      opts.entered?.();
-      await opts.gate;
-      return one({ kind: a.kind, to: a.to, subject: a.subject, replyTo: a.replyTo });
-    },
-    sendBatch: async (_ctx, msgs) => {
-      opts.entered?.();
-      await opts.gate;
-      return msgs.map((a) => one({ kind: a.kind, to: a.to, subject: a.subject, replyTo: a.replyTo }));
-    },
-  };
-  return { mailer, sent, failed };
-}
+import { LOG_MARK, type Results, type Sql, addMember, ctxFor, makeHousehold, recorder } from "./harness";
 
 const at = (iso: string) => new Date(iso);
 const hours = (start: string, n: number) => Array.from({ length: n }, (_, i) => new Date(at(start).getTime() + i * 3_600_000));

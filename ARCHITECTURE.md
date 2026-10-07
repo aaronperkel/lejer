@@ -155,7 +155,6 @@ Migrations are numbered SQL files in `db/migrations/` applied by `scripts/migrat
 | `bill_debts.person_id → memberships` | CASCADE | `removePerson` deleting debts |
 | `payment_thanks.*` | CASCADE | `removePerson` deleting thanks |
 | `documents.uploaded_by → memberships` | SET NULL | `LEFT JOIN people` so a document outlives its uploader |
-| `login_codes.user_id → users` | CASCADE | — |
 | `documents.household_id`, `bill_types.household_id`, … `→ households` | CASCADE | deleting a household removes everything |
 
 The SET NULL FKs above are composite too (next paragraph), so they name the column to null —
@@ -202,13 +201,15 @@ bill_types      id, household_id, name, emoji, processing_fee NUMERIC(10,2), own
 bills           id, household_id, type_id, bill_date DATE, due_date DATE, total, per_person_cost,
                 status, pdf_path TEXT NULL, added_by_id NULL,
                 owner_id NULL → memberships, had_owner BOOLEAN       -- snapshotted at post time (0004)
+                fee, shares, owner_share,                             -- the frozen split (0005)
+                notice_kind, notice_queued_at, notice_extra INT[], notified_at  -- the email queue (0005)
                 UNIQUE (id, household_id)
 bill_debts      household_id, bill_id, person_id, paid_at TIMESTAMPTZ NULL,  PRIMARY KEY (bill_id, person_id)
                                                                      -- permanent rows (0003)
 payment_thanks  household_id, bill_id, person_id, queued_at, PRIMARY KEY (bill_id, person_id)
 documents       id, household_id, title, category, file_path, content_type, file_size, uploaded_at, uploaded_by NULL
-login_codes     id, user_id, code_hash CHAR(64), attempts SMALLINT, ip_hash CHAR(64) NULL,
-                created_at, expires_at                                              -- no household
+login_codes     id, email CITEXT, code_hash CHAR(64), attempts SMALLINT, ip_hash CHAR(64) NULL,
+                created_at, expires_at                          -- no household; keyed by email (0002)
 email_log       id, household_id NULL, kind TEXT, to_hash CHAR(64), ok BOOLEAN, sent_at TIMESTAMPTZ
                                                                                      -- daily budget + readouts
 schema_migrations filename, applied_at
@@ -260,7 +261,9 @@ Both source apps deleted a `bill_debts` row when someone paid, so the original d
 lost; unchecking a payment had to rebuild debts from *today's* splitters, which re-added the
 wrong people (anyone who joined after the bill). Lejer keeps the rows:
 
-- The row set is written once, when the bill is posted (`createBill`), and never rebuilt.
+- The row set is written once, when the bill is posted (`createBill`). The one exception is
+  an edit before anyone has paid (0005, below), which rebuilds the rows over the same frozen
+  split set; once a row carries `paid_at` the bill is locked and its rows are never rebuilt.
 - Paying sets `paid_at = now()`; un-paying sets it `NULL` (`setPaid`, one row at a time,
   transactional). Unchecking therefore restores exactly the original debtor, and someone who
   joined later can never gain a row on an old bill.
@@ -271,6 +274,57 @@ wrong people (anyone who joined after the bill). Lejer keeps the rows:
 - Not chosen: comparing `memberships.invited_at` to the bill's date to decide eligibility.
   Imported memberships get `invited_at` = import time, after every historical bill, so nobody
   could ever be re-added on old bills.
+
+### Fixing a posted bill (0005, decided 2026-10-07)
+
+The 2026-10-07 critique's open P1: a posted bill was irreversible and its email went out at once.
+
+- **The new-bill email waits in a queue.** Posting sets `bills.notice_kind = 'new'` and
+  `notice_queued_at = now()` instead of mailing. `lib/notices.ts` sends it once it has sat for
+  `NOTICE_DELAY_MINUTES` (10, in `lib/notice-delay.ts` so client copy can say it), flushed by
+  every cron tick and, through `after()`, by every bill mutation, like the thanks queue. So the
+  email lands 10 to about 70 minutes after posting (the cron is hourly; Neon's CU budget rules
+  out anything faster). The queue lives on the bill row, so deleting a bill cancels its email
+  by definition. Claims are one `UPDATE … RETURNING` with `SKIP LOCKED`; a bill whose every
+  send failed goes back as it was, compare-and-set, unless an edit re-queued it meanwhile. The
+  email shows the bill as it is at flush time. `notified_at` records the first send.
+- **Edit or delete only while nobody is marked paid** (`updateBill` / `deleteBill` in
+  `lib/bills.ts`): the bill's owner or an admin; after any `paid_at` the bill is locked
+  (unchecking unlocks it). Both take the same `FOR UPDATE` row lock as `setPaid`.
+- **The split set is frozen at post time.** `shares` is the denominator the bill was split over
+  and `owner_share` whether its owner held one of them (an owner who doesn't split doesn't);
+  the set is the debtor rows plus that owner. An edit recomputes total, fee and each share over
+  the same `shares` and never consults today's splitters, so someone who joined after the post
+  is still not a debtor after an edit, however much later. The fee stays the bill's own `fee`
+  unless the type changes.
+- **Changing the type** re-snapshots the owner from the new type. The set keeps its size: the
+  new owner, if they're in it, stops owing; the old owner, if they held a share, starts; a
+  type with no owner means everyone in the set owes. The debt rows are rebuilt (nobody has
+  paid, so they carry no history).
+- **Email after an edit.** Still queued → the window restarts and one email goes out with the
+  final figures. Already sent → `notice_kind = 'updated'` queues one "Corrected" email to the
+  union of the debtors before and after the edit plus both owners (`notice_extra` carries the
+  "before" side until the flush), so anyone the edit dropped hears about it. With a frozen set,
+  that's a former owner who didn't hold a share.
+- **Delete** removes the row (debts, thanks and the queued email go with it) and its PDF from
+  Blob after commit. If the first email had gone out, a "Bill removed" note goes at once to the
+  joined debtors and the owner (the delete was confirmed in a dialog); otherwise nobody is told,
+  because nobody had heard of it.
+- **PDF on edit**: a replacement uploads first under a fresh key (`{MMDD}-{billId}-{rev}.pdf`),
+  so an edit refused after the upload can't have overwritten the live file; the old file is
+  deleted only after the edit commits.
+- Backfill: existing bills get `notified_at = created_at`, `fee` from their type's current fee,
+  `shares` read back from `total / per_person_cost`, and `owner_share` when there are more
+  shares than debt rows.
+
+### The net ledger (decided 2026-10-07)
+
+The dashboard's house ledger shows one amount per pair of people (`netPairs()`): Alex owes Sam
+$30 and Sam owes Alex $12 → "Alex owes Sam $18.00", captioned "$30.00 owed, less $12.00 the
+other way". It is display only; every debt row stays as posted and is checked off per bill.
+Pairs owed to the house or a former member have nobody to offset and pass through. The
+portal's "Still owed" strip stays gross: it's the check-off work list. There is no "I sent it"
+flow.
 
 ---
 
@@ -401,6 +455,7 @@ queries are keyed by the email being verified. `withUser` sets only `app.user_id
   2. `scripts/import-tidb.ts`
   3. `createHousehold()` (signup: insert household + first admin membership, then return)
   4. the cron tick's household enumeration (`SELECT id, timezone, … FROM households`)
+  5. the slug lookup in `scripts/send-reminders.ts` (§8)
 - `lejer_app`: created **with SQL** as `neondb_owner` on `main` before branching
   (`CREATE ROLE lejer_app LOGIN PASSWORD … NOBYPASSRLS`), not in the console, so it is not a
   member of `neon_superuser`. `0001_init.sql` refuses to run without it, then grants
@@ -545,9 +600,11 @@ and for the import script.
   eyebrows, ruled tables, grey page; peach: awning stripe masthead, Georgia, Courier) chosen by
   `households.theme`, same inline-style, light-only, 560 px discipline as today. Templates:
   login code (+ plain-text alternative), invite, new bill (owner-aware: debtors told who to pay,
-  owner told who owes), reminder (heads-up/urgent), payment thanks (multi-bill), custom note,
-  reminder batch confirmation, bulk-email receipt, and a digest copy (what a new-bill notice or
-  a per-bill reminder told whom) for `digest_email`. Copy is gender-neutral.
+  owner told who owes; sent 10 minutes after posting, with a "Corrected" variant for edits, §3),
+  bill removed, reminder (heads-up/urgent), payment thanks (multi-bill), custom note,
+  reminder batch confirmation, bulk-email receipt, and a digest copy (what a new-bill,
+  corrected, removed or per-bill reminder email told whom) for `digest_email`. Copy is
+  gender-neutral.
 - `sendMail()` returns `false` on failure (logged, never thrown) as today, and writes an
   `email_log` row either way. Reminder batches use `resend.batch.send` (≤ 100 per call),
   replacing the 1 s SMTP sleep.
@@ -625,6 +682,8 @@ server has no secret, 401 for a missing or wrong header), `maxDuration = 120`:
    - flush the thanks queue if `feature_thanks` (own 10-minute debounce, every tick; payment
      edits also flush through `after()`, as utilities did, so a receipt doesn't wait for the
      next tick);
+   - flush the new-bill email queue (`lib/notices.ts`, §3 "Fixing a posted bill"), every tick;
+     like thanks, it is never deferred for the budget;
    - compute local hour and date with `localHour(tz)` / `localDate(tz)`;
    - if `reminders_enabled && hour >= send_hour`, **claim the day**:
      `UPDATE households SET last_send_date = today WHERE id = … AND (last_send_date IS NULL OR
@@ -740,6 +799,11 @@ toggles, look, bills and rent stay phase 5). Verify suite `cron`.
 (per-membership token via `calendar_context()`; RRULE when `feature_rent`), welcome tour behind `feature_welcome_tour`, both theme token
 blocks + dark mode for statement, OG and apple icons via `next/og`, the rest of the settings
 page, nav/footer gating.
+
+**Phase 5.5 — Fixing a posted bill, critique fixes.** (Done 2026-10-07.) `0005`: the new-bill
+email queue, edit and delete until someone has paid over the frozen split set (§3), the net
+house ledger, and the 2026-10-07 critique's P2/P3s (status vocabulary, household-calendar due
+chips, one native dialog, the settings save bar). Verify suite `edits`.
 
 **Phase 6 — Import and cutover.**
 Prerequisites: `vercel env pull` from the **peach-cob** Vercel project for its `DB_*` and

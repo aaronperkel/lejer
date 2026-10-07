@@ -4,6 +4,7 @@ import { slugify } from "@/lib/households";
 // This environment's private Blob store (lejer-blob for dev/preview, its own store in
 // production). Every key lives under h/{household_id}/ (ARCHITECTURE.md §4):
 //   h/{id}/bills/{year}/{type-slug}/{MMDD}-{billId}.pdf   deterministic per bill; allowOverwrite
+//   h/{id}/bills/{year}/{type-slug}/{MMDD}-{billId}-{rev}.pdf   a replacement uploaded by an edit
 //   h/{id}/documents/{name}-{randomSuffix}.{ext}          client-direct upload; addRandomSuffix
 // The bill id keeps two same-type bills posted the same day from sharing a key. Keys are never
 // handed to the browser as Blob URLs; /files/<key> is the only read path.
@@ -23,9 +24,13 @@ export const MAX_BILL_PDF_BYTES = 4 * 1024 * 1024; // under Vercel's 4.5 MB requ
 export const householdPrefix = (householdId: number) => `h/${householdId}/`;
 export const documentsPrefix = (householdId: number) => `h/${householdId}/documents/`;
 
-export function billPdfKey(householdId: number, typeName: string, billDate: string, billId: number): string {
+/**
+ * `rev` marks a replacement uploaded by an edit: it never shares the live file's key, so an edit
+ * that's refused after the upload (someone paid in the meantime) can't have overwritten it.
+ */
+export function billPdfKey(householdId: number, typeName: string, billDate: string, billId: number, rev?: string): string {
   const [year, month, day] = billDate.split("-");
-  return `h/${householdId}/bills/${year}/${slugify(typeName)}/${month}${day}-${billId}.pdf`;
+  return `h/${householdId}/bills/${year}/${slugify(typeName)}/${month}${day}-${billId}${rev ? `-${rev}` : ""}.pdf`;
 }
 
 export function contentTypeFor(key: string): string | undefined {

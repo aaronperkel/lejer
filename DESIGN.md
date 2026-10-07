@@ -394,8 +394,9 @@ vertical rules from `sm`), and then ruled tables grouped under eyebrows. Panel c
 
 **Responsive:** the one breakpoint that changes structure is `sm` (640px). Below it, any
 `.table-stack` table drops its header and reflows each row into a small ledger card, a CSS grid
-with named areas (bill and amount on top, then due date, status and actions), so nothing ever
-scrolls sideways. Inputs are 16px below `sm` so iOS doesn't zoom on focus. Coarse pointers get
+with named areas (bill and amount on top, then due date, status and actions; the portal's bills,
+which carry check-offs and up to four row actions, put the check-offs and then the actions on
+rows of their own), so nothing ever scrolls sideways. Inputs are 16px below `sm` so iOS doesn't zoom on focus. Coarse pointers get
 36px icon buttons.
 
 **The No Sideways Scroll Rule.** A phone never scrolls horizontally. New tables join the
@@ -411,7 +412,7 @@ above the page.
 - **Dropdown** (`box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)`):
   the household switcher menu.
 - **Dialog** (`box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)`):
-  modal panels such as editing a bill type or a document.
+  modal panels such as editing a bill, a bill type or a document.
 
 ### Named Rules
 **The Flat Paper Rule.** Panels, cards, tables and buttons have no shadow at rest or on hover.
@@ -448,12 +449,18 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
 - **Motion:** colors transition in 100ms and nothing moves.
 
 ### Tags and Due Chips
-- **Status tags** (PAID / UNPAID): ledger mono at 0.7rem, uppercase, 0.08em tracking, with the
-  status color on its wash. They're square-cornered (4px) in statement and pills in peach, where
-  they're also bold.
-- **Due chips** (`DueChip`): ledger mono at 0.7rem with tabular figures. They're neutral
-  (sheet tint, muted ink) when paid or in the future, butter/amber within the urgent window, and
-  rose/red when overdue.
+- **Status tags** (`StatusTag`): one vocabulary everywhere, PAID or UNPAID, for owners and
+  debtors alike. Ledger mono at 0.7rem, uppercase, 0.08em tracking. PAID is the paid color on
+  its wash; UNPAID is the unpaid color on its wash **only once the bill is past due**. Before
+  that it's the neutral open tag (`.tag-open`: sheet tint, muted ink), so red always means late
+  and an owner's open bills never look alarming. Square-cornered (4px) in statement, bold pills
+  in peach.
+- **Due chips** (`DueChip`): ledger mono at 0.7rem with tabular figures, rendered on the server
+  from the **household's** today and its urgent window (`urgent_reminder_days`), the same rules
+  as the reminder emails, never the device's date. Neutral when paid or in the future,
+  butter/amber within the urgent window, rose/red when overdue. The visible "Oct 5 • Past due
+  2d" is shorthand; screen readers get the sentence ("Due Oct 5, past due by 2 days").
+- 0.7rem is the floor for tags anywhere, swatches included.
 
 ### Cards / Containers
 - **Panel:** a sheet background, a 1px soft rule, and the middle radius with no shadow. Panels
@@ -467,6 +474,17 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
   16px text on a phone and 14px from `sm`, with placeholder at 70% muted ink.
 - **Focus:** the border turns accent with a 2px ring of the accent at 25%.
 - **Label:** a sans 600 label at 0.82rem, 6px above the field.
+- **Hint** (`.field-hint`): muted 0.75rem under a field, capped at 60ch so it reads as a line,
+  not a paragraph across the panel. Longer explanatory sentences in a form cap at 60ch too.
+- **Computed figures are output, not fields** (`.field-output`): a ruled line under the inputs
+  with `<output>` figures in the ledger face ("Total $87.70 (incl. $3.50 fee) · $29.23 each of
+  3"). Nothing that can't be typed into is drawn as a box.
+
+### Settings Save Bar
+Settings is one long form with one Save. The form counts the fields that differ from what it
+loaded; once there's at least one, on a phone the Save row sticks to the bottom of the screen
+on the page color with a soft top rule, reading "2 changes not saved yet" beside the button.
+From `sm` the row stays in place at the end of the form, with the count after the button.
 
 ### Navigation
 - **Header:** a sheet-colored bar with a soft bottom rule. On the left is the household name as
@@ -490,15 +508,22 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
   wrap, the one sanctioned horizontal scroll. Bills, Household and Settings show for everyone;
   Email shows only to admins, and only while bulk email is on.
 
-### Confirm Dialog
-`ConfirmButton` asks before a destructive or consequential action: removing a member, a bill
-type or a document, sending a reminder, or saving a change of mode or payer. It is a native
-modal `<dialog>` (`.dialog`), a panel at the large radius with the dialog shadow over a 35%
-black scrim. Inside are a display-voice title that names the action and its object ("Remove
-Water?"), one or two muted sentences on what happens and what doesn't, then a ruled footer
-with Cancel (default, focused first, so Enter never confirms by accident) and the action as
-the primary button. Escape and the backdrop cancel, and focus returns to the trigger. Nothing
-uses the browser's `confirm()`. Routine saves never ask.
+### Dialogs
+There is one modal, `Dialog`: a native modal `<dialog>` (`.dialog`), a panel at the large
+radius with the dialog shadow over a 35% black scrim. A display-voice title (Fraunces in peach)
+names the action and its object, then the body, then a ruled footer with Cancel first and the
+action as the primary button. Escape and the backdrop cancel, and focus returns to whatever
+opened it.
+- **Confirm** (`ConfirmButton`) asks before a destructive or consequential action: removing a
+  member, a bill type or a document, deleting a bill, sending a reminder, or saving a change of
+  mode or payer. One or two muted sentences on what happens and what doesn't; Cancel is focused
+  first, so Enter never confirms by accident. Nothing uses the browser's `confirm()`. Routine
+  saves never ask.
+- **Form dialogs** hold a short form: adding or editing a bill type, and editing a bill
+  (`.dialog-wide`, 36rem, for two fields side by side). The bill dialog's description says
+  what saving does to the email; its footer carries "Delete bill" on the left, which asks again
+  in a nested confirm. A save that goes through closes the dialog and the page's flash reports
+  it; errors stay inside the dialog.
 
 ### Choice Cards
 Settings choices with consequences (the mode, the theme) are radio cards: a 1px rule panel at
@@ -519,8 +544,9 @@ text equivalent: on a phone each figure takes its own line, label left, amount r
 
 ### Calendar Links
 Two small default buttons with a drawn calendar icon, "Apple Calendar" (`webcal://`) and
-"Google Calendar". They sit at the right of the dashboard greeting, and on `/account` beside
-the copyable link and the reset.
+"Google Calendar". From `sm` they sit at the right of the dashboard greeting; on a phone they
+come after the summary strip, so the money is the first thing on the screen. On `/account`
+they sit beside the copyable link and the reset.
 
 ### Ledger Table (signature)
 The ruled table is the system's main element. It has mono uppercase eyebrow headers over a 16%
@@ -530,7 +556,15 @@ unruled. On a phone it reflows into ledger cards (see Layout).
 ### Summary Strip (signature)
 One panel split into three cells divided by soft rules. Each cell holds an eyebrow, a 1.7rem
 mono figure, and a muted caption that says it in words ("across 2 unpaid bills", "all settled
-up"). It is the first thing on the dashboard and the answer to "what do I owe".
+up"). It is the first thing on the dashboard and the answer to "what do I owe". When the next
+due date has passed, its caption says so in the unpaid color ("Water · 2 days late"). An empty
+figure reads "None" in muted ink, never a dash.
+
+### House Ledger
+One row per pair of people, netted: "Alex owes you $18.00". When both owe each other, a muted
+caption shows the arithmetic ("$30.00 owed, less $12.00 the other way"), so the record stays
+visibly accurate. Rows owed to the house or a former member pass through as they are. The
+viewer's own rows come first.
 
 ### Flash Messages
 These are full-width bordered notes at the top of the content. Ok uses the paid wash with a 40%
@@ -575,7 +609,9 @@ without opting in.
 - **Do** give a chart a legend of real buttons, a point shape per series, and a table that
   says the same thing in figures. Take series colors from `--series-N` in slot order.
 - **Do** ask with `ConfirmButton` before anything that removes, sends or reassigns, and never
-  with the browser's `confirm()`.
+  with the browser's `confirm()`. Put any other modal content in `Dialog`; never hand-roll an
+  overlay.
+- **Do** leave an empty cell empty. No "—" placeholders in tables or figures.
 - **Do** let the global reduced-motion rule handle motion. Never re-enable animation with
   `!important` under `prefers-reduced-motion`.
 

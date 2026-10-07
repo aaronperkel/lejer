@@ -48,6 +48,7 @@ const bill = (id: number, typeId: number, billOffset: number, dueOffset: number,
     id, typeId, typeName: t.name, typeEmoji: t.emoji, ownerId: t.ownerId, ownerName: t.ownerName,
     billDate: ymd(billOffset), dueDate: ymd(dueOffset), total, perPersonCost,
     status: "unpaid", pdfPath: null, addedByName: t.ownerName,
+    amount: total - t.processingFee, fee: t.processingFee, shares: 4, locked: false, notified: true,
   };
 };
 

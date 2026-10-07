@@ -1,8 +1,7 @@
 import { createElement } from "react";
-import DigestCopy, { type DigestCopyProps } from "@/emails/DigestCopy";
-import NewBill from "@/emails/NewBill";
+import DigestCopy, { type DigestCopyProps, digestSubject } from "@/emails/DigestCopy";
 import Reminder from "@/emails/Reminder";
-import { type CreatedBill, getBill } from "@/lib/bills";
+import { getBill } from "@/lib/bills";
 import { assertCanManage } from "@/lib/auth";
 import type { Ctx } from "@/lib/context";
 import { type Tx, withHousehold } from "@/lib/db";
@@ -10,20 +9,15 @@ import { ActionError } from "@/lib/errors";
 import { sendMail } from "@/lib/mail";
 import { daysBetween, localDate } from "@/lib/time";
 
-// Household mail about bills. Recipients are members who have joined (signed in at least once):
-// a pending invite's address hasn't been proven yet, so it gets nothing but the invite itself.
-// Reply-To is the bill type's owner, so replying reaches the person being paid.
+// Per-bill reminders from the portal (new-bill, corrected and removed notices live in
+// lib/notices.ts). Recipients are members who have joined (signed in at least once): a pending
+// invite's address hasn't been proven yet, so it gets nothing but the invite itself. Reply-To is
+// the bill's owner, so replying reaches the person being paid.
 
 interface Recipient {
   id: number;
   name: string;
   email: string;
-}
-
-async function joinedSplitters(tx: Tx): Promise<Recipient[]> {
-  return tx<Recipient[]>`
-    SELECT m.id, u.name, u.email FROM memberships m JOIN users u ON u.id = m.user_id
-    WHERE m.household_id = app_household_id() AND m.splits_bills AND m.joined_at IS NOT NULL`;
 }
 
 async function ownerEmail(tx: Tx, ownerId: number | null): Promise<string | null> {
@@ -45,57 +39,10 @@ async function sendDigest(ctx: Ctx, p: Omit<DigestCopyProps, "theme" | "househol
   await sendMail({
     ctx,
     to,
-    subject: `${p.event === "new_bill" ? "Posted" : "Reminded"}: ${p.typeName}, emailed ${p.sentTo.length}`,
+    subject: digestSubject(p.event, p.typeName, p.sentTo.length),
     react: createElement(DigestCopy, { ...p, theme: ctx.household.theme, householdName: ctx.household.name, actorName: ctx.user.name }),
     kind: "digest",
   });
-}
-
-/** Tells every joined splitter about a new bill: debtors what they owe, the owner who owes them. */
-export async function notifyNewBill(ctx: Ctx, bill: CreatedBill, dueDate: string, hasPdf: boolean): Promise<SendReport> {
-  const { recipients, replyTo } = await withHousehold(ctx, async (tx) => ({
-    recipients: await joinedSplitters(tx),
-    replyTo: await ownerEmail(tx, bill.type.ownerId),
-  }));
-  const report = { sent: 0, failed: 0 };
-  const sentTo: string[] = [];
-  for (const r of recipients) {
-    const isOwner = r.id === bill.type.ownerId;
-    if (!isOwner && !bill.debtors.some((d) => d.id === r.id)) continue;
-    const ok = await sendMail({
-      ctx,
-      to: r.email,
-      subject: `New bill: ${bill.type.name}, $${bill.perPersonCost.toFixed(2)} ${isOwner ? "each owed to you" : "your share"}`,
-      react: createElement(NewBill, {
-        theme: ctx.household.theme,
-        householdName: ctx.household.name,
-        recipientName: r.name,
-        typeName: bill.type.name,
-        total: bill.total,
-        perPersonCost: bill.perPersonCost,
-        dueDate,
-        ownerName: bill.type.ownerName,
-        postedByName: ctx.user.name,
-        isOwner,
-        debtorNames: bill.debtors.map((d) => d.name),
-        hasPdf,
-      }),
-      kind: "new_bill",
-      replyTo,
-    });
-    report[ok ? "sent" : "failed"]++;
-    if (ok) sentTo.push(r.name);
-  }
-  await sendDigest(ctx, {
-    event: "new_bill",
-    typeName: bill.type.name,
-    total: bill.total,
-    perPersonCost: bill.perPersonCost,
-    dueDate,
-    sentTo,
-    failed: report.failed,
-  });
-  return report;
 }
 
 /**

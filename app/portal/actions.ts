@@ -7,12 +7,15 @@ import { requireAdminAction, requireUserAction } from "@/lib/auth";
 import {
   type BillType,
   createBill,
+  deleteBill,
+  getBill,
   parseAmount,
   prepareBill,
   refreshBillStatus,
   removeBillType,
   saveBillType,
   setPaid,
+  updateBill,
 } from "@/lib/bills";
 import { MAX_BILL_PDF_BYTES, billPdfKey, deleteBlob, putBillPdf } from "@/lib/blob";
 import { BRAND } from "@/lib/brand";
@@ -24,7 +27,8 @@ import { done, fail } from "@/lib/flash";
 import { getUserByEmail } from "@/lib/households";
 import { normalizeEmail } from "@/lib/login-codes";
 import { sendMail } from "@/lib/mail";
-import { notifyNewBill, remindBill } from "@/lib/notify";
+import { NOTICE_DELAY_MINUTES, flushBillNotices, sendBillRemoved } from "@/lib/notices";
+import { remindBill } from "@/lib/notify";
 import { flushThanks } from "@/lib/thanks";
 import { localDate } from "@/lib/time";
 import type { Role } from "@/lib/types";
@@ -50,6 +54,34 @@ async function adminCtx(path: string): Promise<Ctx> {
   const ctx = await requireAdminAction();
   if (ctx.demo) fail(path, DEMO_REFUSAL);
   return ctx;
+}
+
+/**
+ * After a bill mutation: send whatever has outlived its undo window (new-bill emails, receipts)
+ * now rather than at the next hourly tick.
+ */
+function flushQueues(ctx: Ctx): void {
+  after(async () => {
+    await flushBillNotices(ctx).catch((e) => console.error("notice flush failed:", e));
+    if (ctx.household.featureThanks) await flushThanks(ctx).catch((e) => console.error("thanks flush failed:", e));
+  });
+}
+
+/** Reads and checks a bill PDF from a form: null when none was chosen, errors when it's not a usable PDF. */
+async function readPdf(formData: FormData, errors: string[]): Promise<ArrayBuffer | null> {
+  const file = formData.get("pdf");
+  const pdf = file instanceof File && file.size > 0 ? file : null;
+  if (!pdf) return null;
+  if (pdf.size > MAX_BILL_PDF_BYTES) {
+    errors.push("The PDF can be up to 4 MB.");
+    return null;
+  }
+  const bytes = await pdf.arrayBuffer();
+  if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") {
+    errors.push("That file isn't a PDF.");
+    return null;
+  }
+  return bytes;
 }
 
 function sendInvite(ctx: Ctx, invitee: { email: string; name: string }): Promise<boolean> {
@@ -215,13 +247,9 @@ export async function addBill(_prev: AddBillState, formData: FormData): Promise<
     billDate: ctx.household.askBillDate ? String(formData.get("billDate") ?? "") : localDate(ctx.household.timezone),
     dueDate: String(formData.get("dueDate") ?? ""),
   };
-  const file = formData.get("pdf");
-  const pdf = file instanceof File && file.size > 0 ? file : null;
   const errors: string[] = [];
   if (amount === null) errors.push("Enter the amount on the bill, like 84.20.");
-  if (pdf && pdf.size > MAX_BILL_PDF_BYTES) errors.push("The PDF can be up to 4 MB.");
-  const bytes = pdf && pdf.size <= MAX_BILL_PDF_BYTES ? await pdf.arrayBuffer() : null;
-  if (bytes && new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-") errors.push("That file isn't a PDF.");
+  const bytes = await readPdf(formData, errors);
   if (errors.length) return { errors };
 
   let pdfPath: string | null = null;
@@ -241,7 +269,7 @@ export async function addBill(_prev: AddBillState, formData: FormData): Promise<
     throw e;
   }
 
-  const report = await notifyNewBill(ctx, created, input.dueDate, pdfPath !== null);
+  flushQueues(ctx); // nothing of this bill's yet: its email waits out the window
   const each = `$${created.perPersonCost.toFixed(2)}`;
   const names = created.debtors.map((d) => d.name);
   const who =
@@ -250,8 +278,79 @@ export async function addBill(_prev: AddBillState, formData: FormData): Promise<
       : ctx.household.mode === "single_payer"
         ? `Split with the house: ${each} each.`
         : `${names.join(", ")} ${names.length === 1 ? "owes" : "each owe"} ${created.type.ownerName ?? "the house"} ${each}.`;
-  const mail = report.failed ? ` ${report.failed} email${report.failed === 1 ? "" : "s"} didn't send.` : "";
-  done(BILLS, `Posted ${created.type.name}. ${who}${mail}`);
+  done(BILLS, `Posted ${created.type.name}. ${who} Everyone's emailed after ${NOTICE_DELAY_MINUTES} minutes, so you can still edit or delete it.`);
+}
+
+/**
+ * Edits a bill nobody has paid on (useActionState, so errors render inside the dialog). A new
+ * PDF uploads first under a fresh key; the old file is deleted only after the edit commits, and
+ * the new one is deleted if the edit is refused.
+ */
+export async function editBill(_prev: AddBillState, formData: FormData): Promise<AddBillState> {
+  let ctx: Ctx;
+  try {
+    ctx = await requireUserAction();
+  } catch {
+    return { errors: ["Sign in to edit bills."] };
+  }
+  if (ctx.demo) return { errors: [DEMO_REFUSAL] };
+
+  const billId = Number(formData.get("billId"));
+  const amount = parseAmount(formData.get("amount"));
+  const errors: string[] = [];
+  if (amount === null) errors.push("Enter the amount on the bill, like 84.20.");
+  const bytes = await readPdf(formData, errors);
+  if (errors.length) return { errors };
+  const input = {
+    typeId: Number(formData.get("typeId")),
+    amount: amount!,
+    billDate: String(formData.get("billDate") ?? ""),
+    dueDate: String(formData.get("dueDate") ?? ""),
+  };
+
+  let uploaded: string | null = null;
+  let edited;
+  try {
+    let pdfPath: string | null | undefined = formData.get("removePdf") === "on" ? null : undefined;
+    if (bytes) {
+      // Named for the bill as it will be; the bill's own row is checked (and locked) by updateBill.
+      const { typeName, billDate } = await withHousehold(ctx, async (tx) => {
+        const bill = await getBill(tx, billId);
+        const type = (await tx<{ name: string }[]>`SELECT name FROM bill_types WHERE id = ${input.typeId}`)[0];
+        if (!bill || !type) throw new ActionError("That bill no longer exists.");
+        return { typeName: type.name, billDate: ctx.household.askBillDate && input.billDate ? input.billDate : bill.billDate };
+      });
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(billDate)) throw new ActionError("Enter the statement date as a date.");
+      uploaded = billPdfKey(ctx.household.id, typeName, billDate, billId, Date.now().toString(36));
+      await putBillPdf(uploaded, bytes);
+      pdfPath = uploaded;
+    }
+    edited = await withHousehold(ctx, (tx) => updateBill(tx, ctx, billId, input, { pdfPath }));
+  } catch (e) {
+    if (uploaded) await deleteBlob(uploaded).catch(() => {});
+    if (e instanceof ActionError) return { errors: [e.message] };
+    throw e;
+  }
+  if (edited.oldPdfPath && edited.oldPdfPath !== edited.pdfPath) {
+    await deleteBlob(edited.oldPdfPath).catch((e) => console.error(`couldn't delete ${edited.oldPdfPath}:`, e));
+  }
+  flushQueues(ctx);
+  done(
+    BILLS,
+    `Saved ${edited.typeName}. ${edited.updateQueued ? `Everyone on the bill gets the corrected figures after ${NOTICE_DELAY_MINUTES} minutes.` : `Its email goes out ${NOTICE_DELAY_MINUTES} minutes from now, with these figures.`}`,
+  );
+}
+
+/** Deletes a bill nobody has paid on, its PDF, and its queued email; tells people if they'd been emailed. */
+export async function deleteBillAction(formData: FormData): Promise<void> {
+  const ctx = await requireUserAction();
+  if (ctx.demo) fail(BILLS, DEMO_REFUSAL);
+  const removed = await attempt(BILLS, () => withHousehold(ctx, (tx) => deleteBill(tx, ctx, Number(formData.get("billId")))));
+  if (removed.pdfPath) await deleteBlob(removed.pdfPath).catch((e) => console.error(`couldn't delete ${removed.pdfPath}:`, e));
+  if (!removed.notified) done(BILLS, `Deleted ${removed.typeName}. Nobody had been emailed about it yet.`);
+  const report = await sendBillRemoved(ctx, removed);
+  const told = report.sent ? ` Told ${report.sent} ${report.sent === 1 ? "person" : "people"} it's gone.` : "";
+  done(BILLS, `Deleted ${removed.typeName}.${told}${report.failed ? ` ${report.failed} email${report.failed === 1 ? "" : "s"} didn't send.` : ""}`);
 }
 
 /** Payment checkbox (called from PaymentCheckboxes, not a form): one debtor, one bill. */
@@ -260,8 +359,8 @@ export async function setPaidAction(billId: number, personId: number, paid: bool
     const ctx = await requireUserAction();
     if (ctx.demo) return { ok: false, error: DEMO_REFUSAL };
     const status = await withHousehold(ctx, (tx) => setPaid(tx, ctx, Number(billId), Number(personId), Boolean(paid)));
-    // Receipts whose undo window has run out go now, not at the next hourly tick.
-    if (ctx.household.featureThanks) after(() => flushThanks(ctx).catch((e) => console.error("thanks flush failed:", e)));
+    // Receipts and bill emails whose undo window has run out go now, not at the next hourly tick.
+    flushQueues(ctx);
     return { ok: true, status };
   } catch (e) {
     if (e instanceof ActionError) return { ok: false, error: e.message };
