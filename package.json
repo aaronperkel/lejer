@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "verify": "tsx --env-file-if-exists=.env.local scripts/verify/index.ts",
     "start": "next start",
     "migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "email:dev": "email dev --dir emails --port 3001"

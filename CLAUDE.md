@@ -22,7 +22,9 @@ migrates data.
 
 ```bash
 npm run dev              # dev server
-npm run build            # production build + typecheck — the main verification gate
+npm run build            # production build + typecheck — gate 1
+npm run verify           # scripts/verify suites against the Neon dev branch — gate 2
+npm run verify -- rls    # …or just the named suites
 npm run start            # serve the production build
 npm run migrate          # apply db/migrations/*.sql in order (owner role, DATABASE_URL_ADMIN)
 npm run migrate -- --seed  # …then reset the two dev households from db/seed.sql
@@ -31,8 +33,14 @@ npm run send-reminders -- --household <slug>   # run one household's reminder ba
 npm run import-tidb      # one-time TiDB → Neon import of the two legacy households (see DESIGN.md §11)
 ```
 
-There is no test suite; `npm run build` plus hitting routes against a Neon branch is the
-verification path. `npx tsc --noEmit` typechecks alone.
+Two gates, in order: `npm run build` (typecheck + build), then `npm run verify`. `verify`
+runs every suite in `scripts/verify/` against the **dev** branch only: it refuses unless
+`DATABASE_URL_ADMIN` is dev's direct host and `DATABASE_URL` dev's pooled host, and then
+checks that each connection reports dev's `neon.branch_id`. Suites build their own
+throwaway households (`verify-<run>-*`, users `@verify.invalid`) and delete them, sweeping
+leftovers from crashed runs first, so they never depend on or disturb the seed data. **Every
+phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `index.ts`).
+`npx tsc --noEmit` typechecks alone.
 
 ## Configuration
 
@@ -43,7 +51,8 @@ Env lives in `.env.local` (see `.env.example`). Keys:
   not apply to it). Only four call sites may use it: `scripts/migrate.ts`,
   `scripts/import-tidb.ts`, `createHousehold()` in `lib/households.ts`, and the household
   enumeration at the top of `app/api/cron/tick`.
-  Anything else reading it is a bug.
+  Anything else reading it is a bug, except `scripts/verify/` (dev-only, guarded; it needs the
+  owner to build fixtures and inspect the catalog).
 - `SESSION_SECRET` — jose HS256 key for the `lejer_session` cookie.
 - `RESEND_API_KEY` — sends from `login@mail.lejer.app` (codes, invites) and
   `notify@mail.lejer.app` (household mail). Resend is set up directly at resend.com, not
@@ -104,7 +113,8 @@ resetting dev's never touches production.
 Clients are created lazily, so importing `lib/db.ts` needs no credentials (the build, scripts).
 
 The raw `sql` client is not exported. If you find yourself importing `postgres` outside
-`lib/db.ts`, stop.
+`lib/db.ts`, stop. The one exception is `scripts/verify/harness.ts`, whose RLS probes need raw
+transactions with and without GUCs on pooled and direct connections.
 
 **Row-level security is the second lock.** Every household table has `ENABLE ROW LEVEL
 SECURITY` — deliberately **not** `FORCE`, so the table owner (`neondb_owner`) is exempt and
@@ -308,7 +318,7 @@ Tailwind v4 cannot `@apply` a custom class from the same layer.
 
 ## Verifying changes locally
 
-Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
+Start with the two gates (`npm run build`, `npm run verify`). Dev points at the Neon `dev` branch, not production; `npm run migrate -- --seed` sets it up
 (seed users `alex@example.com` / `sam@example.com`, households `elm-street` single-payer and
 `oak-lane` ledger, both users in both). Set `APP_DEV_USER` / `APP_DEV_HOUSEHOLD` to skip
 login. With `RESEND_API_KEY` empty, login codes print to the dev server's output
