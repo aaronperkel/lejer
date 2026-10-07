@@ -19,3 +19,15 @@ export function isYmd(s: string): boolean {
   const d = new Date(`${s}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
 }
+
+/** Hour of the day (0-23) in the given IANA zone. DST-safe: Intl does the offset math. */
+export function localHour(timezone: string, at: Date = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "2-digit", hourCycle: "h23" }).format(at));
+}
+
+/** The next UTC midnight (when Resend's daily count resets), e.g. "8:00 PM" in the zone. */
+export function nextUtcMidnight(timezone: string, at: Date = new Date()): { at: Date; local: string } {
+  const next = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + 1));
+  const local = new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", minute: "2-digit" }).format(next);
+  return { at: next, local };
+}

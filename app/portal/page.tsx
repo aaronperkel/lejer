@@ -36,7 +36,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/portal">)
 
   return (
     <main>
-      <PortalTabs active="bills" householdName={ctx.household.name} />
+      <PortalTabs active="bills" ctx={ctx} />
       <Flash ok={sp.ok} err={sp.err} />
 
       {data.pairs.length > 0 && (

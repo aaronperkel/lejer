@@ -47,7 +47,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
   return (
     <main className="space-y-8">
       <div>
-        <PortalTabs active="household" householdName={ctx.household.name} />
+        <PortalTabs active="household" ctx={ctx} />
         <Flash ok={ok} err={err} />
       </div>
 

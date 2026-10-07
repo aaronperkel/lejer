@@ -13,6 +13,11 @@ export async function emails(r: Results) {
     Invite: { mod: await import("@/emails/Invite"), expect: ["Join 7 Oak Lane", "login?email=alex%40example.com", "repeating-linear-gradient"] },
     NewBill: { mod: await import("@/emails/NewBill"), expect: ["New bill posted", "21.09", "Pay to", "Sam"] },
     Reminder: { mod: await import("@/emails/Reminder"), expect: ["Due soon", "25.17", "Pay to", "October 9, 2026"] },
+    Thanks: { mod: await import("@/emails/Thanks"), expect: ["Payment recorded", "Thanks, Sam", "45.17", "Electric · due October 9, 2026"] },
+    CustomNote: { mod: await import("@/emails/CustomNote"), expect: ["A note from Alex", "Internet is switching providers", "the 20th.", "router stays"] },
+    BatchConfirmation: { mod: await import("@/emails/BatchConfirmation"), expect: ["2 reminders sent", "October 7, 2026", "due soon", "repeating-linear-gradient"] },
+    BulkReceipt: { mod: await import("@/emails/BulkReceipt"), expect: ["Bulk email receipt", "Sam, Riley", "The message"] },
+    DigestCopy: { mod: await import("@/emails/DigestCopy"), expect: ["Alex posted the Electric bill", "25.17", "Sam, Riley"] },
   };
   for (const [name, { mod, expect }] of Object.entries(templates)) {
     const Component = mod.default as unknown as ((p: object) => React.ReactElement) & { PreviewProps: object };

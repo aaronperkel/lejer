@@ -4,7 +4,7 @@ import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
 import { getSessionUser } from "@/lib/context";
 import { createHouseholdAction } from "./actions";
-import TimezoneSelect from "./TimezoneSelect";
+import TimezoneSelect from "@/app/components/TimezoneSelect";
 import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Set up your household" };
@@ -85,7 +85,7 @@ export default async function WelcomeHouseholdPage({ searchParams }: PageProps<"
 
         <div>
           <label className="field-label" htmlFor="timezone">Time zone</label>
-          <TimezoneSelect zones={Intl.supportedValuesOf("timeZone")} fallback="America/New_York" />
+          <TimezoneSelect zones={Intl.supportedValuesOf("timeZone")} fallback="America/New_York" detect />
           <p className="mt-1 text-xs text-ink-muted">Reminder emails go out in the morning, in this time zone.</p>
         </div>
 

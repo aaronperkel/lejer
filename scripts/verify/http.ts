@@ -321,6 +321,72 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   pg = await page("/", `${DEMO_COOKIE}=${await createDemoToken()}`);
   r.check("demo dashboard renders from memory", pg.status === 200 && pg.html.includes("Demo House") && pg.html.includes("The house ledger"));
 
+  r.section("http: the cron endpoint's lock");
+  // Only the refusals go over the wire: an authorized tick would run every household in the
+  // database, seed ones included. The authorized path is covered at the library level (cron).
+  res = await fetch(`${base}/api/cron/tick`);
+  r.check("no Authorization header → 401", res.status === 401, res.status);
+  res = await fetch(`${base}/api/cron/tick`, { headers: { authorization: "Bearer not-the-secret" } });
+  r.check("wrong secret → 401", res.status === 401, res.status);
+  res = await fetch(`${base}/api/cron/tick`, { headers: { authorization: `Basic ${process.env.CRON_SECRET ?? ""}` } });
+  r.check("the right secret under the wrong scheme → 401", res.status === 401, res.status);
+
+  r.section("http: settings");
+  const saveSettings = id("app/portal/settings/actions.ts", "saveSettingsAction");
+  const settingsForm = (over: Record<string, string> = {}) => {
+    const f = new FormData();
+    const fields: Record<string, string> = { remindersEnabled: "on", sendHour: "8", firstReminderDays: "5", urgentReminderDays: "2", timezone: "America/Chicago", fromName: "Oak Crew", replyTo: "", digestEmail: "", ...over };
+    for (const [k, v] of Object.entries(fields)) f.set(k, v);
+    return f;
+  };
+  pg = await page("/portal/settings", aMember);
+  r.check("a member sees settings read-only", pg.status === 200 && pg.html.includes("Only a household admin can change these") && !pg.html.includes("Save settings"), pg.status);
+  pg = await page("/portal/settings", aAdmin);
+  r.check("an admin gets the form, with the schedule in plain words", pg.status === 200 && pg.html.includes("Save settings") && pg.html.includes("Once it&#x27;s late, one every 3 days"), pg.status);
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm() }, aMember);
+  text = await res.text();
+  r.check("member saving settings → refused", text.includes("Only a household admin can do that"), text.slice(0, 200));
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm({ urgentReminderDays: "6", digestEmail: "nope@" }) }, aAdmin);
+  text = await res.text();
+  r.check("bad values → every error inline, what was typed echoed back", text.includes("after the heads-up") && text.includes("digest address") && text.includes("nope@"), text.slice(0, 300));
+  res = await callAction("/portal/settings", saveSettings, { state: { errors: [] }, form: settingsForm({ digestEmail: "Digest@Verify.Invalid" }) }, aAdmin);
+  await res.text();
+  const [saved] = await owner<{ tz: string; hour: number; first: number; digest: string; fromName: string }[]>`
+    SELECT timezone AS tz, send_hour AS hour, first_reminder_days AS first, digest_email::text AS digest, from_name AS "fromName" FROM households WHERE id = ${a.id}`;
+  r.check("admin saves → redirect with ?ok=, values stored (email normalized)",
+    (res.headers.get("x-action-redirect") ?? "").startsWith("/portal/settings?ok=") && saved.tz === "America/Chicago" && saved.hour === 8 && saved.first === 5 && saved.digest === "digest@verify.invalid" && saved.fromName === "Oak Crew", saved);
+
+  r.section("http: bulk email");
+  const bulk = id("app/portal/email/actions.ts", "sendBulkEmailAction");
+  const bulkForm = (subject: string, body: string) => {
+    const f = new FormData();
+    f.set("subject", subject);
+    f.set("body", body);
+    return f;
+  };
+  await owner`UPDATE households SET digest_email = NULL WHERE id = ${a.id}`;
+  pg = await page("/portal/email", aAdmin);
+  r.check("feature off → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Goes to"), pg.status);
+  await owner`UPDATE households SET feature_bulk_email = true WHERE id = ${a.id}`;
+  await addMember(owner, a, `ha-invitee-${RUN}`, { joined: false });
+  // Streamed under loading.tsx, a redirect() arrives as a 200 carrying the target, not a 307.
+  pg = await page("/portal/email", aMember);
+  r.check("a member is sent to /no-access", pg.html.includes("/no-access") && !pg.html.includes("Goes to"), pg.status);
+  pg = await page("/portal/email", aAdmin);
+  r.check("the admin sees who it goes to (and who it doesn't)", pg.status === 200 && pg.html.includes("Goes to") && pg.html.includes(`Not to ha-invitee-${RUN}`), pg.status);
+  res = await callAction("/portal/email", bulk, { state: { errors: [] }, form: bulkForm("", "") }, aAdmin);
+  text = await res.text();
+  r.check("empty subject and message → both errors inline", text.includes("Add a subject") && text.includes("Write the message"), text.slice(0, 200));
+  res = await callAction("/portal/email", bulk, { state: { errors: [] }, form: bulkForm("Hi", "Hello") }, aMember);
+  r.check("a member sending → refused", (await res.text()).includes("Only a household admin can do that"));
+  const logBefore = server.log.length;
+  res = await callAction("/portal/email", bulk, { state: { errors: [] }, form: bulkForm(`Note ${RUN}`, "Rent's due Friday.") }, aAdmin);
+  await res.text();
+  const sentLog = server.log.slice(logBefore);
+  r.check("admin sends → ?ok=, one custom email per joined member, none to the invitee",
+    (res.headers.get("x-action-redirect") ?? "").startsWith("/portal/email?ok=") && (sentLog.match(/\[mail:console\] custom to /g) ?? []).length >= 2 && !sentLog.includes(`ha-invitee-${RUN}`),
+    res.headers.get("x-action-redirect"));
+
   r.section("http: sign-in flow (console mail)");
   const fresh = email("signup");
   const loginForm = (actionName: string, fields: Record<string, string>) => formPost("/login", id("app/login/actions.ts", actionName), fields, "");

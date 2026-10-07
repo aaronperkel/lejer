@@ -12,7 +12,7 @@ import type { Theme } from "../lib/types";
 function colors(t: (typeof THEME_COLORS)[Theme]) {
   return {
     page: t.page, panel: t.panel, ink: t.ink, muted: t.inkMuted,
-    line: flatten(t.line, t.panel), accent: t.accent, onAccent: t.onPrimary, unpaid: t.unpaid,
+    line: flatten(t.line, t.panel), accent: t.accent, onAccent: t.onPrimary, unpaid: t.unpaid, paid: t.paid,
   };
 }
 
@@ -95,10 +95,10 @@ export function Shell({
   );
 }
 
-export function Eyebrow({ theme, urgent, children }: { theme: Theme; urgent?: boolean; children: ReactNode }) {
+export function Eyebrow({ theme, urgent, paid, children }: { theme: Theme; urgent?: boolean; paid?: boolean; children: ReactNode }) {
   const p = palette(theme);
   return (
-    <Text style={{ fontFamily: p.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: urgent ? p.unpaid : p.muted, margin: "0 0 10px" }}>
+    <Text style={{ fontFamily: p.mono, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: urgent ? p.unpaid : paid ? p.paid : p.muted, margin: "0 0 10px" }}>
       {children}
     </Text>
   );
@@ -136,7 +136,7 @@ export function ButtonLink({ theme, href, children }: { theme: Theme; href: stri
 
 
 /** Ruled label/value rows, the email cousin of the site's .data-table. */
-export function Rows({ theme, rows }: { theme: Theme; rows: { label: string; value: string; strong?: boolean; urgent?: boolean }[] }) {
+export function Rows({ theme, rows }: { theme: Theme; rows: { label: string; value: string; strong?: boolean; urgent?: boolean; paid?: boolean }[] }) {
   const p = palette(theme);
   return (
     <Section style={{ margin: "4px 0 18px", borderTop: `1px solid ${p.line}`, borderBottom: `1px solid ${p.line}` }}>
@@ -145,7 +145,7 @@ export function Rows({ theme, rows }: { theme: Theme; rows: { label: string; val
           <Column style={{ padding: "9px 2px", fontFamily: p.mono, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: p.muted }}>
             {r.label}
           </Column>
-          <Column align="right" style={{ padding: "9px 2px", fontFamily: p.mono, fontSize: r.strong ? 15 : 13, fontWeight: r.strong ? 700 : 400, color: r.urgent ? p.unpaid : p.ink }}>
+          <Column align="right" style={{ padding: "9px 2px", fontFamily: p.mono, fontSize: r.strong ? 15 : 13, fontWeight: r.strong ? 700 : 400, color: r.urgent ? p.unpaid : r.paid ? p.paid : p.ink }}>
             {r.value}
           </Column>
         </Row>
@@ -167,4 +167,25 @@ export function longDate(ymd: string): string {
 /** "Robin, Jordan & Casey". */
 export function nameList(names: string[]): string {
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}`;
+}
+
+/** Freeform text as paragraphs: blank lines split paragraphs, single newlines become breaks. */
+export function Prose({ theme, text }: { theme: Theme; text: string }) {
+  return (
+    <>
+      {text
+        .trim()
+        .split(/\n\s*\n/)
+        .map((para, i) => (
+          <Paragraph key={i} theme={theme}>
+            {para.split("\n").map((line, j) => (
+              <span key={j}>
+                {j > 0 && <br />}
+                {line}
+              </span>
+            ))}
+          </Paragraph>
+        ))}
+    </>
+  );
 }

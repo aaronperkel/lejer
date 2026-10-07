@@ -2,7 +2,7 @@ import postgres from "postgres";
 
 // The only module that talks to Postgres. App code gets a transaction through
 // withHousehold (tenant data) or withUser (users/login_codes, the switcher); the raw client
-// is not exported. adminSql() is the owner connection and has exactly four call sites —
+// is not exported. adminSql() is the owner connection and has exactly five call sites —
 // see CLAUDE.md before adding a fifth.
 
 const options = {

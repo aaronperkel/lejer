@@ -1,5 +1,5 @@
 import { adminSql, type Tx } from "@/lib/db";
-import type { ColorScheme, Household, HouseholdMode, Membership, Theme, User } from "@/lib/types";
+import type { ColorScheme, Household, HouseholdMode, Membership, ReminderRun, Theme, User } from "@/lib/types";
 
 // Households, memberships and the switcher list. Every function takes the caller's tx except
 // createHousehold(), which is one of the four owner-role call sites (CLAUDE.md): a new user has
@@ -51,6 +51,19 @@ export async function findMembershipBySlug(
   if (!h) return null;
   const found = await findMembership(tx, userId, h.id);
   return found?.household.id === h.id ? found : null;
+}
+
+/**
+ * The household this transaction is scoped to (app.household_id), with the cron's bookkeeping.
+ * For system scopes that start from an id (the cron, the CLI) and for the settings readout.
+ */
+export async function getCurrentHousehold(tx: Tx): Promise<(Household & ReminderRun) | null> {
+  const [household] = await tx<(Household & ReminderRun)[]>`
+    SELECT ${householdColumns(tx)},
+      h.last_run_at AS "lastRunAt", h.last_send_date AS "lastSendDate",
+      h.last_sent_at AS "lastSentAt", h.last_sent_count AS "lastSentCount"
+    FROM households h WHERE h.id = app_household_id()`;
+  return household ?? null;
 }
 
 export async function getUserByEmail(tx: Tx, email: string): Promise<User | null> {

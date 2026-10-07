@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createElement } from "react";
 import Invite from "@/emails/Invite";
 import { requireAdminAction, requireUserAction } from "@/lib/auth";
@@ -24,6 +25,7 @@ import { getUserByEmail } from "@/lib/households";
 import { normalizeEmail } from "@/lib/login-codes";
 import { sendMail } from "@/lib/mail";
 import { notifyNewBill, remindBill } from "@/lib/notify";
+import { flushThanks } from "@/lib/thanks";
 import { localDate } from "@/lib/time";
 import type { Role } from "@/lib/types";
 
@@ -258,6 +260,8 @@ export async function setPaidAction(billId: number, personId: number, paid: bool
     const ctx = await requireUserAction();
     if (ctx.demo) return { ok: false, error: DEMO_REFUSAL };
     const status = await withHousehold(ctx, (tx) => setPaid(tx, ctx, Number(billId), Number(personId), Boolean(paid)));
+    // Receipts whose undo window has run out go now, not at the next hourly tick.
+    if (ctx.household.featureThanks) after(() => flushThanks(ctx).catch((e) => console.error("thanks flush failed:", e)));
     return { ok: true, status };
   } catch (e) {
     if (e instanceof ActionError) return { ok: false, error: e.message };

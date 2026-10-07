@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import DigestCopy, { type DigestCopyProps } from "@/emails/DigestCopy";
 import NewBill from "@/emails/NewBill";
 import Reminder from "@/emails/Reminder";
 import { type CreatedBill, getBill } from "@/lib/bills";
@@ -37,6 +38,19 @@ export interface SendReport {
   failed: number;
 }
 
+/** The digest copy for digest_email (when set): what went out about one bill, and to whom. */
+async function sendDigest(ctx: Ctx, p: Omit<DigestCopyProps, "theme" | "householdName" | "actorName">): Promise<void> {
+  const to = ctx.household.digestEmail;
+  if (!to) return;
+  await sendMail({
+    ctx,
+    to,
+    subject: `${p.event === "new_bill" ? "Posted" : "Reminded"}: ${p.typeName}, emailed ${p.sentTo.length}`,
+    react: createElement(DigestCopy, { ...p, theme: ctx.household.theme, householdName: ctx.household.name, actorName: ctx.user.name }),
+    kind: "digest",
+  });
+}
+
 /** Tells every joined splitter about a new bill: debtors what they owe, the owner who owes them. */
 export async function notifyNewBill(ctx: Ctx, bill: CreatedBill, dueDate: string, hasPdf: boolean): Promise<SendReport> {
   const { recipients, replyTo } = await withHousehold(ctx, async (tx) => ({
@@ -44,6 +58,7 @@ export async function notifyNewBill(ctx: Ctx, bill: CreatedBill, dueDate: string
     replyTo: await ownerEmail(tx, bill.type.ownerId),
   }));
   const report = { sent: 0, failed: 0 };
+  const sentTo: string[] = [];
   for (const r of recipients) {
     const isOwner = r.id === bill.type.ownerId;
     if (!isOwner && !bill.debtors.some((d) => d.id === r.id)) continue;
@@ -69,7 +84,17 @@ export async function notifyNewBill(ctx: Ctx, bill: CreatedBill, dueDate: string
       replyTo,
     });
     report[ok ? "sent" : "failed"]++;
+    if (ok) sentTo.push(r.name);
   }
+  await sendDigest(ctx, {
+    event: "new_bill",
+    typeName: bill.type.name,
+    total: bill.total,
+    perPersonCost: bill.perPersonCost,
+    dueDate,
+    sentTo,
+    failed: report.failed,
+  });
   return report;
 }
 
@@ -92,12 +117,14 @@ export async function remindBill(ctx: Ctx, billId: number): Promise<SendReport &
 
   const days = daysBetween(localDate(ctx.household.timezone), bill.dueDate);
   const urgent = days <= ctx.household.urgentReminderDays;
+  const overdue = days < 0;
   const report = { sent: 0, failed: 0, typeName: bill.typeName };
+  const sentTo: string[] = [];
   for (const r of debtors) {
     const ok = await sendMail({
       ctx,
       to: r.email,
-      subject: urgent ? `Due soon: your ${bill.typeName} share` : `Reminder: your ${bill.typeName} share`,
+      subject: overdue ? `Past due: your ${bill.typeName} share` : urgent ? `Due soon: your ${bill.typeName} share` : `Reminder: your ${bill.typeName} share`,
       react: createElement(Reminder, {
         theme: ctx.household.theme,
         householdName: ctx.household.name,
@@ -108,11 +135,22 @@ export async function remindBill(ctx: Ctx, billId: number): Promise<SendReport &
         dueDate: bill.dueDate,
         ownerName: bill.ownerId === null ? null : bill.ownerName, // no "pay a former member"
         urgent,
+        overdue,
       }),
       kind: "reminder",
       replyTo,
     });
     report[ok ? "sent" : "failed"]++;
+    if (ok) sentTo.push(r.name);
   }
+  await sendDigest(ctx, {
+    event: "reminder",
+    typeName: bill.typeName,
+    total: bill.total,
+    perPersonCost: bill.perPersonCost,
+    dueDate: bill.dueDate,
+    sentTo,
+    failed: report.failed,
+  });
   return report;
 }

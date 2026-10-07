@@ -73,9 +73,10 @@ Env lives in `.env.local` (see `.env.example`). Keys:
 
 - `DATABASE_URL` — Neon **pooled** URL for the `lejer_app` role (RLS enforced). All app code.
 - `DATABASE_URL_ADMIN` — Neon **unpooled** URL for `neondb_owner` (table owner, so RLS does
-  not apply to it). Only four call sites may use it: `scripts/migrate.ts`,
-  `scripts/import-tidb.ts`, `createHousehold()` in `lib/households.ts`, and the household
-  enumeration at the top of `app/api/cron/tick`.
+  not apply to it). Only five call sites may use it: `scripts/migrate.ts`,
+  `scripts/import-tidb.ts`, `createHousehold()` in `lib/households.ts`, the household
+  enumeration in `lib/cron.ts` (behind `app/api/cron/tick`), and the slug lookup in
+  `scripts/send-reminders.ts`.
   Anything else reading it is a bug, except `scripts/verify/` (dev-only, guarded; it needs the
   owner to build fixtures and inspect the catalog).
 - `SESSION_SECRET` — jose HS256 key for the `lejer_session` cookie.
@@ -133,7 +134,7 @@ resetting dev's never touches production.
   take `tx` first).
 - `withUser(userId, tx => …)` — sets only `app.user_id` (`null` before login, e.g. looking up
   the email being verified); for `users`/`login_codes` and the household switcher.
-- `adminSql()` — the owner connection, created on first call. See the four allowed call sites
+- `adminSql()` — the owner connection, created on first call. See the five allowed call sites
   above.
 
 Clients are created lazily, so importing `lib/db.ts` needs no credentials (the build, scripts).
@@ -314,19 +315,29 @@ renders the statement or peach shell from `households.theme` (inline styles only
 
 ### Cron
 
-`app/api/cron/tick/route.ts` (bearer `CRON_SECRET`, `maxDuration = 120`): enumerates
-households with `adminSql`, then per household inside `withHousehold`: stamps `last_run_at`,
-flushes the thanks queue (own 10-minute debounce, every tick, if `feature_thanks`), and runs
-the reminder batch on the first tick at or after `send_hour` in the household's timezone, at
-most once per local day (`last_send_date`). Before a batch it checks the account-wide UTC-day
-send count (`email_sends_since()`); a batch that would push the day past 80 is **deferred**
-(no stamp, logged in the response) because Resend's free tier is 100/day. Core logic is `lib/reminders.ts`
-(heads-up at exactly N days before due, urgent at ≤ M days including overdue), shared with
-`scripts/send-reminders.ts`.
+`app/api/cron/tick/route.ts` (bearer `CRON_SECRET`, timing-safe; 500 without a server secret,
+401 for a missing or wrong header; `maxDuration = 120`) calls `tick()` in `lib/cron.ts`, which
+enumerates households with `adminSql` and runs `tickHousehold()` for each with a system scope
+(`user: null`), in **short** transactions only: reads and stamps, never a send inside one. Per
+household: stamp `last_run_at`; flush the thanks queue (`lib/thanks.ts`, own 10-minute debounce,
+every tick, if `feature_thanks`; payment edits also flush via `after()`); then, on the first tick
+at or after `send_hour` in the household's timezone, **claim the day** atomically (`last_send_date
+< today`, never `!=`), check the account-wide UTC-day budget (`email_sends_since()`, batch plus
+confirmation copy past 80 → release and **defer**), and send. A batch where every send failed
+releases its claim. Releases are compare-and-set (`WHERE last_send_date = <the date this tick
+claimed>`), so a slow failing tick can't clobber a later success. Who gets what is
+`lib/reminders.ts`: heads-up at exactly `first_reminder_days`, urgent daily from
+`urgent_reminder_days` through the due date, then every `OVERDUE_EVERY_DAYS` (3) once overdue
+(overdue days 1, 4, 7, …). `scripts/send-reminders.ts` runs the same per-household tick for one
+slug, ignoring `send_hour` (`--force` also skips the claim and budget). Bulk email
+(`/portal/email`) refuses past **60** sends for the day, leaving room for reminders and codes.
+Verify never ticks the seed households: `tick({ only })` takes fixture ids, and every library-level
+send goes through an injected recorder (`.env.local` may hold a real `RESEND_API_KEY`).
 
 Scheduler is `.github/workflows/tick.yml` pinging hourly; Vercel Hobby crons run once a day,
 which would defeat the portal-configurable send hour. GitHub drops delayed runs, which the
-"at or after, once per day" rule tolerates.
+"at or after, once per day" rule tolerates. The workflow is committed inactive: its job runs only once the repo
+variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 
 ### Key surfaces
 

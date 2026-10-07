@@ -47,3 +47,11 @@ export interface Household {
   replyTo: string | null;
   digestEmail: string | null;
 }
+
+/** The cron's bookkeeping on a household: the settings page's "last tick / last send" readout. */
+export interface ReminderRun {
+  lastRunAt: Date | null;
+  lastSendDate: string | null;
+  lastSentAt: Date | null;
+  lastSentCount: number;
+}

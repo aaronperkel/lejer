@@ -16,6 +16,8 @@ export interface ReminderProps {
   dueDate: string;
   ownerName: string | null;
   urgent: boolean;
+  /** Past its due date (urgent too). */
+  overdue?: boolean;
 }
 
 export default function Reminder(p: ReminderProps) {
@@ -28,10 +30,10 @@ export default function Reminder(p: ReminderProps) {
       preview={`${p.typeName}: your share $${money(p.perPersonCost)}${p.ownerName ? ` to ${p.ownerName}` : ""}, due ${due}.`}
     >
       <Eyebrow theme={p.theme} urgent={p.urgent}>
-        {p.urgent ? "Due soon" : "Payment reminder"}
+        {p.overdue ? "Past due" : p.urgent ? "Due soon" : "Payment reminder"}
       </Eyebrow>
       <Heading theme={p.theme}>
-        {p.typeName} bill due {due}
+        {p.typeName} bill {p.overdue ? "was due" : "due"} {due}
       </Heading>
       <Paragraph theme={p.theme}>
         Hi {p.recipientName}, your share of the {p.typeName} bill is still open

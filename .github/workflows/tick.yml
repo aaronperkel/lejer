@@ -1,0 +1,28 @@
+# Hourly ping of the cron endpoint (ARCHITECTURE.md §8). The endpoint owns the schedule: each
+# household sends on the first tick at or after its own send hour, once per local day, so this
+# only has to fire every hour. Minute 7 dodges GitHub's top-of-the-hour congestion; GitHub drops
+# (doesn't queue) late runs, which that rule tolerates.
+#
+# Inactive until cutover: the job runs only when the repo variable TICK_URL is set (the full
+# endpoint URL), and it sends the repo secret CRON_SECRET as a bearer token. Days are claimed
+# atomically, so curl's retry of a slow tick can't send a second batch.
+name: Tick
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    if: ${{ vars.TICK_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the tick endpoint
+        env:
+          TICK_URL: ${{ vars.TICK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS -m 130 --retry 2 --retry-delay 15 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$TICK_URL"

@@ -14,7 +14,11 @@ import {
 } from "@/lib/bills";
 import type { Ctx } from "@/lib/context";
 import { withHousehold } from "@/lib/db";
-import { DEMO_BILLS, DEMO_BILL_TYPES, DEMO_SPLITTERS, demoDebts } from "@/lib/demo";
+import { type BulkRecipient, bulkRecipients } from "@/lib/bulk";
+import { DEMO_BILLS, DEMO_BILL_TYPES, DEMO_PEOPLE, DEMO_SPLITTERS, demoDebts } from "@/lib/demo";
+import { getCurrentHousehold } from "@/lib/households";
+import { BULK_DAILY_LIMIT, sendsToday } from "@/lib/mail";
+import type { ReminderRun } from "@/lib/types";
 
 // One loader per page: a single withHousehold transaction for a real household, the in-memory
 // data for the demo. Pages never branch on ctx.demo themselves.
@@ -119,5 +123,29 @@ export async function loadPortal(ctx: Ctx, requestedPage: number): Promise<Porta
       debts: Object.fromEntries(debts),
       pairs: await getOwedPairs(tx),
     };
+  });
+}
+
+/** /portal/settings: the cron's bookkeeping for the readout (the settings themselves are on ctx). */
+export async function loadSettings(ctx: Ctx): Promise<ReminderRun> {
+  if (ctx.demo) return { lastRunAt: null, lastSendDate: null, lastSentAt: null, lastSentCount: 0 };
+  const h = await withHousehold(ctx, (tx) => getCurrentHousehold(tx));
+  return { lastRunAt: h?.lastRunAt ?? null, lastSendDate: h?.lastSendDate ?? null, lastSentAt: h?.lastSentAt ?? null, lastSentCount: h?.lastSentCount ?? 0 };
+}
+
+export interface BulkEmailView {
+  joined: BulkRecipient[];
+  pending: string[];
+  /** Whether a send right now fits under the bulk ceiling (no counts are shown: they're account-wide). */
+  fits: boolean;
+}
+
+/** /portal/email: who a note would reach, and whether today's allowance has room for it. */
+export async function loadBulkEmail(ctx: Ctx): Promise<BulkEmailView> {
+  if (ctx.demo) return { joined: DEMO_PEOPLE.map((p) => ({ name: p.name, email: p.email })), pending: [], fits: true };
+  return withHousehold(ctx, async (tx) => {
+    const { joined, pending } = await bulkRecipients(tx);
+    const used = await sendsToday(tx);
+    return { joined, pending, fits: used + joined.length + (ctx.household.digestEmail ? 1 : 0) <= BULK_DAILY_LIMIT };
   });
 }

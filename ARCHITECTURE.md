@@ -546,7 +546,8 @@ and for the import script.
   `households.theme`, same inline-style, light-only, 560 px discipline as today. Templates:
   login code (+ plain-text alternative), invite, new bill (owner-aware: debtors told who to pay,
   owner told who owes), reminder (heads-up/urgent), payment thanks (multi-bill), custom note,
-  reminder batch confirmation, bulk-email receipt. Copy is gender-neutral.
+  reminder batch confirmation, bulk-email receipt, and a digest copy (what a new-bill notice or
+  a per-bill reminder told whom) for `digest_email`. Copy is gender-neutral.
 - `sendMail()` returns `false` on failure (logged, never thrown) as today, and writes an
   `email_log` row either way. Reminder batches use `resend.batch.send` (≤ 100 per call),
   replacing the 1 s SMTP sleep.
@@ -556,6 +557,13 @@ and for the import script.
   **80**, it defers that household (no `last_send_date` stamp, so the next hour retries; if the
   day never clears, tomorrow's window sends), logs `deferred: budget` in the tick response, and
   continues with the next household. Login codes, invites and thanks are never deferred.
+- **Bulk email has a lower ceiling (decided 2026-10-07).** It is optional and reminders aren't, so
+  `/portal/email` refuses when today's account-wide sends plus its recipients (and the receipt)
+  would pass **60**, leaving headroom for the reminder batch and login codes. The refusal names
+  the next UTC midnight in the household's timezone as the time to try again.
+- **Digest copies.** When `digest_email` is set it gets the batch confirmation, the bulk-email
+  receipt, and a copy for each new bill and each per-bill reminder. Every copy is one more send
+  against the budget, which is why it defaults to empty.
 
 ---
 
@@ -583,21 +591,43 @@ downloads what its theme uses.
 
 ## 8. Cron
 
-**One endpoint** `GET /api/cron/tick`, bearer `CRON_SECRET` (timing-safe compare),
-`maxDuration = 120`:
+**One endpoint** `GET /api/cron/tick`, bearer `CRON_SECRET` (timing-safe compare; 500 when the
+server has no secret, 401 for a missing or wrong header), `maxDuration = 120`:
 
-1. Owner-role query: `SELECT id, timezone, reminders_enabled, send_hour, last_send_date,
-   feature_thanks, first_reminder_days, urgent_reminder_days FROM households`.
-2. For each household, inside `withHousehold(systemCtx(h))`:
+1. Owner-role query: `SELECT id … FROM households` (the enumeration call site).
+2. For each household, with a system scope (`user: null`) and **short** transactions only (reads
+   and stamps, never a send inside one, per the pooling rules):
    - stamp `last_run_at`;
-   - flush the thanks queue if `feature_thanks` (own 10-minute debounce, every tick);
-   - compute local hour and local date via `Intl.DateTimeFormat` in `h.timezone`
-     (today's `nyHour`/`nyDate` generalized to `localHour(tz)`/`localDate(tz)`);
-   - if `reminders_enabled && hour >= send_hour && last_send_date != today`, check the daily
-     email budget (§6) and run the reminder batch; stamp `last_send_date` only when at least
-     one send succeeded or nothing was due, exactly as today's rule.
+   - flush the thanks queue if `feature_thanks` (own 10-minute debounce, every tick; payment
+     edits also flush through `after()`, as utilities did, so a receipt doesn't wait for the
+     next tick);
+   - compute local hour and date with `localHour(tz)` / `localDate(tz)`;
+   - if `reminders_enabled && hour >= send_hour`, **claim the day**:
+     `UPDATE households SET last_send_date = today WHERE id = … AND (last_send_date IS NULL OR
+     last_send_date < today) RETURNING` the previous value. No row back means another tick (or an
+     earlier, later-timezone day) already has it. `<` rather than `!=` means a household that
+     moves to a timezone where it is still yesterday can't send twice, and the atomic claim means
+     curl's retry of a slow tick can't either (decided 2026-10-07);
+   - with the day claimed, check the daily budget (§6) for the batch plus its confirmation copy.
+     Over budget → **release** the claim and report `deferred: budget`;
+   - send. If every send failed, **release** the claim. A release is a compare-and-set,
+     `SET last_send_date = <previous> WHERE last_send_date = <the date this tick claimed>`, so a
+     slow failing tick can never clobber a later tick's successful claim. Any success, or nothing
+     due, keeps the stamp and records `last_sent_at` / `last_sent_count`.
 3. Respond with a per-household summary (`sent`, `failed`, `skipped`, `deferred`); 500 only if
    every household that tried to send failed, so the Actions run goes red.
+
+**What gets a reminder** (decided 2026-10-07). For each unpaid debt row (`paid_at IS NULL`) of a
+joined member, with `days` = due date minus the household's today:
+- `days = first_reminder_days`: the heads-up;
+- `0 ≤ days ≤ urgent_reminder_days`: urgent, daily, up to and including the due date;
+- overdue: urgent on overdue days 1, 4, 7, … (`OVERDUE_EVERY_DAYS = 3` in `lib/reminders.ts`, a
+  constant, not a setting).
+Utilities reminded daily forever once overdue. That contradicted the product principle "never
+make someone feel nagged", so Lejer slows to every third day once a bill is late; the per-bill
+button in the portal is still there for a nudge in between. A day with no tick at or after the
+send hour skips that day's reminders (the heads-up included); GitHub dropping every run in a
+local day is rare enough to accept.
 
 **Scheduler.** Vercel Hobby crons are limited to **once per day** with ±59 min jitter, and
 sub-daily expressions fail the deployment, so a portal-configurable send hour cannot ride Vercel
@@ -606,7 +636,13 @@ with the repo secret). GitHub drops (does not queue) delayed scheduled runs, whi
 "first tick at or after send_hour, once per local day" rule already tolerates. If dropped runs
 become a nuisance, cron-job.org (free, minute-accurate) is a drop-in replacement; the endpoint
 does not care who pings it. `scripts/send-reminders.ts` remains the manual CLI and takes
-`--household <slug>`.
+`--household <slug>`. It is the **fifth** owner-role call site (decided 2026-10-07): it uses
+`adminSql` only to resolve the slug to an id, then runs the same per-household tick under a
+system scope. It ignores `send_hour` but honors the day claim and the budget unless `--force`.
+
+The workflow (`.github/workflows/tick.yml`) is committed **inactive**: its job runs only when the
+repo variable `TICK_URL` is set, so cutover is setting `TICK_URL` and the `CRON_SECRET` secret,
+with no code change and no domain spelled out in the repo.
 
 ---
 
@@ -671,9 +707,10 @@ edit, remove). Port the zero-diff components (`DueChip`, `Pagination`, `SubmitBu
 to phase 4 with the settings it edits. Verify suites `bills` and `http`.
 
 **Phase 4 — Email, reminders, cron.** Remaining templates (thanks, custom, batch confirmation,
-bulk receipt), `RemindersSection`, `lib/reminders.ts` per household with timezone, thanks
+bulk receipt, digest copy), `RemindersSection`, `lib/reminders.ts` per household with timezone, thanks
 flush, bulk email tab, `/api/cron/tick` with the budget rule, `.github/workflows/tick.yml`,
-`scripts/send-reminders.ts`, settings page groups for reminders and email.
+`scripts/send-reminders.ts`, settings page groups for reminders, timezone and email (feature
+toggles, look, bills and rent stay phase 5). Verify suite `cron`.
 
 **Phase 5 — Features and themes.** Trends over all types (CSV too), rent + `/cal.ics?k=`
 (per-membership token via `calendar_context()`; RRULE when `feature_rent`), welcome tour behind `feature_welcome_tour`, both theme token
