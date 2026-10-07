@@ -4,8 +4,10 @@
 // call, with real contexts built from fixture memberships.
 
 import {
+  FORMER_MEMBER,
   computeSplit,
   createBill,
+  getBill,
   getDebts,
   getMyBalance,
   getOwedPairs,
@@ -159,6 +161,40 @@ export async function bills(r: Results, { owner }: { owner: Sql }) {
   const withPdf = await tx(admin, (t) => createBill(t, admin, { typeId: lg.typeId, amount: 10, billDate: billOn, dueDate: due }, { billId: prep.billId, pdfPath: key }));
   const [row] = await owner<{ id: number; pdf: string }[]>`SELECT id, pdf_path AS pdf FROM bills WHERE id = ${prep.billId}`;
   r.check("the bill lands on the reserved id with its PDF key", withPdf.billId === prep.billId && row?.pdf === key);
+
+  r.section("bills: each bill keeps its own owner (0004)");
+  const ow = await makeHousehold(owner, "ow", "ledger");
+  const owAdmin = await ctxFor(ow.admin.userId, ow.id);
+  const owOld = await ctxFor(ow.member.userId, ow.id); // owns Water today
+  const heir = await addMember(owner, ow, `ow-heir-${RUN}`);
+  const owHeir = await ctxFor(heir.userId, ow.id);
+  const oldBill = await tx(owOld, (t) => createBill(t, owOld, { typeId: ow.memberTypeId, amount: 90, billDate: billOn, dueDate: due }));
+  const oldRow = await tx(owAdmin, (t) => getBill(t, oldBill.billId));
+  r.check("posting snapshots the type's owner onto the bill", oldRow?.ownerId === ow.member.membershipId);
+  await tx(owAdmin, (t) => saveBillType(t, owAdmin, { id: ow.memberTypeId, name: "Water", emoji: "💧", processingFee: 0, ownerId: heir.membershipId }));
+  const reassigned = await tx(owAdmin, (t) => getBill(t, oldBill.billId));
+  r.check("reassigning the type leaves the old bill's creditor unchanged", reassigned?.ownerId === ow.member.membershipId && reassigned?.ownerName === `Member ow`, reassigned?.ownerName);
+  const owPairs = await tx(owAdmin, (t) => getOwedPairs(t));
+  r.check("…in the ledger too: the old bill's debts still run to the old owner",
+    owPairs.some((p) => p.ownerId === ow.member.membershipId && p.debtorId === heir.membershipId && p.amount === 30) &&
+      !owPairs.some((p) => p.ownerId === heir.membershipId && p.debtorId === heir.membershipId));
+  r.check("the old owner can still mark payments on their old bill", (await tx(owOld, (t) => setPaid(t, owOld, oldBill.billId, ow.admin.membershipId, true))) === "unpaid");
+  await refused("the type's new owner can't manage the old owner's bill", () => tx(owHeir, (t) => setPaid(t, owHeir, oldBill.billId, ow.admin.membershipId, false)), /types you own/);
+  await refused("the old owner can't post new bills of the type", () => tx(owOld, (t) => createBill(t, owOld, { typeId: ow.memberTypeId, amount: 30, billDate: billOn, dueDate: due })), /types you own/);
+  const heirBill = await tx(owHeir, (t) => createBill(t, owHeir, { typeId: ow.memberTypeId, amount: 30, billDate: billOn, dueDate: due }));
+  r.check("the new owner owns new bills of the type (and isn't a debtor on them)",
+    (await tx(owAdmin, (t) => getBill(t, heirBill.billId)))?.ownerId === heir.membershipId && !heirBill.debtors.some((d) => d.id === heir.membershipId));
+  await owner`DELETE FROM memberships WHERE id = ${ow.member.membershipId}`;
+  const orphan = await tx(owAdmin, (t) => getBill(t, oldBill.billId));
+  r.check(`a removed owner shows as "${FORMER_MEMBER}"`, orphan?.ownerId === null && orphan?.ownerName === FORMER_MEMBER, orphan?.ownerName);
+  const formerPairs = await tx(owAdmin, (t) => getOwedPairs(t));
+  r.check("…in the ledger as well", formerPairs.some((p) => p.ownerId === null && p.owner === FORMER_MEMBER && p.debtorId === heir.membershipId));
+  const houseType = await tx(owAdmin, (t) => saveBillType(t, owAdmin, { name: `Shared ${RUN}`, emoji: "🏠", processingFee: 0, ownerId: null }));
+  const houseBill = await tx(owAdmin, (t) => createBill(t, owAdmin, { typeId: houseType.id, amount: 20, billDate: billOn, dueDate: due }));
+  const houseRow = await tx(owAdmin, (t) => getBill(t, houseBill.billId));
+  r.check("a bill posted with no owner stays owed to the house (not a former member)", houseRow?.ownerId === null && houseRow?.ownerName === null);
+  await refused("with the owner gone, only an admin can manage the old bill", () => tx(owHeir, (t) => setPaid(t, owHeir, oldBill.billId, heir.membershipId, true)), /types you own/);
+  r.check("…and an admin still can", (await tx(owAdmin, (t) => setPaid(t, owAdmin, oldBill.billId, heir.membershipId, true))) === "paid");
 
   r.section("bills: /files authorization (lib)");
   const other = await makeHousehold(owner, "fo", "ledger");

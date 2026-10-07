@@ -44,9 +44,10 @@ JOIN users u ON u.email = t.owner
 JOIN memberships m ON m.household_id = h.id AND m.user_id = u.id;
 
 -- total = amount + fee; per_person_cost = round(total / 2 splitters, 2); status follows debts.
-INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, added_by_id)
+INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, added_by_id,
+                   owner_id, had_owner)
 SELECT h.id, bt.id, current_date + b.bill_offset, current_date + b.due_offset,
-       b.total, round(b.total / 2, 2), b.status, bt.owner_id
+       b.total, round(b.total / 2, 2), b.status, bt.owner_id, bt.owner_id, bt.owner_id IS NOT NULL
 FROM (VALUES ('elm-street', 'Gas',      -40, -20,  84.20, 'paid'),
              ('elm-street', 'Gas',      -10,  12,  61.75, 'unpaid'),
              ('elm-street', 'Electric', -12,   3,  50.33, 'unpaid'),
@@ -62,5 +63,4 @@ INSERT INTO bill_debts (household_id, bill_id, person_id, paid_at)
 SELECT b.household_id, b.id, m.id, CASE WHEN b.status = 'paid' THEN b.due_date - 1 + time '12:00' END
 FROM bills b
 JOIN households h ON h.id = b.household_id AND h.slug IN ('elm-street', 'oak-lane')
-JOIN bill_types bt ON bt.id = b.type_id
-JOIN memberships m ON m.household_id = b.household_id AND m.splits_bills AND m.id <> bt.owner_id;
+JOIN memberships m ON m.household_id = b.household_id AND m.splits_bills AND m.id <> b.owner_id;

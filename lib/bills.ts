@@ -1,4 +1,4 @@
-import { assertAdmin, assertBillManager } from "@/lib/auth";
+import { assertAdmin, assertBillManager, assertCanManage } from "@/lib/auth";
 import type { Ctx } from "@/lib/context";
 import type { Tx } from "@/lib/db";
 import { DEMO_REFUSAL } from "@/lib/demo";
@@ -9,9 +9,10 @@ import { isYmd } from "@/lib/time";
 // mutations also take ctx and authorize themselves (assertAdmin / assertBillManager), so the
 // rules hold no matter which action or script calls them.
 //
-// The model (DESIGN.md §3): a bill type has an owner who fronts it. When a bill is posted, every
-// splitter except the owner gets a bill_debts row; that row set is fixed for the life of the
-// bill. Paying sets paid_at, un-paying clears it, and the bill is paid exactly when no row has
+// The model (DESIGN.md §3): a bill type has an owner who fronts it. When a bill is posted, the
+// type's owner is snapshotted into bills.owner_id (0004) and every splitter except that owner
+// gets a bill_debts row; both are fixed for the life of the bill. Reassigning a type only
+// changes who owns *new* bills. Paying sets paid_at, un-paying clears it, and the bill is paid exactly when no row has
 // paid_at IS NULL (bills.status is kept in step in the same transaction).
 
 export interface BillType {
@@ -28,8 +29,8 @@ export interface Bill {
   typeId: number;
   typeName: string;
   typeEmoji: string;
-  ownerId: number | null; // the type's owner: who the debtors pay back
-  ownerName: string | null;
+  ownerId: number | null; // the bill's owner (snapshotted at post time): who the debtors pay back
+  ownerName: string | null; // FORMER_MEMBER once that owner has been removed
   billDate: string;
   dueDate: string;
   total: number;
@@ -48,7 +49,7 @@ export interface Debt {
 export interface OwedPair {
   debtorId: number;
   debtor: string;
-  ownerId: number | null; // null: the type has no owner (owed to "the house")
+  ownerId: number | null; // null: owed to "the house", or the owner was removed (owner = FORMER_MEMBER)
   owner: string | null;
   amount: number;
 }
@@ -68,15 +69,20 @@ const typeSelect = (tx: Tx) => tx`
   LEFT JOIN memberships om ON om.id = t.owner_id
   LEFT JOIN users ou ON ou.id = om.user_id`;
 
+/** What a bill's owner reads as after their membership is removed (owner_id SET NULL). */
+export const FORMER_MEMBER = "former member";
+
+const ownerLabel = (tx: Tx) => tx`CASE WHEN b.owner_id IS NULL AND b.had_owner THEN ${FORMER_MEMBER}::text ELSE ou.name END`;
+
 const billSelect = (tx: Tx) => tx`
   SELECT b.id, b.type_id AS "typeId", t.name AS "typeName", t.emoji AS "typeEmoji",
-         t.owner_id AS "ownerId", ou.name AS "ownerName",
+         b.owner_id AS "ownerId", ${ownerLabel(tx)} AS "ownerName",
          b.bill_date AS "billDate", b.due_date AS "dueDate", b.total,
          b.per_person_cost AS "perPersonCost", b.status, b.pdf_path AS "pdfPath",
          au.name AS "addedByName"
   FROM bills b
   JOIN bill_types t ON t.id = b.type_id
-  LEFT JOIN memberships om ON om.id = t.owner_id
+  LEFT JOIN memberships om ON om.id = b.owner_id
   LEFT JOIN users ou ON ou.id = om.user_id
   LEFT JOIN memberships am ON am.id = b.added_by_id
   LEFT JOIN users au ON au.id = am.user_id`;
@@ -156,23 +162,23 @@ export async function getMyBalance(tx: Tx, membershipId: number) {
 }
 
 /**
- * The house ledger: who owes whom, summed over unpaid debt rows. Debts on a bill run to its
- * type's owner. Works in both modes (single_payer just has one creditor).
+ * The house ledger: who owes whom, summed over unpaid debt rows. Debts on a bill run to the
+ * bill's own owner (snapshotted at post time). Works in both modes (single_payer just has one
+ * creditor).
  */
 export function getOwedPairs(tx: Tx): Promise<OwedPair[]> {
   return tx<OwedPair[]>`
-    SELECT d.person_id AS "debtorId", du.name AS debtor, t.owner_id AS "ownerId", ou.name AS owner,
+    SELECT d.person_id AS "debtorId", du.name AS debtor, b.owner_id AS "ownerId", ${ownerLabel(tx)} AS owner,
            sum(b.per_person_cost) AS amount
     FROM bill_debts d
     JOIN bills b ON b.id = d.bill_id
-    JOIN bill_types t ON t.id = b.type_id
     JOIN memberships dm ON dm.id = d.person_id
     JOIN users du ON du.id = dm.user_id
-    LEFT JOIN memberships om ON om.id = t.owner_id
+    LEFT JOIN memberships om ON om.id = b.owner_id
     LEFT JOIN users ou ON ou.id = om.user_id
     WHERE d.paid_at IS NULL
-    GROUP BY d.person_id, du.name, t.owner_id, ou.name
-    ORDER BY du.name, ou.name NULLS LAST`;
+    GROUP BY d.person_id, du.name, b.owner_id, b.had_owner, ou.name
+    ORDER BY du.name, 4 NULLS LAST`;
 }
 
 /**
@@ -271,15 +277,17 @@ export async function createBill(
 
   const [{ id }] = opts.billId
     ? await tx<{ id: number }[]>`
-        INSERT INTO bills (id, household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path, added_by_id)
+        INSERT INTO bills (id, household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path,
+                           added_by_id, owner_id, had_owner)
         OVERRIDING SYSTEM VALUE
         VALUES (${opts.billId}, ${ctx.household.id}, ${type.id}, ${input.billDate}, ${input.dueDate}, ${split.total},
-                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id})
+                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id}, ${type.ownerId}, ${type.ownerId !== null})
         RETURNING id`
     : await tx<{ id: number }[]>`
-        INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path, added_by_id)
+        INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, status, pdf_path,
+                           added_by_id, owner_id, had_owner)
         VALUES (${ctx.household.id}, ${type.id}, ${input.billDate}, ${input.dueDate}, ${split.total},
-                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id})
+                ${split.perPersonCost}, ${status}, ${opts.pdfPath ?? null}, ${ctx.membership.id}, ${type.ownerId}, ${type.ownerId !== null})
         RETURNING id`;
 
   if (split.debtorIds.length > 0) {
@@ -316,9 +324,9 @@ export async function refreshBillStatus(tx: Tx, billIds: number[]): Promise<Map<
  */
 export async function setPaid(tx: Tx, ctx: Ctx, billId: number, membershipId: number, paid: boolean): Promise<Bill["status"]> {
   if (ctx.demo) throw new ActionError(DEMO_REFUSAL);
-  const [bill] = await tx<{ typeId: number }[]>`SELECT type_id AS "typeId" FROM bills WHERE id = ${billId} FOR UPDATE`;
+  const [bill] = await tx<{ ownerId: number | null }[]>`SELECT owner_id AS "ownerId" FROM bills WHERE id = ${billId} FOR UPDATE`;
   if (!bill) throw new ActionError("That bill no longer exists.");
-  await assertBillManager(tx, ctx, bill.typeId);
+  assertCanManage(ctx, bill.ownerId);
 
   const changed = await tx`
     UPDATE bill_debts SET paid_at = CASE WHEN ${paid} THEN coalesce(paid_at, now()) END

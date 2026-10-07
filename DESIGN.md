@@ -150,6 +150,7 @@ Migrations are numbered SQL files in `db/migrations/` applied by `scripts/migrat
 | `bill_types.owner_id → memberships` | SET NULL | `removePerson` nulling `owner_id`; UI warns in single-payer mode |
 | `bills.type_id → bill_types` | RESTRICT | `removeBillType` refusing while bills exist (keep the friendly check in the action too) |
 | `bills.added_by_id → memberships` | SET NULL | `LEFT JOIN people pa` |
+| `bills.owner_id → memberships` (0004) | SET NULL | — (the old apps read the type's current owner) |
 | `bill_debts.bill_id → bills` | CASCADE | — |
 | `bill_debts.person_id → memberships` | CASCADE | `removePerson` deleting debts |
 | `payment_thanks.*` | CASCADE | `removePerson` deleting thanks |
@@ -199,7 +200,9 @@ memberships     id, household_id, user_id, role TEXT CHECK IN ('admin','member')
 bill_types      id, household_id, name, emoji, processing_fee NUMERIC(10,2), owner_id → memberships NULL,
                 UNIQUE (household_id, name), UNIQUE (id, household_id)
 bills           id, household_id, type_id, bill_date DATE, due_date DATE, total, per_person_cost,
-                status, pdf_path TEXT NULL, added_by_id NULL, UNIQUE (id, household_id)
+                status, pdf_path TEXT NULL, added_by_id NULL,
+                owner_id NULL → memberships, had_owner BOOLEAN       -- snapshotted at post time (0004)
+                UNIQUE (id, household_id)
 bill_debts      household_id, bill_id, person_id, paid_at TIMESTAMPTZ NULL,  PRIMARY KEY (bill_id, person_id)
                                                                      -- permanent rows (0003)
 payment_thanks  household_id, bill_id, person_id, queued_at, PRIMARY KEY (bill_id, person_id)
@@ -237,6 +240,19 @@ and simplifies the UI; it never changes how debts are stored.
 splitters = memberships with `splits_bills` true (owner included; pending invites too). Debt
 rows for every splitter **except** the owner. Non-splitters (the maintainer pattern) sign in,
 see everything, never owe, never get emails. Money math is done in cents.
+
+### Each bill keeps its owner (0004, decided 2026-10-06)
+
+A bill's creditor used to be its type's *current* owner, so handing Gas from one roommate to
+another moved every old unpaid Gas bill to the new owner (who might even be a debtor on it).
+Posting now snapshots the type's owner into `bills.owner_id` (composite FK with `household_id`,
+`ON DELETE SET NULL (owner_id)`), plus `had_owner`. The type's owner only decides who owns new
+bills. The ledger, balances, reminder Reply-To and "may manage this bill" all read the bill's
+owner, so the old owner keeps managing (and being owed on) their old bills after a reassignment.
+When an owner's membership is removed, `owner_id` goes NULL and `had_owner` keeps the bill
+reading as "former member" (only an admin can manage it then); a bill posted for a type with
+no owner has `had_owner = false` and is owed to "the house". Existing rows were backfilled
+from their type's owner when 0004 ran.
 
 ### Debt rows are permanent (0003, decided 2026-10-06)
 
@@ -680,6 +696,10 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
    thanks on, rent/trends/bulk/documents off): people → memberships (everyone admin, Aaron
    `splits_bills = false`), `welcomed_at` carried, owners mapped, `added_by_id` mapped, debts
    copied as-is.
+   **Bill owners, both households (0004):** each imported bill's `owner_id` is set from its
+   type's owner **at import time** (`had_owner` accordingly). The old apps never recorded a
+   per-bill owner, so for any type whose owner changed in the past, older bills get the
+   current owner; there is no better record.
    **Debt rows, both households (0003):** the old apps deleted a row when someone paid, so the
    source data holds only *unpaid* rows. Copy those with `paid_at NULL`. Then, for every bill,
    **synthesize** a row for each splitter (as of import) who is not the type's owner and has

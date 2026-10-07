@@ -2,7 +2,7 @@
 
 import { createElement } from "react";
 import Invite from "@/emails/Invite";
-import { assertBillManager, requireAdminAction, requireUserAction } from "@/lib/auth";
+import { requireAdminAction, requireUserAction } from "@/lib/auth";
 import {
   type BillType,
   createBill,
@@ -169,19 +169,20 @@ export async function removeMember(formData: FormData): Promise<void> {
   const result = await withHousehold(ctx, async (tx) => {
     const member = await getMember(tx, id);
     if (!member) return null;
-    const [{ owned }] = await tx<{ owned: number }[]>`
-      SELECT count(*) AS owned FROM bill_types WHERE owner_id = ${id}`;
+    const [{ owned, openBills }] = await tx<{ owned: number; openBills: number }[]>`
+      SELECT (SELECT count(*) FROM bill_types WHERE owner_id = ${id}) AS owned,
+             (SELECT count(*) FROM bills WHERE owner_id = ${id} AND status = 'unpaid') AS "openBills"`;
     // Their debt rows cascade away; a bill where they were the last one owing becomes paid.
     const billIds = (await tx<{ id: number }[]>`SELECT bill_id AS id FROM bill_debts WHERE person_id = ${id}`).map((r) => r.id);
     await tx`DELETE FROM memberships WHERE id = ${id}`;
     await refreshBillStatus(tx, billIds);
-    return { member, owned };
+    return { member, owned, openBills };
   });
   if (!result) fail(MEMBERS, "That member is no longer in this household.");
-  const { member, owned } = result;
-  const orphaned = owned
-    ? ` ${owned} bill type${owned === 1 ? "" : "s"} they owned now ${owned === 1 ? "has" : "have"} no owner.`
-    : "";
+  const { member, owned, openBills } = result;
+  const orphaned =
+    (owned ? ` ${owned} bill type${owned === 1 ? "" : "s"} they owned now ${owned === 1 ? "has" : "have"} no owner.` : "") +
+    (openBills ? ` ${openBills} open bill${openBills === 1 ? " is" : "s are"} still owed to them, shown as "former member".` : "");
   done(MEMBERS, `Removed ${member.name}.${orphaned}`);
 }
 
@@ -269,7 +270,7 @@ export async function sendReminder(formData: FormData): Promise<void> {
   const ctx = await requireUserAction();
   if (ctx.demo) fail(BILLS, DEMO_REFUSAL);
   const report = await attempt(BILLS, () =>
-    remindBill(ctx, Number(formData.get("billId")), (tx, typeId) => assertBillManager(tx, ctx, typeId)),
+    remindBill(ctx, Number(formData.get("billId"))),
   );
   if (report.sent === 0) fail(BILLS, `The ${report.typeName} reminders didn't send. Try again in a minute.`);
   done(BILLS, `Reminded ${report.sent} ${report.sent === 1 ? "person" : "people"} about the ${report.typeName} bill.${report.failed ? ` ${report.failed} didn't send.` : ""}`);

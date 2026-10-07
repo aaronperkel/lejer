@@ -49,13 +49,23 @@ export function assertAdmin(ctx: Ctx): void {
   if (ctx.membership.role !== "admin") throw new ActionError("Only a household admin can do that.");
 }
 
-/** Posting bills and marking payments for a type: an admin, or the member who owns the type. */
-export async function assertBillManager(tx: Tx, ctx: Ctx, typeId: number): Promise<void> {
+/**
+ * Managing something owned by `ownerId` (an existing bill's owner, or a type's owner for a new
+ * bill): an admin, or that owner. Existing bills are judged by the bill's own owner_id, so
+ * handing a type to someone else doesn't take the old owner's bills away from them.
+ */
+export function assertCanManage(ctx: Ctx, ownerId: number | null): void {
   if (ctx.demo) throw new ActionError(DEMO_REFUSAL);
   if (ctx.membership.role === "admin") return;
-  const [type] = await tx<{ ownerId: number | null }[]>`
-    SELECT owner_id AS "ownerId" FROM bill_types WHERE id = ${typeId}`;
-  if (!type || type.ownerId !== ctx.membership.id) {
+  if (ownerId === null || ownerId !== ctx.membership.id) {
     throw new ActionError("You can only post bills and mark payments for bill types you own.");
   }
+}
+
+/** Posting a new bill of a type: an admin, or the member who owns the type now. */
+export async function assertBillManager(tx: Tx, ctx: Ctx, typeId: number): Promise<void> {
+  if (ctx.demo) throw new ActionError(DEMO_REFUSAL);
+  const [type] = await tx<{ ownerId: number | null }[]>`
+    SELECT owner_id AS "ownerId" FROM bill_types WHERE id = ${typeId}`;
+  assertCanManage(ctx, type ? type.ownerId : null);
 }

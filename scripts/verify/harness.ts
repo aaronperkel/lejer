@@ -178,8 +178,8 @@ export async function makeHousehold(owner: Sql, tag: string, mode: "single_payer
     RETURNING id, owner_id AS "ownerId"`;
   const typeId = types[0].id;
   const [bill] = await owner<{ id: number }[]>`
-    INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, added_by_id)
-    VALUES (${h.id}, ${typeId}, current_date - 5, current_date + 10, 80.00, 40.00, ${am}) RETURNING id`;
+    INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, added_by_id, owner_id, had_owner)
+    VALUES (${h.id}, ${typeId}, current_date - 5, current_date + 10, 80.00, 40.00, ${am}, ${am}, true) RETURNING id`;
   await owner`INSERT INTO bill_debts (household_id, bill_id, person_id) VALUES (${h.id}, ${bill.id}, ${mm})`;
   await owner`INSERT INTO payment_thanks (household_id, bill_id, person_id) VALUES (${h.id}, ${bill.id}, ${mm})`;
   await owner`

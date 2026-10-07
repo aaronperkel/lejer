@@ -2,6 +2,7 @@ import { createElement } from "react";
 import NewBill from "@/emails/NewBill";
 import Reminder from "@/emails/Reminder";
 import { type CreatedBill, getBill } from "@/lib/bills";
+import { assertCanManage } from "@/lib/auth";
 import type { Ctx } from "@/lib/context";
 import { type Tx, withHousehold } from "@/lib/db";
 import { ActionError } from "@/lib/errors";
@@ -76,11 +77,11 @@ export async function notifyNewBill(ctx: Ctx, bill: CreatedBill, dueDate: string
  * Reminds everyone who still owes on one bill (the portal's per-bill button). Urgent within the
  * household's urgent window, counted in the household's own calendar.
  */
-export async function remindBill(ctx: Ctx, billId: number, assertAllowed: (tx: Tx, typeId: number) => Promise<void>): Promise<SendReport & { typeName: string }> {
+export async function remindBill(ctx: Ctx, billId: number): Promise<SendReport & { typeName: string }> {
   const { bill, debtors, replyTo } = await withHousehold(ctx, async (tx) => {
     const bill = await getBill(tx, billId);
     if (!bill) throw new ActionError("That bill no longer exists.");
-    await assertAllowed(tx, bill.typeId);
+    assertCanManage(ctx, bill.ownerId); // the bill's owner, not whoever owns its type today
     const debtors = await tx<Recipient[]>`
       SELECT m.id, u.name, u.email FROM bill_debts d
       JOIN memberships m ON m.id = d.person_id JOIN users u ON u.id = m.user_id
@@ -105,7 +106,7 @@ export async function remindBill(ctx: Ctx, billId: number, assertAllowed: (tx: T
         total: bill.total,
         perPersonCost: bill.perPersonCost,
         dueDate: bill.dueDate,
-        ownerName: bill.ownerName,
+        ownerName: bill.ownerId === null ? null : bill.ownerName, // no "pay a former member"
         urgent,
       }),
       kind: "reminder",

@@ -12,8 +12,9 @@ share a lineage — `../utilities` (77 N Union, one person pays everything) and 
 repos are the ground truth for intent; `DESIGN.md` records every decision made in the merge,
 including a table of places the two apps disagreed and which way Lejer went.
 
-**One data model, two modes.** Every bill type has an `owner_id`; debts on a bill run to the
-owner. `households.mode` is `single_payer` (every type owned by the same person; UI hides the
+**One data model, two modes.** Every bill type has an `owner_id`; posting a bill snapshots it
+into `bills.owner_id`, and debts on a bill run to **the bill's** owner (reassigning a type only
+changes who owns new bills). `households.mode` is `single_payer` (every type owned by the same person; UI hides the
 owner column, dashboard says "you owe") or `ledger` (types carry their own owners, dashboard
 shows who-owes-whom). Mode is a setting that drives defaults and copy; switching never
 migrates data.
@@ -181,7 +182,12 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
 - `bill_types` (`name` unique per household, `emoji`, `processing_fee`, `owner_id` →
   memberships, SET NULL on delete)
 - `bills` (`type_id` RESTRICT, `bill_date`, `due_date`, `total`, `per_person_cost`, `status`
-  `unpaid`|`paid` as a CHECK, `pdf_path`, `added_by_id`)
+  `unpaid`|`paid` as a CHECK, `pdf_path`, `added_by_id`, `owner_id` → memberships SET NULL +
+  `had_owner`, both set at post time from the type's owner, 0004). The ledger, balances,
+  reminders' Reply-To and permission checks on an existing bill (`assertCanManage(ctx,
+  bill.ownerId)`) all use the bill's owner; `assertBillManager(tx, ctx, typeId)` (the type's
+  current owner) only gates posting new bills. A removed owner reads as `FORMER_MEMBER`
+  ("former member"); a bill posted for an ownerless type is owed to "the house"
 - `bill_debts` (`bill_id`, `person_id`, `paid_at`) — the bill's debtor set, **written once when
   the bill is posted and never rebuilt** (0003). Paying sets `paid_at`, un-paying clears it, so
   unchecking restores exactly the original debtor and late joiners never get rows on old bills.
@@ -199,7 +205,7 @@ Bill math: `total = amount + processing_fee`, `per_person_cost = round(total / s
 where splitters are memberships with `splits_bills`; debt rows for every splitter except the
 owner. `getOwedPairs(tx)` in `lib/bills.ts` is the who-owes-whom ledger and works in both
 modes. SQL aliases snake_case to camelCase (`per_person_cost AS perPersonCost`); bill queries
-join `bill_types` and owner/poster memberships so each `Bill` carries
+join `bill_types` and the bill's owner/poster memberships so each `Bill` carries
 `typeName`/`typeEmoji`/`ownerId`/`ownerName`/`addedByName`.
 
 ### Auth flow

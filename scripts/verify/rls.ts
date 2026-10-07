@@ -114,6 +114,7 @@ export async function rls(r: Results, { owner, app, appDirect }: { owner: Sql; a
     ["debt for B's member", (tx) => tx`INSERT INTO bill_debts (household_id, bill_id, person_id) VALUES (${a.id}, ${a.billId}, ${b.member.membershipId})`],
     ["bill of B's type", (tx) => tx`INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost) VALUES (${a.id}, ${b.typeId}, current_date, current_date, 1, 1)`],
     ["type owned by B's member", (tx) => tx`UPDATE bill_types SET owner_id = ${b.admin.membershipId} WHERE id = ${a.typeId}`],
+    ["bill owed to B's member", (tx) => tx`UPDATE bills SET owner_id = ${b.admin.membershipId} WHERE id = ${a.billId}`],
     ["thanks for B's bill", (tx) => tx`INSERT INTO payment_thanks (household_id, bill_id, person_id) VALUES (${a.id}, ${b.billId}, ${a.member.membershipId})`],
     ["document uploaded by B's member", (tx) => tx`UPDATE documents SET uploaded_by = ${b.admin.membershipId} WHERE household_id = ${a.id}`],
     ["bill PDF outside its prefix", (tx) => tx`UPDATE bills SET pdf_path = ${`h/${b.id}/bills/x.pdf`} WHERE id = ${a.billId}`],
