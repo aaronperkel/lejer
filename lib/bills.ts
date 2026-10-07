@@ -511,7 +511,7 @@ export async function deleteBill(tx: Tx, ctx: Ctx, billId: number): Promise<Remo
 }
 
 // ---------------------------------------------------------------------------------------------
-// The net ledger
+// The house ledger: gross, with a settling hint
 
 export interface NetPair extends OwedPair {
   /** Set when both people owe each other: the gross amount this way and the amount the other way. */
@@ -519,10 +519,10 @@ export interface NetPair extends OwedPair {
 }
 
 /**
- * One amount per pair of people (the dashboard's house ledger): Alex owes Sam $30 and Sam owes
- * Alex $12 → Alex owes Sam $18. Display only; every debt row stays as posted. Pairs owed to the
- * house or a former member have nobody to offset against, and pass through as they are. A pair
- * that comes out even disappears.
+ * What one transfer would settle between two people who owe each other: Alex owes Sam $30 and
+ * Sam owes Alex $12 → Alex pays Sam $18. Pairs owed to the house or a former member have
+ * nobody to offset against and pass through as they are; a pair that comes out even
+ * disappears. Arithmetic only: the record is per bill and stays gross (see ledgerGroups).
  */
 export function netPairs(pairs: OwedPair[]): NetPair[] {
   const cents = (n: number) => Math.round(n * 100);
@@ -548,6 +548,41 @@ export function netPairs(pairs: OwedPair[]): NetPair[] {
     out.push({ ...a, amount: Math.abs(diff) / 100, gross: { owed: a.amount, offset: b.amount } });
   }
   return out;
+}
+
+export interface LedgerGroup {
+  /** The gross rows, as recorded: one, or the two directions of a pair that runs both ways. */
+  rows: OwedPair[];
+  /** Only for a pair that runs both ways: the one transfer that would settle it, or "even". */
+  settle: NetPair | "even" | null;
+}
+
+/**
+ * The dashboard's house ledger (decided 2026-10-07): every row is the gross amount recorded per
+ * bill, in both directions, agreeing with the strip, the portal and the reminders. When two
+ * people owe each other, their two rows sit together and carry a secondary hint with the net
+ * (netPairs), so they can settle in one transfer and check off each other's bills. No net
+ * figure is ever the primary number. Order follows `pairs` (first appearance of each pair).
+ */
+export function ledgerGroups(pairs: OwedPair[]): LedgerGroup[] {
+  const key = (p: OwedPair) => (p.ownerId === null ? null : [p.debtorId, p.ownerId].sort((x, y) => x - y).join("|"));
+  const groups: LedgerGroup[] = [];
+  const byKey = new Map<string, LedgerGroup>();
+  for (const p of pairs) {
+    const k = key(p);
+    const existing = k ? byKey.get(k) : undefined;
+    if (existing) {
+      existing.rows.push(p);
+      continue;
+    }
+    const g: LedgerGroup = { rows: [p], settle: null };
+    groups.push(g);
+    if (k) byKey.set(k, g);
+  }
+  for (const g of groups) {
+    if (g.rows.length === 2) g.settle = netPairs(g.rows)[0] ?? "even";
+  }
+  return groups;
 }
 
 export interface BillTypeInput {

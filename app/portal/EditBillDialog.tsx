@@ -48,8 +48,16 @@ export default function EditBillDialog({ bill, types, askBillDate }: { bill: Edi
       title={`Edit ${bill.label}`}
       description={<span className="block max-w-[60ch]">{emailNote}</span>}
       trigger={(open) => (
-        <button type="button" className="btn-icon" title="Edit or delete" aria-label={`Edit ${bill.label}`} aria-haspopup="dialog" onClick={open}>
+        <button
+          type="button"
+          className="btn-icon max-sm:w-auto max-sm:gap-1.5 max-sm:px-3"
+          title="Edit or delete"
+          aria-label={`Edit ${bill.label}`}
+          aria-haspopup="dialog"
+          onClick={open}
+        >
           <PencilIcon />
+          <span className="text-[0.8rem] font-medium text-ink sm:hidden">Edit</span>
         </button>
       )}
     >

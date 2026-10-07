@@ -5,7 +5,7 @@ import Pagination from "@/app/components/Pagination";
 import StatusTag from "@/app/components/StatusTag";
 import { DownloadIcon, EyeIcon } from "@/app/components/icons";
 import { requireUser } from "@/lib/auth";
-import type { Bill } from "@/lib/bills";
+import { type Bill, ledgerGroups } from "@/lib/bills";
 import { hasFeature } from "@/lib/features";
 import { fileHref } from "@/lib/files";
 import { daysBetween } from "@/lib/time";
@@ -38,7 +38,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const me = ctx.membership.id;
   // The viewer's own pairs first: what you owe, then what you're owed, then everyone else's.
   const mine = (p: (typeof data.pairs)[number]) => (p.debtorId === me ? 0 : p.ownerId === me ? 1 : 2);
-  const pairs = [...data.net].sort((a, b) => mine(a) - mine(b));
+  // Gross rows as recorded; two people who owe each other sit together with a settling hint.
+  const ledger = ledgerGroups([...data.pairs].sort((a, b) => mine(a) - mine(b)));
+  const who = (id: number | null, name: string | null) => (id === me ? "you" : (name ?? "the house"));
   const owedToMe = data.pairs.filter((p) => p.ownerId === me);
   const iOweTo = [...new Set(data.pairs.filter((p) => p.debtorId === me).map((p) => p.owner ?? "the house"))];
   const names = (list: string[]) =>
@@ -49,7 +51,11 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const myUnpaid = new Set(data.owed.billIds);
   const today = new Date(`${data.today}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
   const nextDue = data.owed.nextDue;
-  const late = nextDue ? -daysBetween(data.today, nextDue.dueDate) : 0;
+  // Nothing due from the viewer: the next date that matters is the soonest bill they're owed on.
+  const collect = nextDue ? null : data.collect;
+  const shownDue = nextDue?.dueDate ?? collect?.dueDate ?? null;
+  const late = shownDue ? -daysBetween(data.today, shownDue) : 0;
+  const lateText = late === 1 ? "1 day late" : `${late} days late`;
   const urgentDays = ctx.household.urgentReminderDays;
   const calendar = data.calendarToken && (
     <div>
@@ -103,16 +109,29 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         </div>
         <div className="px-5 py-4">
           <span className="eyebrow mb-1">Next due</span>
-          <div className={`figure text-[1.7rem] font-semibold leading-tight ${nextDue ? "" : "text-ink-muted"}`}>{nextDue ? dayMonth(nextDue.dueDate) : "None"}</div>
+          <div className={`figure text-[1.7rem] font-semibold leading-tight ${shownDue ? "" : "text-ink-muted"}`}>{shownDue ? dayMonth(shownDue) : "None"}</div>
           <div className="mt-0.5 text-xs text-ink-muted">
-            {!nextDue ? (
-              "nothing due from you"
-            ) : late > 0 ? (
+            {nextDue ? (
               <>
-                {nextDue.typeName} · <span className="font-semibold text-unpaid">{late === 1 ? "1 day late" : `${late} days late`}</span>
+                {nextDue.typeName}
+                {late > 0 && (
+                  <>
+                    {" "}
+                    · <span className="font-semibold text-unpaid">{lateText}</span>
+                  </>
+                )}
+              </>
+            ) : collect ? (
+              <>
+                {collect.typeName} · {names(collect.debtors)} {collect.debtors.length === 1 ? "hasn't" : "haven't"} paid you
+                {late > 0 && (
+                  <>
+                    , <span className="font-semibold text-unpaid">{lateText}</span>
+                  </>
+                )}
               </>
             ) : (
-              nextDue.typeName
+              "nothing due from you"
             )}
           </div>
         </div>
@@ -131,25 +150,34 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
             <span className="eyebrow">The house ledger</span>
             <span className="h-px flex-1 bg-line-soft" aria-hidden="true" />
           </div>
-          {data.pairs.length === 0 ? (
+          {ledger.length === 0 ? (
             <div className="panel px-5 py-4 text-sm text-ink-muted">Everyone&rsquo;s settled up. Nothing owed in the house.</div>
           ) : (
             <div className="panel divide-y divide-line-soft">
-              {pairs.map((p) => (
-                <div key={`${p.debtorId}->${p.ownerId ?? `house-${p.owner}`}`} className="px-5 py-2.5 text-sm">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span>
-                      <strong className={p.debtorId === me ? "text-unpaid" : ""}>{p.debtorId === me ? "You" : p.debtor}</strong>{" "}
-                      <span className="text-ink-muted">{p.debtorId === me ? "owe" : "owes"}</span>{" "}
-                      <strong>{p.ownerId === me ? "you" : (p.owner ?? "the house")}</strong>
-                    </span>
-                    <span className="figure font-semibold">${money(p.amount)}</span>
-                  </div>
-                  {/* Both owe each other: one net amount, with the arithmetic in plain view. */}
-                  {p.gross && (
-                    <div className="mt-0.5 text-xs text-ink-muted">
-                      <span className="figure">${money(p.gross.owed)}</span> owed, less <span className="figure">${money(p.gross.offset)}</span> the other way
+              {ledger.map((g) => (
+                <div key={g.rows.map((p) => `${p.debtorId}->${p.ownerId ?? `house-${p.owner}`}`).join(",")} className="px-5 py-2.5 text-sm">
+                  {g.rows.map((p) => (
+                    <div key={`${p.debtorId}->${p.ownerId}`} className="flex items-baseline justify-between gap-3 py-0.5">
+                      <span>
+                        <strong className={p.debtorId === me ? "text-unpaid" : ""}>{p.debtorId === me ? "You" : p.debtor}</strong>{" "}
+                        <span className="text-ink-muted">{p.debtorId === me ? "owe" : "owes"}</span> <strong>{who(p.ownerId, p.owner)}</strong>
+                      </span>
+                      <span className="figure font-semibold">${money(p.amount)}</span>
                     </div>
+                  ))}
+                  {/* A hint, never the headline: the record stays per bill, in both directions. */}
+                  {g.settle && (
+                    <p className="mt-1 max-w-[60ch] text-xs text-ink-muted">
+                      {g.settle === "even" ? (
+                        <>Settling at once? You&apos;re even: check off each other&apos;s bills.</>
+                      ) : (
+                        <>
+                          Settling at once? {g.settle.debtorId === me ? "You pay" : `${g.settle.debtor} pays`} {who(g.settle.ownerId, g.settle.owner)}{" "}
+                          <span className="figure">${money(g.settle.amount)}</span> and{" "}
+                          {g.rows.some((p) => p.debtorId === me || p.ownerId === me) ? "you both" : "they both"} check off each other&apos;s bills.
+                        </>
+                      )}
+                    </p>
                   )}
                 </div>
               ))}

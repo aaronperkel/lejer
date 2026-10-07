@@ -1,8 +1,9 @@
 // Fixing a posted bill (0005), library level: the 10-minute new-bill email queue, edits over the
-// frozen split set, deletes, the paid lock, who may do it, and the net ledger. Every send goes
+// frozen split set, deletes, the paid lock, who may do it, and the house ledger (gross rows with
+// a settling hint). Every send goes
 // through a recording Mailer; the flush runs with simulated clocks for fixture households only.
 
-import { LOCKED_BILL, type OwedPair, createBill, deleteBill, getDebts, netPairs, saveBillType, setPaid, updateBill } from "@/lib/bills";
+import { LOCKED_BILL, type OwedPair, createBill, deleteBill, getDebts, ledgerGroups, netPairs, saveBillType, setPaid, updateBill } from "@/lib/bills";
 import type { Ctx } from "@/lib/context";
 import { tickHousehold } from "@/lib/cron";
 import { withHousehold } from "@/lib/db";
@@ -186,7 +187,7 @@ export async function edits(r: Results, { owner }: { owner: Sql }) {
   r.check("even with reminders off, the tick sends what has waited out its window", t.notices.sent > 0 && t.skipped === "reminders off" && (await notice(b7.billId)).kind === null, t.notices);
 
   // ---------------------------------------------------------------------------------------------
-  r.section("edits: the net ledger (pure)");
+  r.section("edits: the house ledger is gross, with a settling hint (pure)");
   const pair = (debtorId: number, ownerId: number | null, amount: number, owner: string | null = `P${ownerId}`): OwedPair => ({ debtorId, debtor: `P${debtorId}`, ownerId, owner, amount });
   let net = netPairs([pair(1, 2, 30), pair(2, 1, 12)]);
   r.check("$30 one way, $12 back → one row, $18 the right way round, with the gross amounts",
@@ -197,4 +198,14 @@ export async function edits(r: Results, { owner }: { owner: Sql }) {
   r.check("cents stay exact (0.30 − 0.10 = 0.20)", netPairs([pair(1, 2, 0.3), pair(2, 1, 0.1)])[0].amount === 0.2);
   net = netPairs([pair(1, null, 10, null), pair(3, null, 5, "former member"), pair(1, 2, 7)]);
   r.check("the house and a former member pass through; a one-way pair has no gross", net.length === 3 && net.every((p) => p.gross === null) && net[0].amount === 10, net);
+  const groups = ledgerGroups([pair(1, 2, 30), pair(3, 2, 5), pair(2, 1, 12), pair(1, null, 10, null)]);
+  r.check("both directions stay as recorded rows ($30 and $12, never $18 as a row), grouped together",
+    groups.length === 3 && groups[0].rows.map((p) => p.amount).join() === "30,12" && groups.flatMap((g) => g.rows).every((p) => p.amount !== 18), groups);
+  const hint = groups[0].settle;
+  r.check("…with the net only as the settling hint (P1 pays P2 $18)", hint !== null && hint !== "even" && hint.debtorId === 1 && hint.ownerId === 2 && hint.amount === 18, hint);
+  r.check("one-way pairs and the house carry no hint", groups[1].settle === null && groups[2].settle === null);
+  r.check("an even two-way pair keeps both rows, hint \"even\"", (() => {
+    const [g] = ledgerGroups([pair(1, 2, 20), pair(2, 1, 20)]);
+    return g.rows.length === 2 && g.settle === "even";
+  })());
 }

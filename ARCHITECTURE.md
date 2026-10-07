@@ -317,14 +317,20 @@ The 2026-10-07 critique's open P1: a posted bill was irreversible and its email 
   `shares` read back from `total / per_person_cost`, and `owner_share` when there are more
   shares than debt rows.
 
-### The net ledger (decided 2026-10-07)
+### Gross ledger with a net hint (decided 2026-10-07)
 
-The dashboard's house ledger shows one amount per pair of people (`netPairs()`): Alex owes Sam
-$30 and Sam owes Alex $12 → "Alex owes Sam $18.00", captioned "$30.00 owed, less $12.00 the
-other way". It is display only; every debt row stays as posted and is checked off per bill.
-Pairs owed to the house or a former member have nobody to offset and pass through. The
-portal's "Still owed" strip stays gross: it's the check-off work list. There is no "I sent it"
-flow.
+Gross is the truth everywhere. The dashboard's strip, its house ledger, the portal's "Still
+owed" and the reminders all show what is recorded per bill, in both directions: Alex owes Sam
+$30 and Sam owes Alex $12 are two rows. When two people owe each other, `ledgerGroups()` keeps
+their two rows together and adds one muted line computed by `netPairs()`: "Settling at once?
+Alex pays you $18.00 and you both check off each other's bills." (or "You're even" when it
+nets to zero). No net figure is ever the primary number, because a net payment can't be
+recorded as such: each person still checks off each bill. Pairs owed to the house or a former
+member have nobody to offset and get no hint. There is no "I sent it" flow.
+
+(A first cut showed the net as the ledger row itself. The re-critique found one relationship
+reading as three different numbers across the strip, the ledger and the portal, so the net was
+demoted to the hint.)
 
 ---
 

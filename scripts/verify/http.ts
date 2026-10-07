@@ -317,6 +317,25 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   text = await res.text();
   r.check("the portal speaks one status vocabulary (no Settled / Open)", !/>(Settled|Open)</.test(text) && />(Paid|Unpaid)</.test(text));
 
+  r.section("http: the house ledger is gross, with a settling hint");
+  const n = await makeHousehold(owner, "hn", "ledger"); // the fixture bill: the member owes the admin 40.00 on Gas
+  const [water] = await owner<{ id: number }[]>`
+    INSERT INTO bills (household_id, type_id, bill_date, due_date, total, per_person_cost, added_by_id, owner_id, had_owner, shares, owner_share)
+    VALUES (${n.id}, ${n.memberTypeId}, current_date - 3, current_date + 12, 30.00, 15.00, ${n.member.membershipId}, ${n.member.membershipId}, true, 2, true) RETURNING id`;
+  await owner`INSERT INTO bill_debts (household_id, bill_id, person_id) VALUES (${n.id}, ${water.id}, ${n.admin.membershipId})`;
+  text = (await (await get("/", await cookieFor(n.admin.userId, n.id))).text()).replaceAll("<!-- -->", "");
+  r.check("both directions show as recorded ($40.00 owed to the admin, $15.00 owed by them), never $25.00 as a row",
+    text.includes("$40.00") && text.includes("$15.00") && !/figure font-semibold">\$25\.00/.test(text), text.match(/house ledger[\s\S]{0,1500}/)?.[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 300));
+  r.check("…and the net only in the hint: \"Member hn pays you $25.00 and you both check off each other's bills\"",
+    /Settling at once\? Member hn pays you[\s\S]{0,80}\$25\.00[\s\S]{0,40}and you both check off each other(&#x27;|')s bills/.test(text));
+  await owner`UPDATE bill_debts SET paid_at = now() WHERE bill_id = ${water.id}`;
+  text = (await (await get("/", await cookieFor(n.admin.userId, n.id))).text()).replaceAll("<!-- -->", "");
+  r.check("owing nothing, an owner's Next due is the soonest bill owed to them, and who hasn't paid",
+    /Next due[\s\S]{0,400}Gas · Member hn hasn(&#x27;|')t paid you/.test(text), text.match(/Next due[\s\S]{0,600}/)?.[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 160));
+  text = await (await get("/portal/household", await cookieFor(n.admin.userId, n.id))).text();
+  r.check("member controls open the shared dialog (no <details> disclosure), named for the member",
+    !/<summary[^>]*>Edit</.test(text) && text.includes('aria-label="Edit Member hn"') && /<dialog[^>]*class="dialog/.test(text));
+
   r.section("http: document upload tokens");
   const tokenReq = (pathname: string, cookie?: string) =>
     fetch(`${base}/api/documents/upload`, {

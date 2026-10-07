@@ -443,7 +443,8 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
   40% ink.
 - **Small** (28px min, 4px by 10px padding, 0.8rem): for inline row actions only.
 - **Icon** (28px square, 36px on touch): a transparent background with a soft rule and muted
-  icon. It turns ink on hover.
+  icon. It turns ink on hover. Phones have no hover titles, so in a phone card's action row the
+  portal's remind and edit buttons widen to carry their word ("Remind", "Edit").
 - **Focus:** a 2px accent outline offset by 2px on every button. **Disabled:** 60% opacity with
   the default cursor.
 - **Motion:** colors transition in 100ms and nothing moves.
@@ -557,14 +558,17 @@ unruled. On a phone it reflows into ledger cards (see Layout).
 One panel split into three cells divided by soft rules. Each cell holds an eyebrow, a 1.7rem
 mono figure, and a muted caption that says it in words ("across 2 unpaid bills", "all settled
 up"). It is the first thing on the dashboard and the answer to "what do I owe". When the next
-due date has passed, its caption says so in the unpaid color ("Water · 2 days late"). An empty
-figure reads "None" in muted ink, never a dash.
+due date has passed, its caption says so in the unpaid color ("Water · 2 days late"). When
+nothing is due from the viewer but they're owed on an open bill (the single payer, or any
+owner), Next due is the soonest of those and who hasn't paid ("Electric · Sam hasn't paid
+you"). An empty figure reads "None" in muted ink, never a dash.
 
 ### House Ledger
-One row per pair of people, netted: "Alex owes you $18.00". When both owe each other, a muted
-caption shows the arithmetic ("$30.00 owed, less $12.00 the other way"), so the record stays
-visibly accurate. Rows owed to the house or a former member pass through as they are. The
-viewer's own rows come first.
+One row per direction, as recorded: "Alex owes you $30.00", "You owe Alex $12.00". The money
+on every surface is gross and agrees with the strip, the portal and the reminders. When two
+people owe each other their rows sit together, followed by one muted 0.75rem line: "Settling
+at once? Alex pays you $18.00 and you both check off each other's bills." The net never
+appears as a primary figure. The viewer's own rows come first.
 
 ### Flash Messages
 These are full-width bordered notes at the top of the content. Ok uses the paid wash with a 40%

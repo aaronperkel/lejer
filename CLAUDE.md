@@ -219,7 +219,9 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
 Bill math: `total = amount + processing_fee`, `per_person_cost = round(total / splitters, 2)`
 where splitters are memberships with `splits_bills`; debt rows for every splitter except the
 owner. `getOwedPairs(tx)` in `lib/bills.ts` is the who-owes-whom ledger and works in both
-modes; the dashboard nets it to one amount per pair with `netPairs()` (display only).
+modes. It stays gross everywhere; the dashboard's `ledgerGroups()` pairs up two people who
+owe each other and adds a muted "Settling at once?" hint with the net from `netPairs()`, never
+a net figure as the primary number.
 SQL aliases snake_case to camelCase (`per_person_cost AS perPersonCost`); bill queries
 join `bill_types` and the bill's owner/poster memberships so each `Bill` carries
 `typeName`/`typeEmoji`/`ownerId`/`ownerName`/`addedByName`.

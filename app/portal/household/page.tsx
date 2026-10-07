@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ConfirmButton from "@/app/components/ConfirmButton";
 import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
 import BillTypesSection from "@/app/portal/BillTypesSection";
@@ -10,7 +9,8 @@ import { BRAND } from "@/lib/brand";
 import { withHousehold } from "@/lib/db";
 import { DEMO_BILL_TYPES, DEMO_PEOPLE } from "@/lib/demo";
 import type { Role } from "@/lib/types";
-import { inviteMember, removeMember, resendInvite, updateMember } from "../actions";
+import { inviteMember } from "../actions";
+import MemberEditDialog from "./MemberEditDialog";
 
 export const metadata: Metadata = { title: "Household" };
 
@@ -59,7 +59,9 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
-              {isAdmin && <th className="num">Manage</th>}
+              {isAdmin && <th className="num">
+                  <span className="sr-only">Manage</span>
+                </th>}
             </tr>
           </thead>
           <tbody>
@@ -79,55 +81,11 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
                 </td>
                 {isAdmin && (
                   <td className="cell-actions num">
-                    <details className="inline-block text-left">
-                      <summary className="btn btn-sm cursor-pointer list-none" aria-label={`Edit ${m.name}`}>Edit</summary>
-                      <div className="mt-2 space-y-3 sm:w-64">
-                        <form action={updateMember} className="space-y-2">
-                          <input type="hidden" name="membershipId" value={m.id} />
-                          <select className="field-input" name="role" defaultValue={m.role} aria-label={`Role for ${m.name}`}>
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          <label className="flex items-center gap-2 text-sm">
-                            <input type="checkbox" name="splitsBills" defaultChecked={m.splitsBills} />
-                            Splits bills<span className="sr-only"> ({m.name})</span>
-                          </label>
-                          <SubmitButton className="btn btn-sm btn-primary" pendingLabel="Saving…">
-                            Save<span className="sr-only"> {m.name}</span>
-                          </SubmitButton>
-                        </form>
-                        <div className="flex flex-wrap gap-2">
-                          {!m.joinedAt && (
-                            <form action={resendInvite}>
-                              <input type="hidden" name="membershipId" value={m.id} />
-                              <SubmitButton className="btn btn-sm" pendingLabel="Sending…">
-                                Resend invite<span className="sr-only"> to {m.name}</span>
-                              </SubmitButton>
-                            </form>
-                          )}
-                          {m.id !== ctx.membership.id && (
-                            <form action={removeMember}>
-                              <input type="hidden" name="membershipId" value={m.id} />
-                              <ConfirmButton
-                                className="btn btn-sm"
-                                buttonProps={{ "aria-label": `Remove ${m.name}` }}
-                                title={`Remove ${m.name} from ${ctx.household.name}?`}
-                                body={
-                                  <>
-                                    <p>Their unpaid shares on bills already posted are dropped, and any bill type they own goes back to nobody.</p>
-                                    <p className="mt-2">Bills they fronted stay on record, owed to a former member. They can be invited again later.</p>
-                                  </>
-                                }
-                                confirmLabel="Remove"
-                                pendingLabel="Removing…"
-                              >
-                                Remove
-                              </ConfirmButton>
-                            </form>
-                          )}
-                        </div>
-                      </div>
-                    </details>
+                    <MemberEditDialog
+                      member={{ id: m.id, name: m.name, email: m.email, role: m.role, splitsBills: m.splitsBills, joined: m.joinedAt !== null }}
+                      householdName={ctx.household.name}
+                      isSelf={m.id === ctx.membership.id}
+                    />
                   </td>
                 )}
               </tr>
@@ -160,10 +118,13 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
             </div>
             <div>
               <label className="field-label" htmlFor="invite-role">Role</label>
-              <select className="field-input" id="invite-role" name="role" defaultValue="member">
-                <option value="member">Member: sees everything, manages bills they own</option>
-                <option value="admin">Admin: manages the whole household</option>
+              <select className="field-input" id="invite-role" name="role" defaultValue="member" aria-describedby="invite-role-hint">
+                <option value="member">Member</option>
+                <option value="admin">Admin</option>
               </select>
+              <span className="field-hint" id="invite-role-hint">
+                Members see everything and manage bills they own. Admins manage the whole household.
+              </span>
             </div>
             <label className="flex items-start gap-2 self-end pb-2 text-sm">
               <input type="checkbox" name="splitsBills" defaultChecked className="mt-1" />

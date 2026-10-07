@@ -2,7 +2,6 @@ import {
   type Bill,
   type BillType,
   type Debt,
-  type NetPair,
   type OwedPair,
   type Person,
   countBills,
@@ -14,7 +13,6 @@ import {
   getOwedPairs,
   getPayer,
   getSplitters,
-  netPairs,
 } from "@/lib/bills";
 import type { Ctx } from "@/lib/context";
 import { type Tx, withHousehold } from "@/lib/db";
@@ -63,10 +61,10 @@ function demoPairs(): OwedPair[] {
 export interface Dashboard extends Paged {
   owed: { amount: number; billIds: number[]; nextDue: { dueDate: string; typeName: string } | null };
   pairs: OwedPair[];
-  /** The house ledger: one amount per pair of people (netPairs). */
-  net: NetPair[];
   /** The household's today (YYYY-MM-DD), for due chips and "days late". */
   today: string;
+  /** The soonest-due bill the viewer is owed on, and who hasn't paid it: the payer's "next due". */
+  collect: { dueDate: string; typeName: string; debtors: string[] } | null;
   /** The viewer owns at least one bill type (in single_payer mode: the viewer is the payer). */
   ownsTypes: boolean;
   /** The viewer's own calendar feed token (never anyone else's); null in the demo. */
@@ -88,8 +86,14 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
         nextDue: next ? { dueDate: next.dueDate, typeName: next.typeName } : null,
       },
       pairs: demoPairs(),
-      net: netPairs(demoPairs()),
       today,
+      collect: (() => {
+        const owed = DEMO_BILLS.filter((b) => b.ownerId === ctx.membership.id)
+          .map((b) => ({ b, debtors: demoDebts(b.id).filter((d) => !d.paid).map((d) => d.name) }))
+          .filter((x) => x.debtors.length > 0)
+          .sort((x, y) => x.b.dueDate.localeCompare(y.b.dueDate))[0];
+        return owed ? { dueDate: owed.b.dueDate, typeName: owed.b.typeName, debtors: owed.debtors } : null;
+      })(),
       ownsTypes: DEMO_BILL_TYPES.some((t) => t.ownerId === ctx.membership.id),
       calendarToken: null,
     };
@@ -98,14 +102,13 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
     const totalBills = await countBills(tx);
     const { page, totalPages } = pageInfo(totalBills, perPage, requestedPage);
     const [{ owns }] = await tx<{ owns: boolean }[]>`SELECT EXISTS (SELECT 1 FROM bill_types WHERE owner_id = ${ctx.membership.id}) AS owns`;
-    const pairs = await getOwedPairs(tx);
     return {
       page, totalPages, totalBills,
       bills: await getBillsPage(tx, perPage, (page - 1) * perPage),
       owed: await getMyBalance(tx, ctx.membership.id),
-      pairs,
-      net: netPairs(pairs),
+      pairs: await getOwedPairs(tx),
       today,
+      collect: await nextToCollect(tx, ctx.membership.id),
       ownsTypes: owns,
       calendarToken: await myCalendarToken(tx, ctx),
     };
@@ -205,6 +208,21 @@ export async function loadTrends(ctx: Ctx): Promise<Trends> {
 export async function loadTrendsCsv(ctx: Ctx): Promise<string> {
   if (ctx.demo) return trendsCsv(demoMonthTotals(localDate(ctx.household.timezone)), DEMO_BILL_TYPES);
   return withHousehold(ctx, async (tx) => trendsCsv(await monthTotals(tx), await trendTypes(tx)));
+}
+
+/** The soonest-due bill owed to `membershipId` that someone still owes on, with their names. */
+async function nextToCollect(tx: Tx, membershipId: number): Promise<Dashboard["collect"]> {
+  const [row] = await tx<{ dueDate: string; typeName: string; debtors: string[] }[]>`
+    SELECT b.due_date AS "dueDate", t.name AS "typeName", array_agg(u.name ORDER BY u.name) AS debtors
+    FROM bills b
+    JOIN bill_types t ON t.id = b.type_id
+    JOIN bill_debts d ON d.bill_id = b.id AND d.paid_at IS NULL
+    JOIN memberships m ON m.id = d.person_id
+    JOIN users u ON u.id = m.user_id
+    WHERE b.owner_id = ${membershipId}
+    GROUP BY b.id, b.due_date, t.name
+    ORDER BY b.due_date, b.id LIMIT 1`;
+  return row ?? null;
 }
 
 /** The viewer's calendar token for this household. Only ever selected for ctx.membership.id. */
