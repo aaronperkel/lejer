@@ -83,8 +83,9 @@ Env lives in `.env.local` (see `.env.example`). Keys:
   production. Resend's test sender **only delivers to the Resend account owner's address**, so
   login codes or invites for anyone else (seed users, invitees) need console mode (empty key)
   or the verified domain.
-- `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` — the single **private** Blob store. On Vercel the
-  SDK uses OIDC; the token is needed locally, for client-upload token minting, and for the
+- `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` — the environment's **private** Blob store: lejer-blob
+  for development and preview, a separate store for production (Deployment, below). On Vercel
+  the SDK uses OIDC; the token is needed locally, for client-upload token minting, and for the
   import script.
 - `CRON_SECRET` — bearer token for `/api/cron/tick`; must match the GitHub Actions repo secret.
 - `NEXT_PUBLIC_APP_URL` — `https://lejer.app`; used for absolute links in email and `/cal.ics`.
@@ -265,7 +266,9 @@ out to view the demo, or go back.") and is never dropped into either household s
 
 ### Stored files
 
-One private Blob store. Keys (`lib/blob.ts`): bill PDFs
+Private Blob storage, one store per environment class (lejer-blob for dev/preview, its own
+store for production; household ids come from different databases, so the two must never
+share a store). Keys (`lib/blob.ts`): bill PDFs
 `h/{household_id}/bills/{year}/{type-slug}/{MMDD}-{billId}.pdf` (MMDD from the bill date; the
 bill id keeps same-day bills apart; `allowOverwrite: true`; the upload's own filename is ignored
 because providers reuse one name per statement; `addBill` reserves the id with `prepareBill`,
@@ -374,8 +377,8 @@ sent will email real members of every household in that database.
 
 ## Deployment
 
-Vercel (Hobby) at lejer.app, Neon (free), one private Blob store, Resend (free, domain
-`mail.lejer.app`).
+Vercel (Hobby) at lejer.app, Neon (free), two private Blob stores (dev/preview and production),
+Resend (free, domain `mail.lejer.app`).
 
 **Neon** is not a Vercel marketplace integration (that integration owns `DATABASE_URL` and
 would point it at the owner role, skipping RLS). Project `lejer` (`round-grass-59501457`) in
@@ -394,8 +397,13 @@ connection strings; postgres.js would forward it as a startup parameter.
 
 **Vercel** project `lejer` in the `aaronperkel` (Hobby) scope, linked with the CLI, no Git
 connection yet. Blob store `lejer-blob` (`store_kmuAqgMI8w1nbg75`, private, `iad1`) was
-created with `vercel blob create-store` and is connected to **Development only** so far;
-connect it to Preview/Production when those environments are configured. Resend is a
+created with `vercel blob create-store` and is **dev/preview only, permanently**: connected to
+Development now, to Preview when Preview is configured, **never to Production**. Keys are
+`h/{household_id}/…` and dev/preview household ids come from the Neon `dev` branch, so sharing
+a store with production would let dev overwrite prod files and let `npm run verify`'s
+prefix sweep delete them. Production gets its **own** private store, created at cutover
+(DESIGN.md §11 checklist); `verify` keeps pinning lejer-blob by the store id embedded
+in the token, so it can never run against the production store. Resend is a
 direct resend.com account, not a marketplace integration.
 
 **Vercel env vars, set by hand** in the project. Development holds the dev-branch values
@@ -408,7 +416,7 @@ or its own branch) are **not set yet**:
 | `DATABASE_URL_ADMIN` | `neondb_owner` on the `main` **unpooled** host, `?sslmode=require` |
 | `SESSION_SECRET` | `openssl rand -base64 32` |
 | `RESEND_API_KEY` | from the resend.com dashboard (API Keys) |
-| `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID` | connecting the Blob store sets the token; the id is `store_kmuAqgMI8w1nbg75` |
+| `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID` | Production: the production store, created at cutover (connecting it sets the token). Development/Preview: lejer-blob, `store_kmuAqgMI8w1nbg75` |
 | `CRON_SECRET` | random; also the GitHub Actions repo secret |
 | `NEXT_PUBLIC_APP_URL` | `https://lejer.app` |
 

@@ -422,7 +422,10 @@ Consequences baked into the design:
 
 ### Blob keys and `/files`
 
-One **private** Blob store (verified against current docs: `@vercel/blob` ≥ 2.3,
+Private Blob stores, one per environment class: `lejer-blob` for development and preview,
+a separate store for production, created at cutover (decided 2026-10-06; household ids come
+from different databases per environment, so a shared store would collide on `h/{id}/`).
+Verified against current docs: `@vercel/blob` ≥ 2.3,
 `put(path, body, { access: 'private' })`, server-side `get()` returns a stream, store access
 mode is fixed at creation). Private means blob URLs are not fetchable without a token, so
 `/files` is the only way in and the "public but unguessable URL" argument is retired.
@@ -708,13 +711,22 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
    recorded) and should be read as "paid by around the due date", nothing more. Finally set
    every bill's `status` from its rows (`refreshBillStatus`), and print how many rows were
    copied, synthesized and dropped (self-debts) and how many bills flipped to `paid`.
-5. Blobs: `list()` each old (public) store, fetch each blob, `put()` into the new private
-   store under `h/{id}/…`, rewrite `pdf_path` / `file_path`. Idempotent (`allowOverwrite`).
+5. Blobs: `list()` each old (public) store, fetch each blob, `put()` into the **production**
+   private store (the import's `BLOB_READ_WRITE_TOKEN` must be the production store's, never
+   lejer-blob's) under `h/{id}/…`, rewrite `pdf_path` / `file_path`. Idempotent (`allowOverwrite`).
 6. Verification block per household: row counts, `SUM(total)`, unpaid count, unpaid debt
    rows (= source rows minus dropped self-debts), synthesized paid rows, blob count vs. rows with paths. Non-zero exit on
    mismatch. `--force` deletes the two households (cascades) and their blob prefixes first.
-7. Dry-run against a Neon branch, then production; DNS for lejer.app; disable both old
-   GitHub Actions workflows; old domains redirect to lejer.app; TiDB left read-only for a month.
+7. Cutover checklist:
+   - **Create the production Blob store** (`vercel blob create-store <name> --access private
+     --region iad1 -e production`): its own store, never lejer-blob, which stays dev/preview
+     only. Confirm Production's `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` point at it and
+     that lejer-blob is not connected to Production.
+   - Set the remaining Production env vars (CLAUDE.md, Deployment), set or reset `lejer_app`'s
+     password on `main`, run `npm run migrate` against `main`.
+   - Dry-run the import against a Neon branch (with a throwaway store), then production.
+   - DNS for lejer.app; disable both old GitHub Actions workflows; old domains redirect to
+     lejer.app; TiDB left read-only for a month.
 
 ---
 
@@ -723,12 +735,9 @@ Put them in `.env.import.local` as `SRC_UTIL_DB_*`, `SRC_UTIL_BLOB_TOKEN`, `SRC_
 - ~~Neon role creation via SQL vs. the console.~~ SQL (§4 "Roles"): console roles join
   `neon_superuser`. Verified 2026-10-06: `lejer_app` `rolbypassrls = false`, not a member.
 - Resend's daily counter boundary (UTC assumed). The budget rule is conservative either way.
-- **Blob store shared across environments.** There is one store (`lejer-blob`) and keys are
-  `h/{household_id}/…`, but household ids come from different databases in dev and prod. Once
-  Production uses the store, dev household 7 and prod household 7 share a prefix: dev uploads
-  could overwrite prod files, and `npm run verify`'s sweep deletes `h/{id}/` for its fixture
-  ids. Harmless today (prod has no data). To decide before any prod data exists: a separate
-  dev/preview store, or an environment segment in the key.
+- ~~Blob store shared across environments.~~ Decided 2026-10-06: `lejer-blob` is dev/preview
+  only, permanently; production gets its own store at cutover (§11 step 7). `verify` pins
+  lejer-blob by store id.
 - `mail.lejer.app` domain verification at Resend (Aaron's DNS). Until then dev uses the test
   sender (§6); nothing in phase 2 blocks on it.
 - ~~Whether `households_read`'s subquery needs a `SECURITY DEFINER` helper.~~ It does not.
