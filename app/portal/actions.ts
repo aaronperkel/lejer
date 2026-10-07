@@ -11,6 +11,7 @@ import { getUserByEmail } from "@/lib/households";
 import { normalizeEmail } from "@/lib/login-codes";
 import { sendMail } from "@/lib/mail";
 import type { Role } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 
 // Portal mutations. Each one authorizes itself (proxy.ts is only the first lock), refuses
 // politely for the demo, and reports through ?ok= / ?err= (lib/flash.ts).
@@ -28,7 +29,7 @@ function sendInvite(ctx: Ctx, invitee: { email: string; name: string }): Promise
   return sendMail({
     ctx,
     to: invitee.email,
-    subject: `${ctx.user.name} added you to ${ctx.household.name} on Lejer`,
+    subject: `${ctx.user.name} added you to ${ctx.household.name} on ${BRAND.name}`,
     react: createElement(Invite, {
       theme: ctx.household.theme,
       householdName: ctx.household.name,
@@ -59,7 +60,7 @@ async function getMember(tx: Tx, id: number): Promise<MemberRow | null> {
 
 /**
  * Invite by email: the users row is created up front (an admin vouched for the address; the
- * name only applies if the person is new to Lejer) plus a pending membership. Signing in with
+ * name only applies if the person is new here) plus a pending membership. Signing in with
  * that email accepts it.
  */
 export async function inviteMember(formData: FormData): Promise<void> {

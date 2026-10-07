@@ -3,11 +3,12 @@
 // Every phase adds its checks here. Usage: npm run verify [-- rls identity …] to pick suites.
 
 import { adminSql } from "@/lib/db";
+import { brand } from "./brand";
 import { Results, connectDev, sweep } from "./harness";
 import { identity } from "./identity";
 import { rls } from "./rls";
 
-const SUITES = { rls, identity } as const;
+const SUITES = { brand, rls, identity } as const;
 
 async function main() {
   const picked = process.argv.slice(2).filter((a) => !a.startsWith("-"));

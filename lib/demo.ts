@@ -2,7 +2,7 @@ import type { Ctx } from "@/lib/context";
 import type { Household } from "@/lib/types";
 
 // The /demo household: in memory, ledger mode, no database. getCtx() returns demoCtx() for a
-// visitor holding the lejer_demo cookie; data functions branch on ctx.demo and mutations
+// visitor holding the demo cookie; data functions branch on ctx.demo and mutations
 // refuse with DEMO_REFUSAL. Dates are relative to today so the demo never looks stale.
 // Ported from peach-cob's lib/demo.ts with neutral names.
 

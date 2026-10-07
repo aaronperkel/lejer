@@ -8,7 +8,7 @@ import { listMyHouseholds } from "@/lib/households";
 import { devBypass } from "@/lib/session";
 import { switchHousehold } from "./actions";
 
-export const metadata: Metadata = { title: "Your households — Lejer" };
+export const metadata: Metadata = { title: "Your households" };
 
 export default async function HouseholdsPage() {
   const user = await getSessionUser();

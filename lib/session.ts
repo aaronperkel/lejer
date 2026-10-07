@@ -1,12 +1,13 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { BRAND } from "@/lib/brand";
 
-// Two signed cookies, never interchangeable (different audiences):
-// - lejer_session { uid, hid }: a real sign-in. hid is null until the user has a household.
-// - lejer_demo    { demo: true }: the /demo visitor. Only consulted when there is no session.
+// Two signed cookies, never interchangeable (different audiences); names come from lib/brand.ts:
+// - session { uid, hid }: a real sign-in. hid is null until the user has a household.
+// - demo    { demo: true }: the /demo visitor. Only consulted when there is no session.
 
-export const SESSION_COOKIE = "lejer_session";
-export const DEMO_COOKIE = "lejer_demo";
+export const SESSION_COOKIE = BRAND.cookies.session;
+export const DEMO_COOKIE = BRAND.cookies.demo;
 const SESSION_DAYS = 30;
 export const DEMO_DAYS = 7;
 /** proxy.ts re-issues the session cookie once it is this old (sliding 30-day session). */

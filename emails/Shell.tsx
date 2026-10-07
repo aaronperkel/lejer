@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Body, Container, Head, Html, Link, Preview, Section, Text } from "@react-email/components";
 import type { Theme } from "../lib/types";
 
-// The wrapper every Lejer email renders in, in the household's theme. Inline styles only
+// The wrapper every email renders in, in the household's theme. Inline styles only
 // (clients ignore stylesheets), light only (client dark modes are unreliable), 560 px.
 // statement: grey page, white panel, mono eyebrows (utilities). peach: cream paper, the
 // awning stripe, Georgia + Courier (peach-cob). Colors mirror the light tokens in globals.css.
@@ -37,7 +37,7 @@ export function Shell({
   children,
 }: {
   theme: Theme;
-  masthead: string; // "Lejer" or "{household} · {tagline}"
+  masthead: string; // BRAND.name, or "{name} · {household}"
   footer: string;
   contact?: string | null; // reply address shown in the footer
   preview: string;
@@ -124,8 +124,3 @@ export function ButtonLink({ theme, href, children }: { theme: Theme; href: stri
   );
 }
 
-/** Absolute app URL for links in mail (NEXT_PUBLIC_APP_URL). */
-export function appUrl(path = "/"): string {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? "https://lejer.app").replace(/\/+$/, "");
-  return `${base}${path}`;
-}

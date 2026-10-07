@@ -18,6 +18,14 @@ owner column, dashboard says "you owe") or `ledger` (types carry their own owner
 shows who-owes-whom). Mode is a setting that drives defaults and copy; switching never
 migrates data.
 
+**Brand.** "Lejer" / lejer.app is the working name and may change before launch. The name,
+domain, app URL, mail subdomain and From addresses, and cookie names live in `lib/brand.ts`;
+code and email templates read `BRAND` / `appUrl()` and never spell them out (the `brand`
+verify suite fails on a stray literal). These docs keep saying "Lejer". Renaming changes the
+cookie names, which signs everyone out once (accepted). Infrastructure identifiers (the
+`lejer_app` Postgres role, the Neon/Vercel project names, the npm package) are not brand and
+change only by migration.
+
 ## Commands
 
 ```bash

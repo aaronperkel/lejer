@@ -5,7 +5,7 @@ import SubmitButton from "@/app/components/SubmitButton";
 import { getCtx, getSessionUser } from "@/lib/context";
 import { resetCalendarLink, updateMyName } from "./actions";
 
-export const metadata: Metadata = { title: "Account — Lejer" };
+export const metadata: Metadata = { title: "Account" };
 
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
   const user = await getSessionUser();

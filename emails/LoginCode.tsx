@@ -1,15 +1,16 @@
 import { Text } from "@react-email/components";
 import { Eyebrow, Heading, Paragraph, Shell, palette } from "./Shell";
+import { BRAND } from "../lib/brand";
 
 // One-time sign-in code. Sent before any household is known, so it always wears the
-// statement shell and the Lejer masthead. The code leads the subject (set by the caller) so
+// statement shell and the product masthead. The code leads the subject (set by the caller) so
 // it shows in notification previews and Apple Mail's code autofill.
 
 export default function LoginCode({ code, name }: { code: string; name?: string | null }) {
   const theme = "statement" as const;
   const p = palette(theme);
   return (
-    <Shell theme={theme} masthead="Lejer" footer="lejer.app" preview={`${code} is your Lejer sign-in code.`}>
+    <Shell theme={theme} masthead={BRAND.name} footer={BRAND.domain} preview={`${code} is your ${BRAND.name} sign-in code.`}>
       <Eyebrow theme={theme}>Sign-in code</Eyebrow>
       <Heading theme={theme}>Your one-time sign-in code</Heading>
       <Paragraph theme={theme}>

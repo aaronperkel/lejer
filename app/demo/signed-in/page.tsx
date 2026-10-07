@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import SubmitButton from "@/app/components/SubmitButton";
 import { getCtx, getSessionUser } from "@/lib/context";
 import { devBypass, endSession, startDemo } from "@/lib/session";
+import { BRAND } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Demo — Lejer" };
+export const metadata: Metadata = { title: "Demo" };
 
 async function signOutToDemo(): Promise<void> {
   "use server";
@@ -18,7 +19,7 @@ export default async function DemoSignedInPage() {
   const user = await getSessionUser();
   if (!user) redirect("/demo");
   const ctx = await getCtx();
-  const where = ctx ? ctx.household.name : "Lejer";
+  const where = ctx ? ctx.household.name : BRAND.name;
 
   return (
     <main className="mx-auto max-w-sm py-10 sm:py-16">

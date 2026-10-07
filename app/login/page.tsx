@@ -3,8 +3,9 @@ import Link from "next/link";
 import SubmitButton from "@/app/components/SubmitButton";
 import { safeNext } from "@/lib/flash";
 import { requestCode, submitCode } from "./actions";
+import { BRAND } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Sign in — Lejer" };
+export const metadata: Metadata = { title: "Sign in" };
 
 const ERRORS: Record<string, string> = {
   "bad-email": "That doesn't look like an email address.",
@@ -29,7 +30,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="mx-auto max-w-sm py-10 sm:py-16">
       <div className="panel p-6">
-        <span className="eyebrow mb-1">Lejer</span>
+        <span className="eyebrow mb-1">{BRAND.name}</span>
         <h1 className="text-lg font-bold">Sign in</h1>
         {step === "code" && email ? (
           <>

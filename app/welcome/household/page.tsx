@@ -5,8 +5,9 @@ import SubmitButton from "@/app/components/SubmitButton";
 import { getSessionUser } from "@/lib/context";
 import { createHouseholdAction } from "./actions";
 import TimezoneSelect from "./TimezoneSelect";
+import { BRAND } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Set up your household — Lejer" };
+export const metadata: Metadata = { title: "Set up your household" };
 
 const MODES = [
   {
@@ -17,7 +18,7 @@ const MODES = [
   {
     value: "ledger",
     title: "Each bill has an owner",
-    blurb: "Different people front different bills; Lejer tracks who owes whom.",
+    blurb: `Different people front different bills; ${BRAND.name} tracks who owes whom.`,
   },
 ] as const;
 
@@ -36,7 +37,7 @@ export default async function WelcomeHouseholdPage({ searchParams }: PageProps<"
 
   return (
     <main className="mx-auto max-w-xl py-6">
-      <span className="eyebrow mb-1">Welcome to Lejer</span>
+      <span className="eyebrow mb-1">Welcome to {BRAND.name}</span>
       <h1 className="page-title mb-5">Set up your household</h1>
       <Flash ok={ok} err={err} />
       <form action={createHouseholdAction} className="space-y-6">

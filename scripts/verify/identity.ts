@@ -9,8 +9,9 @@ import { withHousehold, withUser } from "@/lib/db";
 import { safeNext } from "@/lib/flash";
 import { createHousehold, findMembership, slugify } from "@/lib/households";
 import { createLoginCode, hashIp, normalizeEmail, verifyLoginCode } from "@/lib/login-codes";
-import { createDemoToken, createSessionToken, readDemoToken, readSessionToken } from "@/lib/session";
+import { DEMO_COOKIE, SESSION_COOKIE, createDemoToken, createSessionToken, readDemoToken, readSessionToken } from "@/lib/session";
 import { LOG_MARK, RUN, type Results, type Sql, email, makeHousehold, rolledBack } from "./harness";
+import { BRAND } from "@/lib/brand";
 
 export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sql }) {
   const a = await makeHousehold(owner, "ia");
@@ -134,18 +135,18 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     }
     res = await call("/loginx");
     r.check("proxy: /loginx is not public (exact segment match)", res.status === 307);
-    res = await call("/", { cookie: `lejer_session=${tok}` });
+    res = await call("/", { cookie: `${SESSION_COOKIE}=${tok}` });
     r.check("proxy: fresh session passes without re-issuing", res.headers.get("x-middleware-next") === "1" && !res.headers.get("set-cookie"));
     const old = await new SignJWT({ uid: a.admin.userId, hid: a.id }).setProtectedHeader({ alg: "HS256" }).setAudience("session")
       .setIssuedAt(Math.floor(Date.now() / 1000) - 8 * 86400).setExpirationTime("30d").sign(key);
-    res = await call("/", { cookie: `lejer_session=${old}` });
+    res = await call("/", { cookie: `${SESSION_COOKIE}=${old}` });
     const renewed = res.headers.get("set-cookie") ?? "";
-    r.check("proxy: an 8-day-old session is re-issued", renewed.startsWith("lejer_session=") && !renewed.includes(old));
+    r.check("proxy: an 8-day-old session is re-issued", renewed.startsWith(`${SESSION_COOKIE}=`) && !renewed.includes(old));
     const reissued = await readSessionToken(renewed.split(";")[0].split("=")[1]);
     r.check("…keeping uid and hid", reissued?.uid === a.admin.userId && reissued?.hid === a.id);
-    res = await call("/", { cookie: `lejer_demo=${demo}` });
+    res = await call("/", { cookie: `${DEMO_COOKIE}=${demo}` });
     r.check("proxy: demo cookie passes", res.headers.get("x-middleware-next") === "1");
-    res = await call("/", { cookie: `lejer_session=${demo}` });
+    res = await call("/", { cookie: `${SESSION_COOKIE}=${demo}` });
     r.check("proxy: demo token in the session cookie is refused", res.status === 307);
   } finally {
     if (devUser !== undefined) process.env.APP_DEV_USER = devUser;
@@ -192,7 +193,7 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     console.log = (...args: unknown[]) => { printed += args.join(" "); };
     let sent: boolean;
     try {
-      sent = await sendMail({ to: email("console"), subject: "123456 is your Lejer sign-in code", react: createElement(LoginCode, { code: "123456" }), kind: "login_code" });
+      sent = await sendMail({ to: email("console"), subject: `123456 is your ${BRAND.name} sign-in code`, react: createElement(LoginCode, { code: "123456" }), kind: "login_code" });
     } finally {
       console.log = log;
     }

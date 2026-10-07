@@ -6,8 +6,9 @@ import { withHousehold } from "@/lib/db";
 import { DEMO_PEOPLE } from "@/lib/demo";
 import type { Role } from "@/lib/types";
 import { inviteMember, removeMember, resendInvite, updateMember } from "../actions";
+import { BRAND } from "@/lib/brand";
 
-export const metadata: Metadata = { title: "Members — Lejer" };
+export const metadata: Metadata = { title: "Members" };
 
 interface MemberView {
   id: number;
@@ -116,7 +117,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/portal/h
         <section className="panel p-5">
           <span className="eyebrow mb-1">Invite a roommate</span>
           <p className="mb-4 text-sm text-ink-muted">
-            They&apos;ll get an email from Lejer. Signing in with that address joins {ctx.household.name}.
+            They&apos;ll get an email from {BRAND.name}. Signing in with that address joins {ctx.household.name}.
           </p>
           <form action={inviteMember} className="grid gap-4 sm:grid-cols-2">
             <div>

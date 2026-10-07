@@ -3,6 +3,7 @@ import { IBM_Plex_Mono } from "next/font/google";
 import Nav from "@/app/components/Nav";
 import { switchHousehold } from "@/app/households/actions";
 import { signOut } from "@/app/login/actions";
+import { BRAND, appUrl } from "@/lib/brand";
 import { getCtx, getSessionUser } from "@/lib/context";
 import { withUser } from "@/lib/db";
 import { listMyHouseholds } from "@/lib/households";
@@ -12,8 +13,8 @@ import "./globals.css";
 const ledger = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-ledger" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://lejer.app"),
-  title: "Lejer",
+  metadataBase: new URL(appUrl()),
+  title: { default: BRAND.name, template: `%s — ${BRAND.name}` },
   description: "Split household bills with your roommates.",
 };
 
@@ -41,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-dvh flex-col bg-page font-sans text-ink">
         <Nav
-          brand={ctx?.household.name ?? "Lejer"}
+          brand={ctx?.household.name ?? BRAND.name}
           links={links}
           households={households.map(({ id, name }) => ({ id, name }))}
           currentHouseholdId={ctx?.household.id ?? null}
@@ -59,7 +60,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <footer className="mx-auto w-full max-w-[1000px] px-4 pb-8 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line-soft pt-4 text-xs text-ink-muted">
             <span className="font-mono uppercase tracking-[0.1em]">
-              {ctx ? `${ctx.household.name} · Lejer` : "Lejer"}
+              {ctx ? `${ctx.household.name} · ${BRAND.name}` : BRAND.name}
             </span>
             {contact && (
               <a className="hover:text-ink" href={`mailto:${contact}`}>

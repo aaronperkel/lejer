@@ -11,6 +11,7 @@ import { createLoginCode, deleteLoginCode, hashIp, normalizeEmail, verifyLoginCo
 import { sendMail } from "@/lib/mail";
 import { endSession, startSession } from "@/lib/session";
 import type { User } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 
 function loginUrl(params: Record<string, string>): string {
   if (params.next === "/") delete params.next;
@@ -42,7 +43,7 @@ export async function requestCode(formData: FormData): Promise<void> {
   if (created.kind === "created") {
     const sent = await sendMail({
       to: email,
-      subject: `${created.code} is your Lejer sign-in code`,
+      subject: `${created.code} is your ${BRAND.name} sign-in code`,
       react: createElement(LoginCode, { code: created.code, name }),
       kind: "login_code",
     });

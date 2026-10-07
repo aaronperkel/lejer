@@ -4,6 +4,7 @@ import { render } from "@react-email/components";
 import { Resend } from "resend";
 import { withHousehold, withUser, type TenantScope } from "@/lib/db";
 import type { Household } from "@/lib/types";
+import { BRAND } from "@/lib/brand";
 
 // Every outbound email goes through sendMail(). It returns false on failure (logged, never
 // thrown) and writes one email_log row per attempt, the source of truth for Resend's
@@ -12,12 +13,12 @@ import type { Household } from "@/lib/types";
 //   prefix instead of sent, and no email_log row is written. instrumentation.ts refuses to
 //   boot production without a key, so codes can never land in production logs.
 // - RESEND_TEST_SENDER=1 → From becomes onboarding@resend.dev (display name kept), for use
-//   until mail.lejer.app verifies. Resend only delivers that sender's mail to the Resend
+//   until the mail domain (BRAND.mailDomain) verifies. Resend only delivers that sender's mail to the Resend
 //   account's own address.
 
 export type MailKind = "login_code" | "invite";
 
-/** Kinds sent as "Lejer" <login@…> with no Reply-To; everything else is household mail. */
+/** Kinds sent as "{BRAND.name}" <login@…> with no Reply-To; everything else is household mail. */
 const ACCOUNT_KINDS: ReadonlySet<MailKind> = new Set(["login_code", "invite"]);
 
 const isProduction = () => process.env.VERCEL_ENV === "production";
@@ -36,12 +37,12 @@ function resend(): Resend {
 function fromHeader(kind: MailKind, household?: Pick<Household, "name" | "fromName">): string {
   const test = process.env.RESEND_TEST_SENDER === "1" && !isProduction();
   if (ACCOUNT_KINDS.has(kind)) {
-    return `Lejer <${test ? "onboarding@resend.dev" : "login@mail.lejer.app"}>`;
+    return `${BRAND.name} <${test ? "onboarding@resend.dev" : BRAND.loginFrom}>`;
   }
   if (!household) throw new Error(`household mail (${kind}) needs a household`);
   // Display names can't carry quotes or angle brackets unescaped; strip them.
-  const name = `${household.fromName || household.name} via Lejer`.replace(/["<>\\]/g, "");
-  return `"${name}" <${test ? "onboarding@resend.dev" : "notify@mail.lejer.app"}>`;
+  const name = `${household.fromName || household.name} via ${BRAND.name}`.replace(/["<>\\]/g, "");
+  return `"${name}" <${test ? "onboarding@resend.dev" : BRAND.notifyFrom}>`;
 }
 
 export interface SendMailArgs {

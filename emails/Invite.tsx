@@ -1,7 +1,8 @@
 import type { Theme } from "../lib/types";
-import { ButtonLink, Eyebrow, Heading, Paragraph, Shell, appUrl } from "./Shell";
+import { BRAND, appUrl } from "../lib/brand";
+import { ButtonLink, Eyebrow, Heading, Paragraph, Shell } from "./Shell";
 
-// "{Admin} added you to {Household} on Lejer". Sent from login@ like the code (an account
+// "{Admin} added you to {Household} on {BRAND.name}". Sent from login@ like the code (an account
 // email), but in the household's theme since the household is known. The email-code login
 // proves the address, so the link is just /login prefilled; signing in stamps joined_at.
 
@@ -21,12 +22,12 @@ export default function Invite({
   return (
     <Shell
       theme={theme}
-      masthead={`Lejer · ${householdName}`}
-      footer="lejer.app"
-      preview={`${inviterName} added you to ${householdName} on Lejer.`}
+      masthead={`${BRAND.name} · ${householdName}`}
+      footer={BRAND.domain}
+      preview={`${inviterName} added you to ${householdName} on ${BRAND.name}.`}
     >
       <Eyebrow theme={theme}>You&apos;re invited</Eyebrow>
-      <Heading theme={theme}>Join {householdName} on Lejer</Heading>
+      <Heading theme={theme}>Join {householdName} on {BRAND.name}</Heading>
       <Paragraph theme={theme}>
         Hi {inviteeName}, {inviterName} added you to <strong>{householdName}</strong>, where the household
         splits its bills and keeps track of who owes whom.
@@ -35,7 +36,7 @@ export default function Invite({
         Sign in with this email address ({email}). We&apos;ll email you a one-time code, no password needed.
       </Paragraph>
       <ButtonLink theme={theme} href={appUrl(`/login?${new URLSearchParams({ email })}`)}>
-        Sign in to Lejer
+        Sign in to {BRAND.name}
       </ButtonLink>
     </Shell>
   );
