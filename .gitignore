@@ -43,3 +43,7 @@ next-env.d.ts
 
 # npm run verify: pidfile of the next start it runs
 .verify/
+
+# impeccable: per-machine settings and the design hook cache
+.impeccable/config.local.json
+.impeccable/hook.cache.json

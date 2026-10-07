@@ -1,0 +1,509 @@
+---
+name: Lejer
+description: The house ledger — shared bills split, tracked and settled, in two deliberate themes over one component set.
+colors:
+  # statement (live in app/globals.css :root)
+  statement-paper: "#f4f5f6"
+  statement-sheet: "#ffffff"
+  statement-sheet-tint: "#f8f9fb"
+  statement-ink: "#1b2530"
+  statement-ink-muted: "#5b6875"
+  statement-rule: "rgba(27, 37, 48, 0.16)"
+  statement-rule-soft: "rgba(27, 37, 48, 0.08)"
+  statement-blue: "#1d5fd6"
+  statement-blue-deep: "#174db3"
+  statement-blue-wash: "rgba(29, 95, 214, 0.1)"
+  statement-on-blue: "#ffffff"
+  statement-paid: "#187a4b"
+  statement-paid-wash: "rgba(24, 122, 75, 0.12)"
+  statement-unpaid: "#c03538"
+  statement-unpaid-wash: "rgba(192, 53, 56, 0.1)"
+  statement-due-soon: "#8a5b00"
+  statement-due-soon-wash: "rgba(216, 146, 0, 0.16)"
+  # statement dark (data-color-scheme="system" + prefers-color-scheme: dark)
+  statement-dark-paper: "#14181d"
+  statement-dark-sheet: "#1b2128"
+  statement-dark-sheet-tint: "#20262e"
+  statement-dark-ink: "#e4eaf0"
+  statement-dark-ink-muted: "#99a5b1"
+  statement-dark-blue: "#82abf3"
+  statement-dark-button: "#3168d5"
+  statement-dark-button-hover: "#4478e2"
+  statement-dark-paid: "#52c48a"
+  statement-dark-unpaid: "#ee7378"
+  statement-dark-due-soon: "#e0b24c"
+  # peach: corrected spec, ported in phase 5 (darker inks than peach-cob, see Colors > Contrast)
+  peach-cream: "#faf3e7"
+  peach-paper: "#fffcf7"
+  peach-paper-tint: "#f5ead9"
+  peach-espresso: "#43302b"
+  peach-espresso-muted: "#7a6559"
+  peach-rule: "rgba(67, 48, 43, 0.22)"
+  peach-rule-soft: "rgba(67, 48, 43, 0.1)"
+  peach-deep: "#b45031"
+  peach-deep-pressed: "#a34527"
+  peach-blush: "rgba(231, 138, 104, 0.16)"
+  peach-on-deep: "#fff6ec"
+  peach-periwinkle: "#51609e"
+  peach-periwinkle-wash: "rgba(95, 111, 174, 0.13)"
+  peach-sage: "#406c45"
+  peach-sage-wash: "rgba(94, 133, 90, 0.16)"
+  peach-rose: "#ae413a"
+  peach-rose-wash: "rgba(177, 68, 61, 0.1)"
+  peach-butter: "#845e09"
+  peach-butter-wash: "rgba(216, 166, 42, 0.2)"
+  peach-awning-stripe: "#eb9a76"
+  peach-awning-cream: "#f8e3d3"
+typography:
+  statement-page-title:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 700
+    letterSpacing: "-0.025em"
+  statement-body:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "clamp(15px, 1vw + 12px, 16px)"
+    fontWeight: 400
+    lineHeight: 1.55
+  statement-figure-lg:
+    fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    fontSize: "1.7rem"
+    fontWeight: 600
+    lineHeight: 1.25
+    fontFeature: "tnum"
+  statement-figure:
+    fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    fontFeature: "tnum"
+  statement-eyebrow:
+    fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+    fontSize: "0.7rem"
+    fontWeight: 500
+    letterSpacing: "0.14em"
+  statement-label:
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "0.82rem"
+    fontWeight: 600
+  peach-page-title:
+    fontFamily: "Fraunces, Georgia, 'Times New Roman', serif"
+    fontSize: "1.6rem"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.01em"
+  peach-display:
+    fontFamily: "Fraunces, Georgia, 'Times New Roman', serif"
+    fontSize: "1.875rem"
+    fontWeight: 600
+    letterSpacing: "-0.025em"
+  peach-body:
+    fontFamily: "Karla, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    fontSize: "clamp(15px, 1vw + 12px, 16px)"
+    fontWeight: 400
+    lineHeight: 1.55
+  peach-figure:
+    fontFamily: "'Courier Prime', 'Courier New', Courier, monospace"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    fontFeature: "tnum"
+  peach-eyebrow:
+    fontFamily: "'Courier Prime', 'Courier New', Courier, monospace"
+    fontSize: "0.7rem"
+    fontWeight: 700
+    letterSpacing: "0.16em"
+rounded:
+  statement-sm: "4px"
+  statement-md: "6px"
+  statement-lg: "10px"
+  peach-sm: "6px"
+  peach-md: "10px"
+  peach-lg: "14px"
+  pill: "9999px"
+spacing:
+  gutter: "16px"
+  gutter-sm: "20px"
+  page-y: "32px"
+  panel-x: "20px"
+  panel-y: "16px"
+  cell-x: "16px"
+  cell-y: "12px"
+  container: "1000px"
+components:
+  statement-button-primary:
+    backgroundColor: "{colors.statement-blue}"
+    textColor: "{colors.statement-on-blue}"
+    rounded: "{rounded.statement-md}"
+    padding: "8px 14px"
+    height: "36px"
+  statement-button-primary-hover:
+    backgroundColor: "{colors.statement-blue-deep}"
+  statement-button:
+    backgroundColor: "{colors.statement-sheet}"
+    textColor: "{colors.statement-ink}"
+    rounded: "{rounded.statement-md}"
+    padding: "8px 14px"
+    height: "36px"
+  statement-tag-paid:
+    backgroundColor: "{colors.statement-paid-wash}"
+    textColor: "{colors.statement-paid}"
+    rounded: "{rounded.statement-sm}"
+    padding: "2px 6px"
+  statement-tag-unpaid:
+    backgroundColor: "{colors.statement-unpaid-wash}"
+    textColor: "{colors.statement-unpaid}"
+    rounded: "{rounded.statement-sm}"
+    padding: "2px 6px"
+  statement-due-soon:
+    backgroundColor: "{colors.statement-due-soon-wash}"
+    textColor: "{colors.statement-due-soon}"
+    rounded: "{rounded.statement-sm}"
+    padding: "2px 6px"
+  statement-field:
+    backgroundColor: "{colors.statement-sheet}"
+    textColor: "{colors.statement-ink}"
+    rounded: "{rounded.statement-md}"
+    padding: "8px 12px"
+  statement-panel:
+    backgroundColor: "{colors.statement-sheet}"
+    rounded: "{rounded.statement-md}"
+  peach-button-primary:
+    backgroundColor: "{colors.peach-deep}"
+    textColor: "{colors.peach-on-deep}"
+    rounded: "{rounded.peach-md}"
+    padding: "8px 14px"
+    height: "36px"
+  peach-button-primary-hover:
+    backgroundColor: "{colors.peach-deep-pressed}"
+  peach-tag-paid:
+    backgroundColor: "{colors.peach-sage-wash}"
+    textColor: "{colors.peach-sage}"
+    rounded: "{rounded.pill}"
+    padding: "2px 8px"
+  peach-tag-unpaid:
+    backgroundColor: "{colors.peach-rose-wash}"
+    textColor: "{colors.peach-rose}"
+    rounded: "{rounded.pill}"
+    padding: "2px 8px"
+  peach-due-soon:
+    backgroundColor: "{colors.peach-butter-wash}"
+    textColor: "{colors.peach-butter}"
+    rounded: "{rounded.pill}"
+    padding: "2px 8px"
+  peach-panel:
+    backgroundColor: "{colors.peach-paper}"
+    rounded: "{rounded.peach-md}"
+---
+
+# Design System: Lejer
+
+## Overview
+
+**Creative North Star: "The House Ledger"**
+
+There is one ledger for the house, kept in one of two hands. **Statement** is the bank's
+printout: a grey page, white sheets, a single blue, and IBM Plex Mono on every figure, date and
+label, so the screen reads like the portal your utility company wishes it had. **Peach** is the
+book kept on the porch: cream paper under a striped peach awning with a scalloped hem, Fraunces
+for display, Karla for body text, and Courier Prime typing the figures in. Both share the same
+components, the same layout and the same rules for money. The theme changes the hand, never the
+record.
+
+The feel is **friendly and sturdy**. Surfaces are flat paper divided by hairline rules, with
+comfortable tap targets and soft corners. Nothing floats, glows or competes with the numbers.
+The density is that of a well-kept statement: a summary strip of three figures, then ruled
+tables that reflow into small ledger cards on a phone. Most visits happen on a phone, cold, once
+a month, so every screen opens with what's owed and by when, and offers one obvious thing to do.
+
+Theme differences are design, not inconsistency. Never "fix" one theme toward the other.
+Fraunces and the awning are deliberate.
+
+**Key Characteristics:**
+- Two themes, one component set, switched by `<html data-theme>` from the household's settings.
+- Every number, date, count and section label is set in the theme's ledger monospace with tabular figures.
+- One accent per theme (statement blue, deep peach). Peach adds periwinkle as a quiet second voice.
+- Green, red and amber (sage, rose and butter in peach) mean paid, unpaid and due soon, and nothing else.
+- Flat surfaces with hairline borders. Shadows only on things that float.
+- Statement supports dark mode. Peach is light-only on purpose.
+
+## Colors
+
+Each theme is a restrained paper palette: ink on paper, one accent, and three status colors kept
+strictly for status.
+
+### Primary
+- **Statement Blue** (`statement-blue`): links, the active nav underline, focus rings, and solid
+  primary buttons. Its deep step (`statement-blue-deep`) is the hover state, and its wash
+  (`statement-blue-wash`) tints the demo banner and selection. In dark mode, links and focus use
+  the lighter `statement-dark-blue` while buttons keep the saturated `statement-dark-button` so
+  white text still reads.
+- **Deep Peach** (`peach-deep`): the same role in peach. It's a burnt, terracotta-leaning peach
+  that carries cream text (`peach-on-deep`), never pure white. It's one step darker than
+  peach-cob's original, so cream text and links both clear 4.5:1 (see Contrast). Hover deepens to
+  `peach-deep-pressed`, and `peach-blush` is the soft accent wash.
+
+### Secondary
+- **Periwinkle** (`peach-periwinkle`, peach only): the second voice, used for informational
+  tags that are not money status. Statement has no secondary accent and should not gain one.
+
+### Tertiary
+- **Awning Stripe and Awning Cream** (`peach-awning-stripe`, `peach-awning-cream`, peach only):
+  the cabana stripes. They appear only in the awning, the slim striped panel edge, and the email
+  masthead stripe, never as fills, text or status.
+
+### Neutral
+- **Statement Paper / Sheet / Sheet Tint** (`statement-paper`, `statement-sheet`,
+  `statement-sheet-tint`): the grey page, white panels and inputs, and the faint fill used for
+  quiet chips and skeletons. Dark mode swaps in graphite equivalents
+  (`statement-dark-paper` / `-sheet` / `-sheet-tint`).
+- **Statement Ink / Ink Muted** (`statement-ink`, `statement-ink-muted`): a blue-black for body
+  text and figures, and slate for eyebrows, captions and secondary cells.
+- **Statement Rule / Rule Soft**: translucent ink at 16% for table header rules and input
+  borders, and at 8% for row dividers and panel outlines.
+- **Peach Cream / Paper / Paper Tint** (`peach-cream`, `peach-paper`, `peach-paper-tint`): the
+  warm page, the panel sheet, and the tan tint for quiet chips.
+- **Espresso / Espresso Muted** (`peach-espresso`, `peach-espresso-muted`): a warm brown-black
+  ink and a cocoa grey. Rules are translucent espresso at 22% and 10%.
+
+### Status
+- **Statement:** paid green (`statement-paid`), unpaid red (`statement-unpaid`) and due-soon
+  amber (`statement-due-soon`), each paired with a wash for its tag or chip background.
+- **Peach:** sage (`peach-sage`), rose (`peach-rose`) and butter (`peach-butter`), with their
+  washes.
+
+### Named Rules
+**The Reserved Semantics Rule.** Green, red and amber (sage, rose and butter) belong to paid,
+unpaid and due soon (overdue reads as unpaid). Never use them for decoration, branding or
+generic success and error. The one exception is flash messages, which borrow the paid and unpaid
+washes for ok and err.
+
+**The One Accent Rule.** Each theme has exactly one interactive color. If something is
+clickable and not a status, it is the accent or it is ink.
+
+**The Calm Red Rule.** Unpaid and overdue use the soft wash with colored text, never a solid red
+block. Owing money is information, not an alarm.
+
+### Contrast
+Every text pair clears 4.5:1 (WCAG AA for body text). Peach's inks are a **corrected spec**:
+phase 5 ports the values in this file, not peach-cob's originals, which failed. Each fix only
+darkens the ink, keeping its hue; surfaces and washes are unchanged. Status tags are measured
+against their wash flattened onto each surface.
+
+| Peach pair | On cream page | On panel | peach-cob original (page / panel) |
+|---|---|---|---|
+| Espresso muted (eyebrows, captions) | 4.97 | 5.35 (4.61 on paper tint) | 3.98 / 4.29 (3.69) |
+| Deep peach as link text | 4.61 | 4.97 | 4.31 / 4.65 |
+| Cream on deep peach (primary button) | 4.75 (5.71 on hover) | | 4.45 |
+| Sage on its wash (PAID) | 4.60 | 4.94 | 3.76 / 4.03 |
+| Rose on its wash (UNPAID, overdue) | 4.61 | 4.93 | 4.43 / 4.74 |
+| Butter on its wash (due soon) | 4.65 | 4.94 | 4.26 / 4.53 |
+| Periwinkle on its wash (info) | 4.64 | 4.98 | 3.73 / 4.00 |
+
+Statement light pairs measure 5.2:1 or better on page and panel. Its status tags measure at
+least 4.53:1 on their washes over the panel, where tags live. Statement dark pairs measure
+4.79:1 or better. One known statement gap is left open: white on the dark-mode button **hover**
+(`statement-dark-button-hover`) is 4.17:1.
+
+**The Change It Once Rule.** Theme colors live in `lib/theme-tokens.ts`. Emails import them,
+and `npm run verify` (the `tokens` suite) fails if `app/globals.css`, this file's frontmatter
+or `.impeccable/design.json` disagrees. Change the module first, then the others.
+
+## Typography
+
+**Statement:** system UI sans for body text and IBM Plex Mono (400/500/600) as the ledger face.
+**Peach:** Karla (400–700) for body text, Fraunces (400–600, italic available) for display, and
+Courier Prime (400/700) as the ledger face.
+
+**Character:** Statement pairs a neutral system sans with a crisp engineering mono, like a bank
+portal printout. Peach pairs a soft, round grotesque with a warm old-style display serif and a
+typewriter, like a ledger typed up and titled by hand.
+
+### Hierarchy
+- **Page title:** statement uses the sans at 700, 1.25rem, tight tracking. Peach uses Fraunces
+  at 600, 1.6rem, tracking -0.01em. One per page, usually a greeting ("Hi, {name}") or the
+  section name.
+- **Display** (peach only; Fraunces 600, about 1.875rem): hero moments such as the login card and
+  empty states.
+- **Summary figure** (ledger mono at 600, 1.7rem, line-height 1.25, tabular): the three numbers
+  in the dashboard strip (you owe or owed to you, next due, bills on record).
+- **Body** (sans, root size clamp(15px, 1vw + 12px, 16px), line-height 1.55): prose, table
+  cells at 0.875rem, and captions at 0.75rem in muted ink.
+- **Eyebrow** (ledger mono, 0.7rem, uppercase; statement 500 weight with 0.14em tracking, peach
+  700 with 0.16em): titles every block and every table header (0.68rem, 0.12em/0.14em).
+- **Field label** (sans 600, 0.82rem): above every input.
+- **Wordmark** (ledger mono 600, 0.8rem, uppercase, 0.14em): the household name in the
+  statement nav. Peach sets it in Fraunces 600 at 1.125rem.
+
+### Named Rules
+**The Ledger Face Rule.** Every number, amount, date, count and section label is set in the
+theme's ledger monospace with tabular figures (the `.figure` / `.eyebrow` voice). Prose never is.
+If a value can be added up or put on a calendar, it is monospace.
+
+**The Right-Edge Rule.** Amount columns are right-aligned so the decimal points line up.
+
+## Layout
+
+The layout is a single centered column with a maximum width of 1000px, a 16px gutter (20px from
+`sm`), and 32px of vertical page padding. The header is a 52px bar (56px in peach, plus the
+awning), and the footer is a hairline-topped strip with the household name in mono and the
+household's reply-to address.
+
+The dashboard rhythm is a page title, a muted "{household} as of {date}" line, a summary panel
+split into three equal cells (stacked with horizontal rules on a phone, side by side with
+vertical rules from `sm`), and then ruled tables grouped under eyebrows. Panel cells pad 20px by
+16px, and table cells 16px by 12px (12px horizontally on a phone).
+
+**Responsive:** the one breakpoint that changes structure is `sm` (640px). Below it, any
+`.table-stack` table drops its header and reflows each row into a small ledger card, a CSS grid
+with named areas (bill and amount on top, then due date, status and actions), so nothing ever
+scrolls sideways. Inputs are 16px below `sm` so iOS doesn't zoom on focus. Coarse pointers get
+36px icon buttons.
+
+**The No Sideways Scroll Rule.** A phone never scrolls horizontally. New tables join the
+`.table-stack` system with their own grid-template-areas instead of overflowing.
+
+## Elevation & Depth
+
+The system is flat. Depth comes from tone (the sheet on the paper, the sheet tint inside the
+sheet) and from hairline rules, not shadows. Shadows appear only on layers that genuinely float
+above the page.
+
+### Shadow Vocabulary
+- **Dropdown** (`box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)`):
+  the household switcher menu.
+- **Dialog** (`box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)`):
+  modal panels such as editing a bill type or a document.
+
+### Named Rules
+**The Flat Paper Rule.** Panels, cards, tables and buttons have no shadow at rest or on hover.
+If it doesn't float over other content, it doesn't cast a shadow.
+
+## Shapes
+
+Corners are soft but small, like a trimmed sheet, not a bubble. Statement steps 4, 6 and 10px,
+and peach steps 6, 10 and 14px, so peach reads one notch rounder throughout. Panels, buttons
+and inputs use the middle step. Tags and due chips use the small step in statement and become
+**full pills** in peach. Borders are 1px hairlines in translucent ink, and active nav and tab
+states are a 2px accent underline, not a filled pill.
+
+**The awning** is peach's signature silhouette: a 10px band of 14px peach and cream stripes
+across the top of the page, finished with a 7px scalloped hem drawn by two offset radial
+gradients. It sits once, under the header. A slimmer cousin, `.panel-awning`, gives a panel a
+6px striped top edge with no scallop.
+
+## Components
+
+### Buttons
+Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
+- **Shape:** the middle radius (6px statement, 10px peach), a minimum height of 36px, and 8px by
+  14px padding at 0.875rem/500.
+- **Primary:** an accent fill with white text in statement and cream (`peach-on-deep`) in peach.
+  Hover moves to the deep step. Use one per screen, for the screen's obvious action.
+- **Default:** sheet background, 1px rule border and ink text. On hover the border darkens to
+  40% ink.
+- **Small** (28px min, 4px by 10px padding, 0.8rem): for inline row actions only.
+- **Icon** (28px square, 36px on touch): a transparent background with a soft rule and muted
+  icon. It turns ink on hover.
+- **Focus:** a 2px accent outline offset by 2px on every button. **Disabled:** 60% opacity with
+  the default cursor.
+- **Motion:** colors transition in 100ms and nothing moves.
+
+### Tags and Due Chips
+- **Status tags** (PAID / UNPAID): ledger mono at 0.7rem, uppercase, 0.08em tracking, with the
+  status color on its wash. They're square-cornered (4px) in statement and pills in peach, where
+  they're also bold.
+- **Due chips** (`DueChip`): ledger mono at 0.7rem with tabular figures. They're neutral
+  (sheet tint, muted ink) when paid or in the future, butter/amber within the urgent window, and
+  rose/red when overdue.
+
+### Cards / Containers
+- **Panel:** a sheet background, a 1px soft rule, and the middle radius with no shadow. Panels
+  hold the summary strip, every table, and every form.
+- **Internal padding:** 20px by 16px for summary cells, while table panels let the cells pad
+  themselves.
+- **Peach awning panel:** an optional striped 6px top edge for a featured panel.
+
+### Inputs / Fields
+- **Style:** full width, sheet background, 1px rule border, middle radius, 8px by 12px padding,
+  16px text on a phone and 14px from `sm`, with placeholder at 70% muted ink.
+- **Focus:** the border turns accent with a 2px ring of the accent at 25%.
+- **Label:** a sans 600 label at 0.82rem, 6px above the field.
+
+### Navigation
+- **Header:** a sheet-colored bar with a soft bottom rule. On the left is the household name as
+  the wordmark, which becomes a dropdown only for people in more than one household. On the
+  right are text links (Dashboard, Portal, Docs, Account) and Sign out.
+- **States:** links are muted sans at 0.875rem/500. Hover turns them ink, and the active link
+  gets ink plus a 2px accent underline running the full bar height.
+- **Peach:** the awning sits at the very top, the wordmark is Fraunces, and a soft rule sits
+  under the bar.
+- **No logo, in either theme.** The household name is the identity. Peach-cob's PeachMark was
+  that house's mark and doesn't come over. A product mark arrives later, with the final brand.
+- **Portal tabs:** the same underline language at a smaller scale (`.tab`, `.tab-active`).
+
+### Ledger Table (signature)
+The ruled table is the system's main element. It has mono uppercase eyebrow headers over a 16%
+rule, 8% rules between rows, no zebra striping, right-aligned amounts, and the last row
+unruled. On a phone it reflows into ledger cards (see Layout).
+
+### Summary Strip (signature)
+One panel split into three cells divided by soft rules. Each cell holds an eyebrow, a 1.7rem
+mono figure, and a muted caption that says it in words ("across 2 unpaid bills", "all settled
+up"). It is the first thing on the dashboard and the answer to "what do I owe".
+
+### Flash Messages
+These are full-width bordered notes at the top of the content. Ok uses the paid wash with a 40%
+paid border, and err uses the unpaid wash with a 40% unpaid border. Both keep their text in ink.
+
+### Email Shell
+Emails use the same two themes in inline styles only, light only, 560px wide. Statement has a
+grey page, a white panel with a 10px radius, mono eyebrows and a blue button. Peach has cream
+paper, an 8px awning stripe above the panel, Georgia body text and Courier eyebrows, because
+email clients can't load Fraunces, Karla or Courier Prime. Colors aren't copied by hand:
+`emails/Shell.tsx` imports them from `lib/theme-tokens.ts`. Translucent rules are flattened onto
+the panel, and the stripe uses the app's awning colors and 14px width.
+
+### Motion
+Motion is minimal and functional: 100ms color transitions and a pulsing skeleton while loading.
+Peach's welcome tour (peach-cob, `feature_welcome_tour`) adds staggered entrances (`tour-pop`
+0.4s and `tour-slide` 0.45s, both with a slight overshoot) and a PAID stamp that drops oversized
+and settles at -3° (`tour-stamp`). A global `prefers-reduced-motion` rule at the end of
+`app/globals.css` cuts every animation and transition to an instant, so new motion is covered
+without opting in.
+
+## Do's and Don'ts
+
+### Do:
+- **Do** set every amount, date, count and eyebrow in the theme's ledger mono with tabular
+  figures, and right-align amount columns.
+- **Do** build every new surface from the shared component classes (`.panel`, `.btn*`, `.tag*`,
+  `.due-*`, `.field-*`, `.data-table`, `.eyebrow`, `.figure`) so both themes come for free. A
+  theme varies tokens and a few signature rules, not markup.
+- **Do** add theme differences as token overrides under `[data-theme="peach"]`, keeping
+  peach's rounder radii, pill tags, bolder eyebrows, Fraunces titles and awning.
+- **Do** give each screen exactly one primary button, and keep its tap target at 36px or more.
+  The small button is for inline row actions.
+- **Do** make every new table a `.table-stack` with named grid areas for its phone layout.
+- **Do** pair every figure with a plain-words caption in muted ink ("from 2 roommates",
+  "nothing due from you").
+- **Do** check new color pairs in both themes and in statement dark, and keep text at 4.5:1 or
+  better. Record peach's measured ratios in Colors > Contrast.
+- **Do** change a theme color in `lib/theme-tokens.ts` first, then mirror it in
+  `app/globals.css`, this file and `.impeccable/design.json` until `npm run verify -- tokens`
+  passes.
+- **Do** let the global reduced-motion rule handle motion. Never re-enable animation with
+  `!important` under `prefers-reduced-motion`.
+
+### Don't:
+- **Don't** "fix" peach toward statement or statement toward peach. Fraunces, the awning, the
+  pills and the warm palette are intentional, not slop.
+- **Don't** give peach a dark mode. It is light-only on purpose.
+- **Don't** use green, red or amber (sage, rose or butter) for anything but paid, unpaid and due
+  soon, and don't add a second accent to statement.
+- **Don't** fill a block with solid red for an unpaid or overdue state. Use the wash and colored
+  text.
+- **Don't** add shadows, gradients or glows to panels, cards or buttons at rest. The awning
+  stripes are the only gradient in the system.
+- **Don't** let a phone layout scroll sideways, or set an input below 16px on a phone.
+- **Don't** spell the product name or domain in UI or email. Read them from `BRAND`.
+- **Don't** put a logo in the nav. The household name is the wordmark.
+- **Don't** hard-code a color in an email template. Take it from `lib/theme-tokens.ts`.

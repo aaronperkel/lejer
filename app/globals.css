@@ -6,6 +6,8 @@
  * One accent blue; green/red/amber are reserved for paid/unpaid/due-soon. The root layout
  * sets <html data-theme data-color-scheme> from the household; dark mode applies only to
  * data-color-scheme="system". The peach theme block arrives in phase 5.
+ * These values are mirrored in lib/theme-tokens.ts (email reads them there); the `tokens`
+ * verify suite fails if the two disagree, so change both together.
  */
 :root {
   color-scheme: light;
@@ -22,6 +24,7 @@
   --accent-soft: rgba(29, 95, 214, 0.1);
   --primary: #1d5fd6; /* solid buttons */
   --primary-hover: #174db3;
+  --on-primary: #ffffff; /* text on solid buttons */
 
   --paid: #187a4b;
   --paid-soft: rgba(24, 122, 75, 0.12);
@@ -49,6 +52,7 @@
     --accent-soft: rgba(130, 171, 243, 0.13);
     --primary: #3168d5;
     --primary-hover: #4478e2;
+    --on-primary: #ffffff;
 
     --paid: #52c48a;
     --paid-soft: rgba(82, 196, 138, 0.14);
@@ -71,6 +75,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
   --color-paid: var(--paid);
   --color-paid-soft: var(--paid-soft);
   --color-unpaid: var(--unpaid);
@@ -126,7 +131,7 @@ html {
   }
 
   .btn-primary {
-    @apply bg-primary border-primary text-white
+    @apply bg-primary border-primary text-on-primary
       hover:bg-primary-hover hover:border-primary-hover;
   }
 
@@ -365,5 +370,20 @@ html {
     .btn-icon {
       @apply h-9 w-9;
     }
+  }
+}
+
+/*
+ * Reduced motion, globally: anything that animates or transitions (the skeleton pulse, color
+ * fades, phase 5's tour) settles at once. Unlayered so it outranks every utility.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

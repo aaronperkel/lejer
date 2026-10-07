@@ -1,27 +1,37 @@
 import type { ReactNode } from "react";
 import { Body, Column, Container, Head, Html, Link, Preview, Row, Section, Text } from "@react-email/components";
+import { AWNING_STRIPE_PX, THEME_COLORS, flatten } from "../lib/theme-tokens";
 import type { Theme } from "../lib/types";
 
 // The wrapper every email renders in, in the household's theme. Inline styles only
 // (clients ignore stylesheets), light only (client dark modes are unreliable), 560 px.
 // statement: grey page, white panel, mono eyebrows (utilities). peach: cream paper, the
-// awning stripe, Georgia + Courier (peach-cob). Colors mirror the light tokens in globals.css.
+// awning stripe, Georgia + Courier (peach-cob). Colors come from lib/theme-tokens.ts, the same
+// values as the light tokens in globals.css; only the fonts are email-safe stand-ins.
+
+function colors(t: (typeof THEME_COLORS)[Theme]) {
+  return {
+    page: t.page, panel: t.panel, ink: t.ink, muted: t.inkMuted,
+    line: flatten(t.line, t.panel), accent: t.accent, onAccent: t.onPrimary, unpaid: t.unpaid,
+  };
+}
+
+const { stripeA, stripeB } = THEME_COLORS.peach;
 
 const PALETTES = {
   statement: {
-    page: "#f4f5f6", panel: "#ffffff", ink: "#1b2530", muted: "#5b6875",
-    line: "#dfe2e6", accent: "#1d5fd6", onAccent: "#ffffff", unpaid: "#c03538",
+    ...colors(THEME_COLORS.statement),
     body: "system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif",
     mono: "ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace",
-    headingSize: 19, bodySize: 14, stripe: null as string | null,
+    headingSize: 19, bodySize: 14, stripe: null as string | null, stripeBase: null as string | null,
   },
   peach: {
-    page: "#faf3e7", panel: "#fffcf7", ink: "#43302b", muted: "#8a7468",
-    line: "#dcc9b4", accent: "#b95536", onAccent: "#fffcf7", unpaid: "#b1443d",
+    ...colors(THEME_COLORS.peach),
     body: "Georgia,'Times New Roman',serif",
     mono: "'Courier New',Courier,monospace",
     headingSize: 22, bodySize: 15,
-    stripe: "repeating-linear-gradient(90deg,#e78a68 0,#e78a68 12px,#f8ddce 12px,#f8ddce 24px)",
+    stripe: `repeating-linear-gradient(90deg,${stripeA} 0,${stripeA} ${AWNING_STRIPE_PX}px,${stripeB} ${AWNING_STRIPE_PX}px,${stripeB} ${AWNING_STRIPE_PX * 2}px)`,
+    stripeBase: stripeA as string | null,
   },
 } as const;
 
@@ -53,7 +63,7 @@ export function Shell({
         <Container style={{ width: "100%", maxWidth: 560 }}>
           <Text style={{ ...small, fontWeight: 600, padding: "0 6px 10px" }}>{masthead}</Text>
           {p.stripe && (
-            <Section style={{ height: 8, borderRadius: "10px 10px 0 0", backgroundColor: "#e78a68", backgroundImage: p.stripe }} />
+            <Section style={{ height: 8, borderRadius: "10px 10px 0 0", backgroundColor: p.stripeBase ?? undefined, backgroundImage: p.stripe }} />
           )}
           <Section
             style={{

@@ -1,0 +1,1169 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T02:40:17+00:00",
+  "title": "Design System: Lejer",
+  "extensions": {
+    "colorMeta": {
+      "statement-paper": {
+        "role": "neutral",
+        "displayName": "Statement Paper",
+        "canonical": "#f4f5f6",
+        "oklch": "oklch(97.0% 0.002 247.8)",
+        "tonalRamp": [
+          "oklch(15% 0.002 247.8)",
+          "oklch(26% 0.002 247.8)",
+          "oklch(37% 0.002 247.8)",
+          "oklch(48% 0.002 247.8)",
+          "oklch(59% 0.002 247.8)",
+          "oklch(70% 0.002 247.8)",
+          "oklch(82% 0.002 247.8)",
+          "oklch(95% 0.002 247.8)"
+        ]
+      },
+      "statement-sheet": {
+        "role": "neutral",
+        "displayName": "Statement Sheet",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(59% 0.000 89.9)",
+          "oklch(70% 0.000 89.9)",
+          "oklch(82% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "statement-sheet-tint": {
+        "role": "neutral",
+        "displayName": "Statement Sheet Tint",
+        "canonical": "#f8f9fb",
+        "oklch": "oklch(98.2% 0.003 264.5)",
+        "tonalRamp": [
+          "oklch(15% 0.003 264.5)",
+          "oklch(26% 0.003 264.5)",
+          "oklch(37% 0.003 264.5)",
+          "oklch(48% 0.003 264.5)",
+          "oklch(59% 0.003 264.5)",
+          "oklch(70% 0.003 264.5)",
+          "oklch(82% 0.003 264.5)",
+          "oklch(95% 0.003 264.5)"
+        ]
+      },
+      "statement-ink": {
+        "role": "neutral",
+        "displayName": "Statement Ink",
+        "canonical": "#1b2530",
+        "oklch": "oklch(26.0% 0.025 251.2)",
+        "tonalRamp": [
+          "oklch(15% 0.025 251.2)",
+          "oklch(26% 0.025 251.2)",
+          "oklch(37% 0.025 251.2)",
+          "oklch(48% 0.025 251.2)",
+          "oklch(59% 0.025 251.2)",
+          "oklch(70% 0.025 251.2)",
+          "oklch(82% 0.025 251.2)",
+          "oklch(95% 0.025 251.2)"
+        ]
+      },
+      "statement-ink-muted": {
+        "role": "neutral",
+        "displayName": "Statement Ink Muted",
+        "canonical": "#5b6875",
+        "oklch": "oklch(51.1% 0.026 248.3)",
+        "tonalRamp": [
+          "oklch(15% 0.026 248.3)",
+          "oklch(26% 0.026 248.3)",
+          "oklch(37% 0.026 248.3)",
+          "oklch(48% 0.026 248.3)",
+          "oklch(59% 0.026 248.3)",
+          "oklch(70% 0.026 248.3)",
+          "oklch(82% 0.026 248.3)",
+          "oklch(95% 0.026 248.3)"
+        ]
+      },
+      "statement-rule": {
+        "role": "neutral",
+        "displayName": "Statement Rule",
+        "canonical": "rgba(27, 37, 48, 0.16)",
+        "oklch": "oklch(26.0% 0.025 251.2)",
+        "tonalRamp": [
+          "oklch(15% 0.025 251.2)",
+          "oklch(26% 0.025 251.2)",
+          "oklch(37% 0.025 251.2)",
+          "oklch(48% 0.025 251.2)",
+          "oklch(59% 0.025 251.2)",
+          "oklch(70% 0.025 251.2)",
+          "oklch(82% 0.025 251.2)",
+          "oklch(95% 0.025 251.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-rule-soft": {
+        "role": "neutral",
+        "displayName": "Statement Rule Soft",
+        "canonical": "rgba(27, 37, 48, 0.08)",
+        "oklch": "oklch(26.0% 0.025 251.2)",
+        "tonalRamp": [
+          "oklch(15% 0.025 251.2)",
+          "oklch(26% 0.025 251.2)",
+          "oklch(37% 0.025 251.2)",
+          "oklch(48% 0.025 251.2)",
+          "oklch(59% 0.025 251.2)",
+          "oklch(70% 0.025 251.2)",
+          "oklch(82% 0.025 251.2)",
+          "oklch(95% 0.025 251.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-blue": {
+        "role": "primary",
+        "displayName": "Statement Blue",
+        "canonical": "#1d5fd6",
+        "oklch": "oklch(51.9% 0.195 261.2)",
+        "tonalRamp": [
+          "oklch(15% 0.069 261.2)",
+          "oklch(26% 0.104 261.2)",
+          "oklch(37% 0.140 261.2)",
+          "oklch(48% 0.176 261.2)",
+          "oklch(59% 0.195 261.2)",
+          "oklch(70% 0.182 261.2)",
+          "oklch(82% 0.143 261.2)",
+          "oklch(95% 0.101 261.2)"
+        ]
+      },
+      "statement-blue-deep": {
+        "role": "primary",
+        "displayName": "Statement Blue Deep",
+        "canonical": "#174db3",
+        "oklch": "oklch(45.2% 0.172 261.6)",
+        "tonalRamp": [
+          "oklch(15% 0.063 261.6)",
+          "oklch(26% 0.094 261.6)",
+          "oklch(37% 0.126 261.6)",
+          "oklch(48% 0.157 261.6)",
+          "oklch(59% 0.172 261.6)",
+          "oklch(70% 0.163 261.6)",
+          "oklch(82% 0.129 261.6)",
+          "oklch(95% 0.092 261.6)"
+        ]
+      },
+      "statement-blue-wash": {
+        "role": "primary",
+        "displayName": "Statement Blue Wash",
+        "canonical": "rgba(29, 95, 214, 0.1)",
+        "oklch": "oklch(51.9% 0.195 261.2)",
+        "tonalRamp": [
+          "oklch(15% 0.069 261.2)",
+          "oklch(26% 0.104 261.2)",
+          "oklch(37% 0.140 261.2)",
+          "oklch(48% 0.176 261.2)",
+          "oklch(59% 0.195 261.2)",
+          "oklch(70% 0.182 261.2)",
+          "oklch(82% 0.143 261.2)",
+          "oklch(95% 0.101 261.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-on-blue": {
+        "role": "primary",
+        "displayName": "Statement On Blue",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(59% 0.000 89.9)",
+          "oklch(70% 0.000 89.9)",
+          "oklch(82% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "statement-paid": {
+        "role": "status",
+        "displayName": "Statement Paid",
+        "canonical": "#187a4b",
+        "oklch": "oklch(51.3% 0.114 156.6)",
+        "tonalRamp": [
+          "oklch(15% 0.049 156.6)",
+          "oklch(26% 0.070 156.6)",
+          "oklch(37% 0.091 156.6)",
+          "oklch(48% 0.112 156.6)",
+          "oklch(59% 0.114 156.6)",
+          "oklch(70% 0.114 156.6)",
+          "oklch(82% 0.092 156.6)",
+          "oklch(95% 0.068 156.6)"
+        ]
+      },
+      "statement-paid-wash": {
+        "role": "status",
+        "displayName": "Statement Paid Wash",
+        "canonical": "rgba(24, 122, 75, 0.12)",
+        "oklch": "oklch(51.3% 0.114 156.6)",
+        "tonalRamp": [
+          "oklch(15% 0.049 156.6)",
+          "oklch(26% 0.070 156.6)",
+          "oklch(37% 0.091 156.6)",
+          "oklch(48% 0.112 156.6)",
+          "oklch(59% 0.114 156.6)",
+          "oklch(70% 0.114 156.6)",
+          "oklch(82% 0.092 156.6)",
+          "oklch(95% 0.068 156.6)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-unpaid": {
+        "role": "status",
+        "displayName": "Statement Unpaid",
+        "canonical": "#c03538",
+        "oklch": "oklch(54.1% 0.176 24.2)",
+        "tonalRamp": [
+          "oklch(15% 0.064 24.2)",
+          "oklch(26% 0.096 24.2)",
+          "oklch(37% 0.128 24.2)",
+          "oklch(48% 0.161 24.2)",
+          "oklch(59% 0.176 24.2)",
+          "oklch(70% 0.166 24.2)",
+          "oklch(82% 0.131 24.2)",
+          "oklch(95% 0.093 24.2)"
+        ]
+      },
+      "statement-unpaid-wash": {
+        "role": "status",
+        "displayName": "Statement Unpaid Wash",
+        "canonical": "rgba(192, 53, 56, 0.1)",
+        "oklch": "oklch(54.1% 0.176 24.2)",
+        "tonalRamp": [
+          "oklch(15% 0.064 24.2)",
+          "oklch(26% 0.096 24.2)",
+          "oklch(37% 0.128 24.2)",
+          "oklch(48% 0.161 24.2)",
+          "oklch(59% 0.176 24.2)",
+          "oklch(70% 0.166 24.2)",
+          "oklch(82% 0.131 24.2)",
+          "oklch(95% 0.093 24.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-due-soon": {
+        "role": "status",
+        "displayName": "Statement Due Soon",
+        "canonical": "#8a5b00",
+        "oklch": "oklch(51.0% 0.108 74.2)",
+        "tonalRamp": [
+          "oklch(15% 0.047 74.2)",
+          "oklch(26% 0.067 74.2)",
+          "oklch(37% 0.087 74.2)",
+          "oklch(48% 0.106 74.2)",
+          "oklch(59% 0.108 74.2)",
+          "oklch(70% 0.108 74.2)",
+          "oklch(82% 0.088 74.2)",
+          "oklch(95% 0.065 74.2)"
+        ]
+      },
+      "statement-due-soon-wash": {
+        "role": "status",
+        "displayName": "Statement Due Soon Wash",
+        "canonical": "rgba(216, 146, 0, 0.16)",
+        "oklch": "oklch(71.2% 0.150 74.9)",
+        "tonalRamp": [
+          "oklch(15% 0.058 74.9)",
+          "oklch(26% 0.085 74.9)",
+          "oklch(37% 0.113 74.9)",
+          "oklch(48% 0.140 74.9)",
+          "oklch(59% 0.150 74.9)",
+          "oklch(70% 0.145 74.9)",
+          "oklch(82% 0.115 74.9)",
+          "oklch(95% 0.083 74.9)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "statement-dark-paper": {
+        "role": "neutral",
+        "displayName": "Statement Dark Paper",
+        "canonical": "#14181d",
+        "oklch": "oklch(20.7% 0.012 254.1)",
+        "tonalRamp": [
+          "oklch(15% 0.012 254.1)",
+          "oklch(26% 0.012 254.1)",
+          "oklch(37% 0.012 254.1)",
+          "oklch(48% 0.012 254.1)",
+          "oklch(59% 0.012 254.1)",
+          "oklch(70% 0.012 254.1)",
+          "oklch(82% 0.012 254.1)",
+          "oklch(95% 0.012 254.1)"
+        ]
+      },
+      "statement-dark-sheet": {
+        "role": "neutral",
+        "displayName": "Statement Dark Sheet",
+        "canonical": "#1b2128",
+        "oklch": "oklch(24.5% 0.016 252.4)",
+        "tonalRamp": [
+          "oklch(15% 0.016 252.4)",
+          "oklch(26% 0.016 252.4)",
+          "oklch(37% 0.016 252.4)",
+          "oklch(48% 0.016 252.4)",
+          "oklch(59% 0.016 252.4)",
+          "oklch(70% 0.016 252.4)",
+          "oklch(82% 0.016 252.4)",
+          "oklch(95% 0.016 252.4)"
+        ]
+      },
+      "statement-dark-sheet-tint": {
+        "role": "neutral",
+        "displayName": "Statement Dark Sheet Tint",
+        "canonical": "#20262e",
+        "oklch": "oklch(26.6% 0.017 255.7)",
+        "tonalRamp": [
+          "oklch(15% 0.017 255.7)",
+          "oklch(26% 0.017 255.7)",
+          "oklch(37% 0.017 255.7)",
+          "oklch(48% 0.017 255.7)",
+          "oklch(59% 0.017 255.7)",
+          "oklch(70% 0.017 255.7)",
+          "oklch(82% 0.017 255.7)",
+          "oklch(95% 0.017 255.7)"
+        ]
+      },
+      "statement-dark-ink": {
+        "role": "neutral",
+        "displayName": "Statement Dark Ink",
+        "canonical": "#e4eaf0",
+        "oklch": "oklch(93.4% 0.010 247.9)",
+        "tonalRamp": [
+          "oklch(15% 0.010 247.9)",
+          "oklch(26% 0.010 247.9)",
+          "oklch(37% 0.010 247.9)",
+          "oklch(48% 0.010 247.9)",
+          "oklch(59% 0.010 247.9)",
+          "oklch(70% 0.010 247.9)",
+          "oklch(82% 0.010 247.9)",
+          "oklch(95% 0.010 247.9)"
+        ]
+      },
+      "statement-dark-ink-muted": {
+        "role": "neutral",
+        "displayName": "Statement Dark Ink Muted",
+        "canonical": "#99a5b1",
+        "oklch": "oklch(71.6% 0.022 248.1)",
+        "tonalRamp": [
+          "oklch(15% 0.022 248.1)",
+          "oklch(26% 0.022 248.1)",
+          "oklch(37% 0.022 248.1)",
+          "oklch(48% 0.022 248.1)",
+          "oklch(59% 0.022 248.1)",
+          "oklch(70% 0.022 248.1)",
+          "oklch(82% 0.022 248.1)",
+          "oklch(95% 0.022 248.1)"
+        ]
+      },
+      "statement-dark-blue": {
+        "role": "primary",
+        "displayName": "Statement Dark Blue",
+        "canonical": "#82abf3",
+        "oklch": "oklch(74.0% 0.114 261.3)",
+        "tonalRamp": [
+          "oklch(15% 0.049 261.3)",
+          "oklch(26% 0.069 261.3)",
+          "oklch(37% 0.090 261.3)",
+          "oklch(48% 0.111 261.3)",
+          "oklch(59% 0.114 261.3)",
+          "oklch(70% 0.114 261.3)",
+          "oklch(82% 0.092 261.3)",
+          "oklch(95% 0.068 261.3)"
+        ]
+      },
+      "statement-dark-button": {
+        "role": "primary",
+        "displayName": "Statement Dark Button",
+        "canonical": "#3168d5",
+        "oklch": "oklch(54.3% 0.178 262.1)",
+        "tonalRamp": [
+          "oklch(15% 0.065 262.1)",
+          "oklch(26% 0.097 262.1)",
+          "oklch(37% 0.130 262.1)",
+          "oklch(48% 0.162 262.1)",
+          "oklch(59% 0.178 262.1)",
+          "oklch(70% 0.168 262.1)",
+          "oklch(82% 0.133 262.1)",
+          "oklch(95% 0.094 262.1)"
+        ]
+      },
+      "statement-dark-button-hover": {
+        "role": "primary",
+        "displayName": "Statement Dark Button Hover",
+        "canonical": "#4478e2",
+        "oklch": "oklch(59.2% 0.171 262.7)",
+        "tonalRamp": [
+          "oklch(15% 0.063 262.7)",
+          "oklch(26% 0.094 262.7)",
+          "oklch(37% 0.125 262.7)",
+          "oklch(48% 0.157 262.7)",
+          "oklch(59% 0.171 262.7)",
+          "oklch(70% 0.162 262.7)",
+          "oklch(82% 0.128 262.7)",
+          "oklch(95% 0.091 262.7)"
+        ]
+      },
+      "statement-dark-paid": {
+        "role": "status",
+        "displayName": "Statement Dark Paid",
+        "canonical": "#52c48a",
+        "oklch": "oklch(73.9% 0.135 158.2)",
+        "tonalRamp": [
+          "oklch(15% 0.054 158.2)",
+          "oklch(26% 0.078 158.2)",
+          "oklch(37% 0.103 158.2)",
+          "oklch(48% 0.128 158.2)",
+          "oklch(59% 0.135 158.2)",
+          "oklch(70% 0.132 158.2)",
+          "oklch(82% 0.105 158.2)",
+          "oklch(95% 0.076 158.2)"
+        ]
+      },
+      "statement-dark-unpaid": {
+        "role": "status",
+        "displayName": "Statement Dark Unpaid",
+        "canonical": "#ee7378",
+        "oklch": "oklch(70.1% 0.152 19.3)",
+        "tonalRamp": [
+          "oklch(15% 0.058 19.3)",
+          "oklch(26% 0.086 19.3)",
+          "oklch(37% 0.114 19.3)",
+          "oklch(48% 0.142 19.3)",
+          "oklch(59% 0.152 19.3)",
+          "oklch(70% 0.147 19.3)",
+          "oklch(82% 0.116 19.3)",
+          "oklch(95% 0.083 19.3)"
+        ]
+      },
+      "statement-dark-due-soon": {
+        "role": "status",
+        "displayName": "Statement Dark Due Soon",
+        "canonical": "#e0b24c",
+        "oklch": "oklch(78.6% 0.130 84.4)",
+        "tonalRamp": [
+          "oklch(15% 0.052 84.4)",
+          "oklch(26% 0.076 84.4)",
+          "oklch(37% 0.100 84.4)",
+          "oklch(48% 0.124 84.4)",
+          "oklch(59% 0.130 84.4)",
+          "oklch(70% 0.128 84.4)",
+          "oklch(82% 0.102 84.4)",
+          "oklch(95% 0.074 84.4)"
+        ]
+      },
+      "peach-cream": {
+        "role": "neutral",
+        "displayName": "Peach Cream",
+        "canonical": "#faf3e7",
+        "oklch": "oklch(96.6% 0.018 81.3)",
+        "tonalRamp": [
+          "oklch(15% 0.018 81.3)",
+          "oklch(26% 0.018 81.3)",
+          "oklch(37% 0.018 81.3)",
+          "oklch(48% 0.018 81.3)",
+          "oklch(59% 0.018 81.3)",
+          "oklch(70% 0.018 81.3)",
+          "oklch(82% 0.018 81.3)",
+          "oklch(95% 0.018 81.3)"
+        ]
+      },
+      "peach-paper": {
+        "role": "neutral",
+        "displayName": "Peach Paper",
+        "canonical": "#fffcf7",
+        "oklch": "oklch(99.2% 0.007 80.7)",
+        "tonalRamp": [
+          "oklch(15% 0.007 80.7)",
+          "oklch(26% 0.007 80.7)",
+          "oklch(37% 0.007 80.7)",
+          "oklch(48% 0.007 80.7)",
+          "oklch(59% 0.007 80.7)",
+          "oklch(70% 0.007 80.7)",
+          "oklch(82% 0.007 80.7)",
+          "oklch(95% 0.007 80.7)"
+        ]
+      },
+      "peach-paper-tint": {
+        "role": "neutral",
+        "displayName": "Peach Paper Tint",
+        "canonical": "#f5ead9",
+        "oklch": "oklch(94.1% 0.026 78.9)",
+        "tonalRamp": [
+          "oklch(15% 0.026 78.9)",
+          "oklch(26% 0.026 78.9)",
+          "oklch(37% 0.026 78.9)",
+          "oklch(48% 0.026 78.9)",
+          "oklch(59% 0.026 78.9)",
+          "oklch(70% 0.026 78.9)",
+          "oklch(82% 0.026 78.9)",
+          "oklch(95% 0.026 78.9)"
+        ]
+      },
+      "peach-espresso": {
+        "role": "neutral",
+        "displayName": "Peach Espresso",
+        "canonical": "#43302b",
+        "oklch": "oklch(32.9% 0.029 35.2)",
+        "tonalRamp": [
+          "oklch(15% 0.027 35.2)",
+          "oklch(26% 0.029 35.2)",
+          "oklch(37% 0.029 35.2)",
+          "oklch(48% 0.029 35.2)",
+          "oklch(59% 0.029 35.2)",
+          "oklch(70% 0.029 35.2)",
+          "oklch(82% 0.029 35.2)",
+          "oklch(95% 0.029 35.2)"
+        ]
+      },
+      "peach-espresso-muted": {
+        "role": "neutral",
+        "displayName": "Peach Espresso Muted",
+        "canonical": "#7a6559",
+        "oklch": "oklch(52.4% 0.033 51.4)",
+        "tonalRamp": [
+          "oklch(15% 0.028 51.4)",
+          "oklch(26% 0.033 51.4)",
+          "oklch(37% 0.033 51.4)",
+          "oklch(48% 0.033 51.4)",
+          "oklch(59% 0.033 51.4)",
+          "oklch(70% 0.033 51.4)",
+          "oklch(82% 0.033 51.4)",
+          "oklch(95% 0.033 51.4)"
+        ]
+      },
+      "peach-rule": {
+        "role": "neutral",
+        "displayName": "Peach Rule",
+        "canonical": "rgba(67, 48, 43, 0.22)",
+        "oklch": "oklch(32.9% 0.029 35.2)",
+        "tonalRamp": [
+          "oklch(15% 0.027 35.2)",
+          "oklch(26% 0.029 35.2)",
+          "oklch(37% 0.029 35.2)",
+          "oklch(48% 0.029 35.2)",
+          "oklch(59% 0.029 35.2)",
+          "oklch(70% 0.029 35.2)",
+          "oklch(82% 0.029 35.2)",
+          "oklch(95% 0.029 35.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-rule-soft": {
+        "role": "neutral",
+        "displayName": "Peach Rule Soft",
+        "canonical": "rgba(67, 48, 43, 0.1)",
+        "oklch": "oklch(32.9% 0.029 35.2)",
+        "tonalRamp": [
+          "oklch(15% 0.027 35.2)",
+          "oklch(26% 0.029 35.2)",
+          "oklch(37% 0.029 35.2)",
+          "oklch(48% 0.029 35.2)",
+          "oklch(59% 0.029 35.2)",
+          "oklch(70% 0.029 35.2)",
+          "oklch(82% 0.029 35.2)",
+          "oklch(95% 0.029 35.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-deep": {
+        "role": "primary",
+        "displayName": "Peach Deep",
+        "canonical": "#b45031",
+        "oklch": "oklch(55.4% 0.138 37.7)",
+        "tonalRamp": [
+          "oklch(15% 0.054 37.7)",
+          "oklch(26% 0.080 37.7)",
+          "oklch(37% 0.105 37.7)",
+          "oklch(48% 0.130 37.7)",
+          "oklch(59% 0.138 37.7)",
+          "oklch(70% 0.135 37.7)",
+          "oklch(82% 0.107 37.7)",
+          "oklch(95% 0.077 37.7)"
+        ]
+      },
+      "peach-deep-pressed": {
+        "role": "primary",
+        "displayName": "Peach Deep Pressed",
+        "canonical": "#a34527",
+        "oklch": "oklch(51.0% 0.132 37.9)",
+        "tonalRamp": [
+          "oklch(15% 0.053 37.9)",
+          "oklch(26% 0.077 37.9)",
+          "oklch(37% 0.102 37.9)",
+          "oklch(48% 0.126 37.9)",
+          "oklch(59% 0.132 37.9)",
+          "oklch(70% 0.130 37.9)",
+          "oklch(82% 0.104 37.9)",
+          "oklch(95% 0.075 37.9)"
+        ]
+      },
+      "peach-blush": {
+        "role": "primary",
+        "displayName": "Peach Blush",
+        "canonical": "rgba(231, 138, 104, 0.16)",
+        "oklch": "oklch(72.5% 0.124 40.7)",
+        "tonalRamp": [
+          "oklch(15% 0.051 40.7)",
+          "oklch(26% 0.074 40.7)",
+          "oklch(37% 0.096 40.7)",
+          "oklch(48% 0.119 40.7)",
+          "oklch(59% 0.124 40.7)",
+          "oklch(70% 0.123 40.7)",
+          "oklch(82% 0.098 40.7)",
+          "oklch(95% 0.071 40.7)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-on-deep": {
+        "role": "primary",
+        "displayName": "Peach On Deep",
+        "canonical": "#fff6ec",
+        "oklch": "oklch(97.7% 0.016 70.5)",
+        "tonalRamp": [
+          "oklch(15% 0.016 70.5)",
+          "oklch(26% 0.016 70.5)",
+          "oklch(37% 0.016 70.5)",
+          "oklch(48% 0.016 70.5)",
+          "oklch(59% 0.016 70.5)",
+          "oklch(70% 0.016 70.5)",
+          "oklch(82% 0.016 70.5)",
+          "oklch(95% 0.016 70.5)"
+        ]
+      },
+      "peach-periwinkle": {
+        "role": "secondary",
+        "displayName": "Peach Periwinkle",
+        "canonical": "#51609e",
+        "oklch": "oklch(50.5% 0.100 272.1)",
+        "tonalRamp": [
+          "oklch(15% 0.045 272.1)",
+          "oklch(26% 0.063 272.1)",
+          "oklch(37% 0.082 272.1)",
+          "oklch(48% 0.100 272.1)",
+          "oklch(59% 0.100 272.1)",
+          "oklch(70% 0.100 272.1)",
+          "oklch(82% 0.084 272.1)",
+          "oklch(95% 0.062 272.1)"
+        ]
+      },
+      "peach-periwinkle-wash": {
+        "role": "secondary",
+        "displayName": "Peach Periwinkle Wash",
+        "canonical": "rgba(95, 111, 174, 0.13)",
+        "oklch": "oklch(55.6% 0.100 272.0)",
+        "tonalRamp": [
+          "oklch(15% 0.045 272.0)",
+          "oklch(26% 0.063 272.0)",
+          "oklch(37% 0.082 272.0)",
+          "oklch(48% 0.100 272.0)",
+          "oklch(59% 0.100 272.0)",
+          "oklch(70% 0.100 272.0)",
+          "oklch(82% 0.083 272.0)",
+          "oklch(95% 0.062 272.0)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-sage": {
+        "role": "status",
+        "displayName": "Peach Sage",
+        "canonical": "#406c45",
+        "oklch": "oklch(48.8% 0.079 146.9)",
+        "tonalRamp": [
+          "oklch(15% 0.040 146.9)",
+          "oklch(26% 0.054 146.9)",
+          "oklch(37% 0.069 146.9)",
+          "oklch(48% 0.079 146.9)",
+          "oklch(59% 0.079 146.9)",
+          "oklch(70% 0.079 146.9)",
+          "oklch(82% 0.070 146.9)",
+          "oklch(95% 0.053 146.9)"
+        ]
+      },
+      "peach-sage-wash": {
+        "role": "status",
+        "displayName": "Peach Sage Wash",
+        "canonical": "rgba(94, 133, 90, 0.16)",
+        "oklch": "oklch(57.6% 0.078 142.2)",
+        "tonalRamp": [
+          "oklch(15% 0.039 142.2)",
+          "oklch(26% 0.054 142.2)",
+          "oklch(37% 0.068 142.2)",
+          "oklch(48% 0.078 142.2)",
+          "oklch(59% 0.078 142.2)",
+          "oklch(70% 0.078 142.2)",
+          "oklch(82% 0.069 142.2)",
+          "oklch(95% 0.052 142.2)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-rose": {
+        "role": "status",
+        "displayName": "Peach Rose",
+        "canonical": "#ae413a",
+        "oklch": "oklch(52.5% 0.144 26.9)",
+        "tonalRamp": [
+          "oklch(15% 0.056 26.9)",
+          "oklch(26% 0.082 26.9)",
+          "oklch(37% 0.109 26.9)",
+          "oklch(48% 0.135 26.9)",
+          "oklch(59% 0.144 26.9)",
+          "oklch(70% 0.140 26.9)",
+          "oklch(82% 0.111 26.9)",
+          "oklch(95% 0.080 26.9)"
+        ]
+      },
+      "peach-rose-wash": {
+        "role": "status",
+        "displayName": "Peach Rose Wash",
+        "canonical": "rgba(177, 68, 61, 0.1)",
+        "oklch": "oklch(53.4% 0.144 26.7)",
+        "tonalRamp": [
+          "oklch(15% 0.056 26.7)",
+          "oklch(26% 0.082 26.7)",
+          "oklch(37% 0.109 26.7)",
+          "oklch(48% 0.135 26.7)",
+          "oklch(59% 0.144 26.7)",
+          "oklch(70% 0.140 26.7)",
+          "oklch(82% 0.111 26.7)",
+          "oklch(95% 0.080 26.7)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-butter": {
+        "role": "status",
+        "displayName": "Peach Butter",
+        "canonical": "#845e09",
+        "oklch": "oklch(50.9% 0.102 80.1)",
+        "tonalRamp": [
+          "oklch(15% 0.046 80.1)",
+          "oklch(26% 0.064 80.1)",
+          "oklch(37% 0.083 80.1)",
+          "oklch(48% 0.102 80.1)",
+          "oklch(59% 0.102 80.1)",
+          "oklch(70% 0.102 80.1)",
+          "oklch(82% 0.085 80.1)",
+          "oklch(95% 0.063 80.1)"
+        ]
+      },
+      "peach-butter-wash": {
+        "role": "status",
+        "displayName": "Peach Butter Wash",
+        "canonical": "rgba(216, 166, 42, 0.2)",
+        "oklch": "oklch(75.2% 0.143 84.7)",
+        "tonalRamp": [
+          "oklch(15% 0.056 84.7)",
+          "oklch(26% 0.082 84.7)",
+          "oklch(37% 0.108 84.7)",
+          "oklch(48% 0.134 84.7)",
+          "oklch(59% 0.143 84.7)",
+          "oklch(70% 0.139 84.7)",
+          "oklch(82% 0.110 84.7)",
+          "oklch(95% 0.079 84.7)"
+        ],
+        "note": "Translucent; ramp is of the opaque base hue."
+      },
+      "peach-awning-stripe": {
+        "role": "tertiary",
+        "displayName": "Peach Awning Stripe",
+        "canonical": "#eb9a76",
+        "oklch": "oklch(75.9% 0.109 44.6)",
+        "tonalRamp": [
+          "oklch(15% 0.047 44.6)",
+          "oklch(26% 0.067 44.6)",
+          "oklch(37% 0.087 44.6)",
+          "oklch(48% 0.108 44.6)",
+          "oklch(59% 0.109 44.6)",
+          "oklch(70% 0.109 44.6)",
+          "oklch(82% 0.089 44.6)",
+          "oklch(95% 0.066 44.6)"
+        ]
+      },
+      "peach-awning-cream": {
+        "role": "tertiary",
+        "displayName": "Peach Awning Cream",
+        "canonical": "#f8e3d3",
+        "oklch": "oklch(92.9% 0.032 59.7)",
+        "tonalRamp": [
+          "oklch(15% 0.028 59.7)",
+          "oklch(26% 0.032 59.7)",
+          "oklch(37% 0.032 59.7)",
+          "oklch(48% 0.032 59.7)",
+          "oklch(59% 0.032 59.7)",
+          "oklch(70% 0.032 59.7)",
+          "oklch(82% 0.032 59.7)",
+          "oklch(95% 0.032 59.7)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "statement-page-title": {
+        "displayName": "Page Title (statement)",
+        "purpose": "One per page; greeting or section name."
+      },
+      "statement-body": {
+        "displayName": "Body (statement)",
+        "purpose": "Prose, table cells (0.875rem), captions (0.75rem)."
+      },
+      "statement-figure-lg": {
+        "displayName": "Summary Figure",
+        "purpose": "The three dashboard strip numbers."
+      },
+      "statement-figure": {
+        "displayName": "Figure",
+        "purpose": "Every amount, date and count in tables and copy."
+      },
+      "statement-eyebrow": {
+        "displayName": "Eyebrow",
+        "purpose": "Block titles and table headers (0.68rem, 0.12em)."
+      },
+      "statement-label": {
+        "displayName": "Field Label",
+        "purpose": "Above every input."
+      },
+      "peach-page-title": {
+        "displayName": "Page Title (peach)",
+        "purpose": "Fraunces page title."
+      },
+      "peach-display": {
+        "displayName": "Display (peach)",
+        "purpose": "Hero moments: login card, empty states."
+      },
+      "peach-body": {
+        "displayName": "Body (peach)",
+        "purpose": "Karla prose and cells."
+      },
+      "peach-figure": {
+        "displayName": "Figure (peach)",
+        "purpose": "Courier Prime typed ledger voice."
+      },
+      "peach-eyebrow": {
+        "displayName": "Eyebrow (peach)",
+        "purpose": "Bold Courier block titles and headers (0.14em in tables)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dropdown",
+        "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        "purpose": "Household switcher menu only."
+      },
+      {
+        "name": "dialog",
+        "value": "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "Modal panels (edit bill type, edit document)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-color",
+        "value": "color, background-color, border-color 100ms",
+        "purpose": "Hover/active on buttons, links, tabs."
+      },
+      {
+        "name": "skeleton-pulse",
+        "value": "Tailwind animate-pulse",
+        "purpose": "loading.tsx placeholders; stop under reduced motion."
+      },
+      {
+        "name": "tour-pop",
+        "value": "0.4s cubic-bezier(0.2, 1.2, 0.4, 1) backwards",
+        "purpose": "Welcome tour entrances (peach-cob, phase 5)."
+      },
+      {
+        "name": "tour-slide",
+        "value": "0.45s ease-out backwards",
+        "purpose": "Welcome tour rows sliding up 10px."
+      },
+      {
+        "name": "tour-stamp",
+        "value": "0.4s cubic-bezier(0.2, 1.4, 0.4, 1) backwards, rotate -3deg",
+        "purpose": "The PAID stamp settling askew."
+      }
+    ],
+    "contrast": {
+      "standard": "WCAG AA 4.5:1 for text; peach status tags measured on their wash flattened onto each surface",
+      "peach": [
+        {
+          "pair": "peach-espresso-muted on peach-cream / peach-paper / peach-paper-tint",
+          "ratios": [
+            4.97,
+            5.35,
+            4.61
+          ],
+          "original": {
+            "value": "#8a7468",
+            "ratios": [
+              3.98,
+              4.29,
+              3.69
+            ]
+          }
+        },
+        {
+          "pair": "peach-deep as text on peach-cream / peach-paper",
+          "ratios": [
+            4.61,
+            4.97
+          ],
+          "original": {
+            "value": "#b95536",
+            "ratios": [
+              4.31,
+              4.65
+            ]
+          }
+        },
+        {
+          "pair": "peach-on-deep on peach-deep / peach-deep-pressed",
+          "ratios": [
+            4.75,
+            5.71
+          ],
+          "original": {
+            "value": "#b95536",
+            "ratios": [
+              4.45
+            ]
+          }
+        },
+        {
+          "pair": "peach-sage on sage wash over cream / paper",
+          "ratios": [
+            4.6,
+            4.94
+          ],
+          "original": {
+            "value": "#4e7a52",
+            "ratios": [
+              3.76,
+              4.03
+            ]
+          }
+        },
+        {
+          "pair": "peach-rose on rose wash over cream / paper",
+          "ratios": [
+            4.61,
+            4.93
+          ],
+          "original": {
+            "value": "#b1443d",
+            "ratios": [
+              4.43,
+              4.74
+            ]
+          }
+        },
+        {
+          "pair": "peach-butter on butter wash over cream / paper",
+          "ratios": [
+            4.65,
+            4.94
+          ],
+          "original": {
+            "value": "#8a6414",
+            "ratios": [
+              4.26,
+              4.53
+            ]
+          }
+        },
+        {
+          "pair": "peach-periwinkle on periwinkle wash over cream / paper",
+          "ratios": [
+            4.64,
+            4.98
+          ],
+          "original": {
+            "value": "#5f6fae",
+            "ratios": [
+              3.73,
+              4.0
+            ]
+          }
+        }
+      ],
+      "knownGaps": [
+        {
+          "pair": "#ffffff on statement-dark-button-hover",
+          "ratio": 4.17,
+          "status": "open"
+        }
+      ]
+    },
+    "source": "lib/theme-tokens.ts (checked against app/globals.css, DESIGN.md and this file by `npm run verify -- tokens`)",
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Tables reflow to ledger cards below; summary strip stacks; inputs 16px below."
+      }
+    ],
+    "themes": {
+      "switch": "<html data-theme=\"statement|peach\" data-color-scheme=\"system|light\">, set by the root layout from the household",
+      "statement": {
+        "status": "live",
+        "dark": "data-color-scheme=system + prefers-color-scheme: dark"
+      },
+      "peach": {
+        "status": "corrected spec (darker inks than peach-cob); ported in phase 5 as [data-theme=\"peach\"] overrides",
+        "dark": "none, by design",
+        "logo": "none; the household name is the wordmark"
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button (statement)",
+      "kind": "button",
+      "refersTo": "statement-button-primary",
+      "description": "The screen's one obvious action. Accent fill, white label.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Post bill</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:8px 14px;border-radius:6px;font:500 0.875rem/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;cursor:pointer;border:1px solid var(--line, rgba(27,37,48,.16));background:var(--panel, #fff);color:var(--ink, #1b2530);transition:background-color .1s,border-color .1s,color .1s}.ds-btn:focus-visible{outline:2px solid var(--accent, #1d5fd6);outline-offset:2px}.ds-btn-primary{background:var(--primary, #1d5fd6);border-color:var(--primary, #1d5fd6);color:#fff}.ds-btn-primary:hover{background:var(--primary-hover, #174db3);border-color:var(--primary-hover, #174db3)}"
+    },
+    {
+      "name": "Default Button (statement)",
+      "kind": "button",
+      "refersTo": "statement-button",
+      "description": "Secondary actions. Sheet background, hairline border that darkens on hover.",
+      "html": "<button class=\"ds-btn-default\">Send reminder</button>",
+      "css": ".ds-btn-default{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:8px 14px;border-radius:6px;font:500 0.875rem/1.2 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;cursor:pointer;border:1px solid var(--line, rgba(27,37,48,.16));background:var(--panel, #fff);color:var(--ink, #1b2530);transition:border-color .1s}.ds-btn-default:hover{border-color:rgba(27,37,48,.4)}.ds-btn-default:focus-visible{outline:2px solid var(--accent, #1d5fd6);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field (statement)",
+      "kind": "input",
+      "refersTo": "statement-field",
+      "description": "Labelled input; accent border plus soft ring on focus. 16px text on phones.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Amount</span><input class=\"ds-field-input\" inputmode=\"decimal\" placeholder=\"0.00\"></label>",
+      "css": ".ds-field{display:block;max-width:280px}.ds-field-label{display:block;margin-bottom:6px;font:600 0.82rem system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink, #1b2530)}.ds-field-input{width:100%;padding:8px 12px;border-radius:6px;border:1px solid var(--line, rgba(27,37,48,.16));background:var(--panel, #fff);color:var(--ink, #1b2530);font:400 16px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.ds-field-input::placeholder{color:rgba(91,104,117,.7)}.ds-field-input:focus{outline:none;border-color:var(--accent, #1d5fd6);box-shadow:0 0 0 2px rgba(29,95,214,.25)}"
+    },
+    {
+      "name": "Status Tags + Due Chips (statement)",
+      "kind": "chip",
+      "refersTo": "statement-tag-paid",
+      "description": "PAID/UNPAID tags and due-date chips: mono, status color on its wash, reserved semantics.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-tag ds-tag-paid\">Paid</span><span class=\"ds-tag ds-tag-unpaid\">Unpaid</span><span class=\"ds-due ds-due-future\">Oct 18</span><span class=\"ds-due ds-due-soon\">Due in 2 days</span><span class=\"ds-due ds-due-past\">3 days late</span></div>",
+      "css": ".ds-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ds-tag,.ds-due{display:inline-block;border-radius:4px;padding:2px 6px;font:500 0.7rem 'IBM Plex Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}.ds-tag{text-transform:uppercase;letter-spacing:.08em}.ds-due{letter-spacing:.02em;font-weight:400}.ds-tag-paid{background:var(--paid-soft, rgba(24,122,75,.12));color:var(--paid, #187a4b)}.ds-tag-unpaid,.ds-due-past{background:var(--unpaid-soft, rgba(192,53,56,.1));color:var(--unpaid, #c03538)}.ds-due-soon{background:var(--warn-soft, rgba(216,146,0,.16));color:var(--warn, #8a5b00)}.ds-due-future{background:var(--panel-2, #f8f9fb);color:var(--ink-muted, #5b6875)}"
+    },
+    {
+      "name": "Navigation (statement)",
+      "kind": "nav",
+      "description": "Household-name wordmark in mono caps; muted links with a full-height 2px accent underline when active.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-nav-brand\" href=\"#\">Elm Street</a><nav class=\"ds-nav-links\"><a href=\"#\" aria-current=\"page\">Dashboard</a><a href=\"#\">Portal</a><a href=\"#\">Docs</a><a href=\"#\">Account</a></nav></header>",
+      "css": ".ds-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;height:52px;padding:0 20px;background:var(--panel, #fff);border-bottom:1px solid var(--line-soft, rgba(27,37,48,.08))}.ds-nav-brand{font:600 0.8rem 'IBM Plex Mono',ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.14em;color:var(--ink, #1b2530);text-decoration:none;white-space:nowrap}.ds-nav-links{display:flex;height:100%;gap:20px}.ds-nav-links a{display:flex;align-items:center;height:100%;padding:0 2px;border-bottom:2px solid transparent;font:500 0.875rem system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink-muted, #5b6875);text-decoration:none;transition:color .1s}.ds-nav-links a:hover{color:var(--ink, #1b2530)}.ds-nav-links a[aria-current=page]{border-bottom-color:var(--accent, #1d5fd6);color:var(--ink, #1b2530)}.ds-nav-links a:focus-visible{outline:2px solid var(--accent, #1d5fd6);outline-offset:2px}"
+    },
+    {
+      "name": "Summary Strip",
+      "kind": "card",
+      "refersTo": "statement-panel",
+      "description": "Signature: one panel, three cells split by hairlines; eyebrow, 1.7rem mono figure, plain-words caption.",
+      "html": "<div class=\"ds-strip\"><div><span class=\"ds-eyebrow\">You owe</span><div class=\"ds-figure\">$84.17</div><div class=\"ds-cap\">across 2 unpaid bills</div></div><div><span class=\"ds-eyebrow\">Next due</span><div class=\"ds-figure\">Oct 18</div><div class=\"ds-cap\">Electric</div></div><div><span class=\"ds-eyebrow\">Bills on record</span><div class=\"ds-figure\">13</div><div class=\"ds-cap\">since June</div></div></div>",
+      "css": ".ds-strip{display:grid;grid-template-columns:repeat(3,1fr);background:var(--panel, #fff);border:1px solid var(--line-soft, rgba(27,37,48,.08));border-radius:6px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink, #1b2530)}.ds-strip>div{padding:16px 20px}.ds-strip>div+div{border-left:1px solid var(--line-soft, rgba(27,37,48,.08))}.ds-eyebrow{display:block;margin-bottom:4px;font:500 0.7rem 'IBM Plex Mono',ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-muted, #5b6875)}.ds-figure{font:600 1.7rem/1.25 'IBM Plex Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}.ds-cap{margin-top:2px;font-size:.75rem;color:var(--ink-muted, #5b6875)}"
+    },
+    {
+      "name": "Ledger Table",
+      "kind": "custom",
+      "description": "Signature: mono eyebrow headers over a 16% rule, 8% row rules, right-aligned tabular amounts, no zebra.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Bill</th><th>Due</th><th>Status</th><th class=\"num\">Amount</th></tr></thead><tbody><tr><td>⚡ Electric</td><td class=\"m\">Oct 18</td><td><span class=\"t u\">Unpaid</span></td><td class=\"num m\">$42.09</td></tr><tr><td>🔥 Gas</td><td class=\"m\">Oct 02</td><td><span class=\"t p\">Paid</span></td><td class=\"num m\">$31.50</td></tr></tbody></table>",
+      "css": ".ds-table{width:100%;border-collapse:collapse;font:400 .875rem system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:var(--ink, #1b2530);background:var(--panel, #fff)}.ds-table th{padding:10px 16px;text-align:left;font:500 .68rem 'IBM Plex Mono',ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-muted, #5b6875);border-bottom:1px solid var(--line, rgba(27,37,48,.16))}.ds-table td{padding:12px 16px;border-bottom:1px solid var(--line-soft, rgba(27,37,48,.08))}.ds-table tr:last-child td{border-bottom:0}.ds-table .num{text-align:right}.ds-table .m{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}.ds-table .t{display:inline-block;border-radius:4px;padding:2px 6px;font:500 .7rem 'IBM Plex Mono',ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em}.ds-table .p{background:var(--paid-soft, rgba(24,122,75,.12));color:var(--paid, #187a4b)}.ds-table .u{background:var(--unpaid-soft, rgba(192,53,56,.1));color:var(--unpaid, #c03538)}"
+    },
+    {
+      "name": "Awning Header (peach)",
+      "kind": "nav",
+      "description": "Peach signature: 10px cabana stripes with a 7px scalloped hem over a Fraunces wordmark. Ported in phase 5.",
+      "html": "<header class=\"ds-pnav\"><div class=\"ds-awning\" aria-hidden=\"true\"></div><div class=\"ds-pnav-bar\"><a class=\"ds-pnav-brand\" href=\"#\">Oak Lane</a><nav class=\"ds-pnav-links\"><a href=\"#\" aria-current=\"page\">Dashboard</a><a href=\"#\">Portal</a></nav></div></header>",
+      "css": ".ds-pnav{background:#fffcf7;border-bottom:1px solid rgba(67,48,43,.1)}.ds-awning{position:relative;height:10px;background:repeating-linear-gradient(90deg,#eb9a76 0 14px,#f8e3d3 14px 28px)}.ds-awning::after{content:'';position:absolute;inset-inline:0;top:100%;height:7px;z-index:1;pointer-events:none;background-image:radial-gradient(circle 7px at 7px -1px,#eb9a76 6px,transparent 6.5px),radial-gradient(circle 7px at 7px -1px,#f8e3d3 6px,transparent 6.5px);background-size:28px 7px;background-position:0 0,14px 0;background-repeat:repeat-x}.ds-pnav-bar{display:flex;align-items:center;justify-content:space-between;height:56px;padding:0 20px}.ds-pnav-brand{font:600 1.125rem/1 Fraunces,Georgia,serif;letter-spacing:-.025em;color:#43302b;text-decoration:none}.ds-pnav-links{display:flex;gap:20px;height:100%}.ds-pnav-links a{display:flex;align-items:center;height:100%;border-bottom:2px solid transparent;font:500 .875rem Karla,system-ui,sans-serif;color:#7a6559;text-decoration:none}.ds-pnav-links a:hover{color:#43302b}.ds-pnav-links a[aria-current=page]{color:#43302b;border-bottom-color:#b45031}.ds-pnav-links a:focus-visible{outline:2px solid #b45031;outline-offset:2px}"
+    },
+    {
+      "name": "Primary Button + Pill Tags (peach)",
+      "kind": "button",
+      "refersTo": "peach-button-primary",
+      "description": "Peach's deep-peach button with cream label, rounder 10px corners, and bold Courier pill tags in sage/rose/butter.",
+      "html": "<div class=\"ds-prow\"><button class=\"ds-pbtn\">Post bill</button><span class=\"ds-ptag ds-ppaid\">Paid</span><span class=\"ds-ptag ds-punpaid\">Unpaid</span><span class=\"ds-pdue\">Due in 2 days</span></div>",
+      "css": ".ds-prow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px;background:#faf3e7}.ds-pbtn{min-height:36px;padding:8px 14px;border-radius:10px;border:1px solid #b45031;background:#b45031;color:#fff6ec;font:500 .875rem Karla,system-ui,sans-serif;cursor:pointer;transition:background-color .1s}.ds-pbtn:hover{background:#a34527;border-color:#a34527}.ds-pbtn:focus-visible{outline:2px solid #b45031;outline-offset:2px}.ds-ptag,.ds-pdue{display:inline-block;border-radius:9999px;padding:2px 8px;font:700 .7rem 'Courier Prime','Courier New',monospace}.ds-ptag{text-transform:uppercase;letter-spacing:.08em}.ds-ppaid{background:rgba(94,133,90,.16);color:#406c45}.ds-punpaid{background:rgba(177,68,61,.1);color:#ae413a}.ds-pdue{font-weight:400;letter-spacing:.02em;background:rgba(216,166,42,.2);color:#845e09}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The House Ledger",
+    "overview": "There is one ledger for the house, kept in one of two hands. **Statement** is the bank's printout: a grey page, white sheets, a single blue, and IBM Plex Mono on every figure, date and label, so the screen reads like the portal your utility company wishes it had. **Peach** is the book kept on the porch: cream paper under a striped peach awning with a scalloped hem, Fraunces for display, Karla for body text, and Courier Prime typing the figures in. Both share the same components, the same layout and the same rules for money. The theme changes the hand, never the record.\n\nThe feel is **friendly and sturdy**. Surfaces are flat paper divided by hairline rules, with comfortable tap targets and soft corners. Nothing floats, glows or competes with the numbers. The density is that of a well-kept statement: a summary strip of three figures, then ruled tables that reflow into small ledger cards on a phone. Most visits happen on a phone, cold, once a month, so every screen opens with what's owed and by when, and offers one obvious thing to do.\n\nTheme differences are design, not inconsistency. Never \"fix\" one theme toward the other. Fraunces and the awning are deliberate.",
+    "keyCharacteristics": [
+      "Two themes, one component set, switched by `<html data-theme>` from the household's settings.",
+      "Every number, date, count and section label is set in the theme's ledger monospace with tabular figures.",
+      "One accent per theme (statement blue, deep peach). Peach adds periwinkle as a quiet second voice.",
+      "Green, red and amber (sage, rose and butter in peach) mean paid, unpaid and due soon, and nothing else.",
+      "Flat surfaces with hairline borders. Shadows only on things that float.",
+      "Statement supports dark mode. Peach is light-only on purpose."
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Semantics Rule",
+        "body": "Green, red and amber (sage, rose and butter) belong to paid, unpaid and due soon (overdue reads as unpaid). Never use them for decoration, branding or generic success and error. The one exception is flash messages, which borrow the paid and unpaid washes for ok and err.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Accent Rule",
+        "body": "Each theme has exactly one interactive color. If something is clickable and not a status, it is the accent or it is ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Calm Red Rule",
+        "body": "Unpaid and overdue use the soft wash with colored text, never a solid red block. Owing money is information, not an alarm.",
+        "section": "colors"
+      },
+      {
+        "name": "The Change It Once Rule",
+        "body": "Theme colors live in `lib/theme-tokens.ts`. Emails import them, and `npm run verify` (the `tokens` suite) fails if `app/globals.css`, this file's frontmatter or `.impeccable/design.json` disagrees. Change the module first, then the others.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ledger Face Rule",
+        "body": "Every number, amount, date, count and section label is set in the theme's ledger monospace with tabular figures (the `.figure` / `.eyebrow` voice). Prose never is. If a value can be added up or put on a calendar, it is monospace.",
+        "section": "typography"
+      },
+      {
+        "name": "The Right-Edge Rule",
+        "body": "Amount columns are right-aligned so the decimal points line up.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Sideways Scroll Rule",
+        "body": "A phone never scrolls horizontally. New tables join the `.table-stack` system with their own grid-template-areas instead of overflowing.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "Panels, cards, tables and buttons have no shadow at rest or on hover. If it doesn't float over other content, it doesn't cast a shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every amount, date, count and eyebrow in the theme's ledger mono with tabular figures, and right-align amount columns.",
+      "Do build every new surface from the shared component classes (`.panel`, `.btn*`, `.tag*`, `.due-*`, `.field-*`, `.data-table`, `.eyebrow`, `.figure`) so both themes come for free. A theme varies tokens and a few signature rules, not markup.",
+      "Do add theme differences as token overrides under `[data-theme=\"peach\"]`, keeping peach's rounder radii, pill tags, bolder eyebrows, Fraunces titles and awning.",
+      "Do give each screen exactly one primary button, and keep its tap target at 36px or more. The small button is for inline row actions.",
+      "Do make every new table a `.table-stack` with named grid areas for its phone layout.",
+      "Do pair every figure with a plain-words caption in muted ink (\"from 2 roommates\", \"nothing due from you\").",
+      "Do check new color pairs in both themes and in statement dark, and keep text at 4.5:1 or better. Record peach's measured ratios in Colors > Contrast.",
+      "Do change a theme color in `lib/theme-tokens.ts` first, then mirror it in `app/globals.css`, this file and `.impeccable/design.json` until `npm run verify -- tokens` passes.",
+      "Do let the global reduced-motion rule handle motion. Never re-enable animation with `!important` under `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't \"fix\" peach toward statement or statement toward peach. Fraunces, the awning, the pills and the warm palette are intentional, not slop.",
+      "Don't give peach a dark mode. It is light-only on purpose.",
+      "Don't use green, red or amber (sage, rose or butter) for anything but paid, unpaid and due soon, and don't add a second accent to statement.",
+      "Don't fill a block with solid red for an unpaid or overdue state. Use the wash and colored text.",
+      "Don't add shadows, gradients or glows to panels, cards or buttons at rest. The awning stripes are the only gradient in the system.",
+      "Don't let a phone layout scroll sideways, or set an input below 16px on a phone.",
+      "Don't spell the product name or domain in UI or email. Read them from `BRAND`.",
+      "Don't put a logo in the nav. The household name is the wordmark.",
+      "Don't hard-code a color in an email template. Take it from `lib/theme-tokens.ts`."
+    ]
+  }
+}

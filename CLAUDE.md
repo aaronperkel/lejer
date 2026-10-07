@@ -52,7 +52,8 @@ checks that each connection reports dev's `neon.branch_id`. Suites build their o
 throwaway households (`verify-<run>-*`, users `@verify.invalid`) and delete them, sweeping
 leftovers from crashed runs first, so they never depend on or disturb the seed data. **Every
 phase adds its checks there** (a new `scripts/verify/<suite>.ts` registered in `index.ts`).
-Suites: `brand`, `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
+Suites: `brand`, `tokens` (`lib/theme-tokens.ts` against `globals.css`, `DESIGN.md`'s frontmatter and
+`.impeccable/design.json`; no color literals in `emails/`), `emails` (every template renders with its `PreviewProps`), `rls`, `identity`, `bills` (library level, real fixture contexts via
 `ctxFor()`), `http` (starts `next start` on gate 1's build, refusing a build older than the
 sources; fixed port 4317 or `VERIFY_PORT`, in its own process group, pid in the gitignored
 `.verify/server.json`: a run that died without cleaning up is found and its server group
@@ -361,6 +362,10 @@ awning theme (cream/espresso/deep peach, Fraunces display, Karla body, Courier P
 the `.awning` band). `<html data-theme data-color-scheme>` is set by the root layout from the
 household. The statement dark block is gated on `data-color-scheme="system"`; peach is
 light-only. Green/red/amber (sage/rose/butter in peach) are reserved for paid/unpaid/due-soon.
+Theme color values have one home, `lib/theme-tokens.ts`: email reads it directly, and the stylesheet
+mirrors it under the `tokens` suite, so change the module first. Peach's values there are the
+corrected spec from `DESIGN.md` (darker inks than peach-cob, all text ≥ 4.5:1), which phase 5
+ports instead of peach-cob's originals. A global `prefers-reduced-motion` rule ends `globals.css`.
 Shared component classes (`.panel`, `.eyebrow`, `.figure`, `.btn*`, `.tag*`, `.due-*`,
 `.field-*`, `.data-table`, `.tab*`, `.flash*`, `.table-stack*`) live in `@layer components` —
 Tailwind v4 cannot `@apply` a custom class from the same layer.
