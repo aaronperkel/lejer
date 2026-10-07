@@ -28,7 +28,7 @@ colors:
   statement-dark-ink-muted: "#99a5b1"
   statement-dark-blue: "#82abf3"
   statement-dark-button: "#3168d5"
-  statement-dark-button-hover: "#4478e2"
+  statement-dark-button-hover: "#2358c4"
   statement-dark-paid: "#52c48a"
   statement-dark-unpaid: "#ee7378"
   statement-dark-due-soon: "#e0b24c"
@@ -235,7 +235,8 @@ strictly for status.
   primary buttons. Its deep step (`statement-blue-deep`) is the hover state, and its wash
   (`statement-blue-wash`) tints the demo banner and selection. In dark mode, links and focus use
   the lighter `statement-dark-blue` while buttons keep the saturated `statement-dark-button` so
-  white text still reads.
+  white text still reads. Hover goes deeper in both modes, never lighter: there's no room
+  above the dark button for a visibly lighter blue that still carries white text.
 - **Deep Peach** (`peach-deep`): the same role in peach. It's a burnt, terracotta-leaning peach
   that carries cream text (`peach-on-deep`), never pure white. It's one step darker than
   peach-cob's original, so cream text and links both clear 4.5:1 (see Contrast). Hover deepens to
@@ -300,8 +301,9 @@ against their wash flattened onto each surface.
 
 Statement light pairs measure 5.2:1 or better on page and panel. Its status tags measure at
 least 4.53:1 on their washes over the panel, where tags live. Statement dark pairs measure
-4.79:1 or better. One known statement gap is left open: white on the dark-mode button **hover**
-(`statement-dark-button-hover`) is 4.17:1.
+4.79:1 or better. White text on the dark button measures 5.16:1, and 6.43:1 on its hover. The
+hover used to be a lighter `#4478e2` at 4.17:1. It now goes deeper instead, which closes the
+last known gap.
 
 **The Change It Once Rule.** Theme colors live in `lib/theme-tokens.ts`. Emails import them,
 and `npm run verify` (the `tokens` suite) fails if `app/globals.css`, this file's frontmatter

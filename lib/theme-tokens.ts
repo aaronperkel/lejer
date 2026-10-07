@@ -67,7 +67,7 @@ export const STATEMENT_DARK = {
   accent: "#82abf3",
   accentSoft: "rgba(130, 171, 243, 0.13)",
   primary: "#3168d5",
-  primaryHover: "#4478e2",
+  primaryHover: "#2358c4", // deeper on hover, as in light mode: white clears 6.4:1
   onPrimary: "#ffffff",
   paid: "#52c48a",
   paidSoft: "rgba(82, 196, 138, 0.14)",

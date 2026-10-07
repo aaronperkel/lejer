@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-07T02:40:17+00:00",
+  "generatedAt": "2026-10-07T02:51:18+00:00",
   "title": "Design System: Lejer",
   "extensions": {
     "colorMeta": {
@@ -397,17 +397,17 @@
       "statement-dark-button-hover": {
         "role": "primary",
         "displayName": "Statement Dark Button Hover",
-        "canonical": "#4478e2",
-        "oklch": "oklch(59.2% 0.171 262.7)",
+        "canonical": "#2358c4",
+        "oklch": "oklch(49.2% 0.178 262.3)",
         "tonalRamp": [
-          "oklch(15% 0.063 262.7)",
-          "oklch(26% 0.094 262.7)",
-          "oklch(37% 0.125 262.7)",
-          "oklch(48% 0.157 262.7)",
-          "oklch(59% 0.171 262.7)",
-          "oklch(70% 0.162 262.7)",
-          "oklch(82% 0.128 262.7)",
-          "oklch(95% 0.091 262.7)"
+          "oklch(15% 0.065 262.3)",
+          "oklch(26% 0.097 262.3)",
+          "oklch(37% 0.130 262.3)",
+          "oklch(48% 0.163 262.3)",
+          "oklch(59% 0.178 262.3)",
+          "oklch(70% 0.169 262.3)",
+          "oklch(82% 0.133 262.3)",
+          "oklch(95% 0.094 262.3)"
         ]
       },
       "statement-dark-paid": {
@@ -990,13 +990,22 @@
           }
         }
       ],
-      "knownGaps": [
+      "statement": [
         {
-          "pair": "#ffffff on statement-dark-button-hover",
-          "ratio": 4.17,
-          "status": "open"
+          "pair": "statement-dark-button / statement-dark-button-hover under white text",
+          "ratios": [
+            5.16,
+            6.43
+          ],
+          "original": {
+            "value": "#4478e2",
+            "ratios": [
+              4.17
+            ]
+          }
         }
-      ]
+      ],
+      "knownGaps": []
     },
     "source": "lib/theme-tokens.ts (checked against app/globals.css, DESIGN.md and this file by `npm run verify -- tokens`)",
     "breakpoints": [
