@@ -610,7 +610,7 @@ reach the site. The household themes stay exactly as documented above.
 **Key Characteristics:**
 - One-bit palette: ink on sheet, with color reserved for the four utility lines.
 - Every utility has a color, a dash pattern and a name, so color is never the only cue.
-- Size is billing: share figures are the largest type on the page.
+- Size is billing: share figures are the largest type on the page, all the same size.
 - Square, inked, 1.5px-ruled everything. No radius, no shadow.
 - Light only.
 
@@ -618,14 +618,14 @@ reach the site. The household themes stay exactly as documented above.
 
 - **Drafting Sheet** (#f3f5f4): the page and the sheet frame's ground, under a 24px grid of ink
   at 4.5% opacity. Also the browser `theme-color`.
-- **Sheet Highlight** (#fbfcfb): rooms, share chips, fields, the close panel, step asides, and
-  the text on ink buttons.
+- **Sheet Highlight** (#fbfcfb): rooms, share chips, fields, the inner pages' close panel, step
+  asides, and the text on ink buttons.
 - **Ink** (#111315): text, every rule and frame, the wall poché, the primary button fill. Hover
   on an ink button lightens to #2b3036.
-- **Ink 2** (#4a5056): secondary text (ledes, prose, captions, title-block keys, sheet numbers,
-  inactive nav).
-- **Rules**: ink at 20% for hairlines between list rows and title-block fields, ink at 10% for
-  hatching and the phone index row's top rule.
+- **Ink 2** (#4a5056): secondary text (ledes, prose, captions, drawing labels, inactive nav
+  and footer links).
+- **Rules**: ink at 20% for hairlines between list rows and around unselected bill tabs, ink at
+  10% for hatching.
 - **Utility locate colors**, line work only, never text or fills:
   - **Electric** (#d6231b), dash `13 3 3 3` (dash-dot).
   - **Gas** (#d29c00), dash `9 5` (even dashes).
@@ -635,67 +635,76 @@ reach the site. The household themes stay exactly as documented above.
 - **Highlighter** (yellow `rgba(242, 196, 0, 0.42)`): text selection only, with ink text.
 
 **The Locate Code Rule.** A utility color always travels with its dash pattern and its name (the
-legend swatch, the trunk, the drop, the lane label). Color alone never carries meaning, and the
-four colors never color text, fills or backgrounds; the one exception is the selected bill's
-3px bottom rule in its utility color.
+tab swatch, the trunk, the drop, the lane label). Color alone never carries meaning, and the
+four colors never color text, fills or backgrounds. Two rules may be drawn in it: the selected
+tab's 3px bottom rule, and the 3px border of the chip belonging to whoever fronted the bill,
+which is how the owner's room reads at a glance.
 
-**The Hatching Rule.** Tone comes from 45° hatching (1px ink at 10% every 8 to 9px), as in the
-unoccupied kitchen and living room and the open-ended overdue segment of the reminder string.
-Never a tinted fill.
+**The Hatching Rule.** When a surface needs tone it comes from 45° hatching (1px ink at 10%
+every 8 to 9px). Never a tinted fill. The home page currently needs none: it is ink on sheet.
 
 ### Typography
 
 **Display and body:** Archivo, loaded with its width axis (`--f-archivo`). Headings run
-expanded and heavy: the site H1 800 at 112% width, clamp(1.85rem to 2.6rem), line-height 1.02,
--0.028em; inner-sheet H1s clamp(2.4rem to 4.2rem); H2 800 at 108%, clamp(1.7rem to 2.4rem), max
-22ch; H3 700 at 1.08rem. The wordmark is 800 at 118%. Body prose 1.04rem / 1.6 in ink 2, max
-62ch; buttons and field labels 650.
+expanded and heavy: the home H1 800 at 112% width, clamp(2.2rem to 3.6rem), line-height 1.02,
+-0.028em, max 18ch; inner-sheet H1s clamp(2.4rem to 4.2rem); H2 800 at 108%, clamp(1.7rem to
+2.4rem), max 22ch; H3 700 at 1.08rem. The wordmark is 800 at 118% (1.1rem in the footer). Body
+prose 1.04rem / 1.6 in ink 2, max 62ch; the home lede up to 1.15rem, max 56ch; buttons and
+bill tabs 650.
 
-**Figures, sheet numbers and labels:** Martian Mono with its width axis (`--f-martian`), tabular
-figures, condensed: 87.5% for amounts, sheet numbers, room numbers and title-block keys, 75% for
-the share figures, 85% for step numbers. Labels (room numbers, title-block keys, the meter tag)
-are uppercase at 0.58 to 0.66rem with 0.06 to 0.1em tracking. These are drawing annotations
-that name the thing beside them, not section kickers.
+**Figures and labels:** Martian Mono with its width axis (`--f-martian`), tabular figures,
+condensed: 87.5% for amounts, room numbers and the sample note, 75% for the share figures, 85%
+for step numbers. Labels (room numbers, the meter tag, the sample note, the 404's number) are
+uppercase at 0.58 to 0.66rem with 0.06 to 0.1em tracking. These are drawing annotations that
+name the thing beside them, not section kickers; nothing else on the site is set in mono.
 
 **The Size Is Billing Rule.** On the plan, the share figures (mono 600 at 75% width,
-clamp(2.1rem, 0.9rem + 5.2cqi, 3.5rem)) outweigh the H1, and what the bill's owner is owed back
-is the largest number on the sheet (to 3.9rem). The currency sign sits at 0.6em, raised. A
+clamp(2.1rem, 0.9rem + 5.2cqi, 3.5rem)) outweigh the H1. Every figure is the same size and
+every chip the same width (16rem, or the room's width), so selecting a bill never reflows the
+sheet; the owner is told by color, not size. The currency sign sits at 0.6em, raised. A
 checked-off share keeps its size, drops to ink 2 and takes a 2px strike.
 
 ### Layout
 
-**The sheet frame.** The home hero is one 1.5px ink frame on the gridded sheet, inside a 1360px
-wrap (16px gutters, 28px from 640px). From 1080px it is a drawing area on the left and a 400px
-title block on the right: H1 and lede, then the signup, then a stack of key/value fields
-(Price, Money, Sign in) in mono keys on a 5.5rem column. The drawing area owns the column rule,
-so the title block ends where its content does.
+**Pitch first, then the one drawing.** The home page reads top to bottom inside a 1360px wrap
+(16px gutters, 28px from 640px): a plain hero (H1, lede ending in the facts, the signup as one
+row with its small print on one line) with no frame around it, then the sheet, the page's only
+frame: 1.5px ink on the 24px grid, up to 1100px wide and left-aligned with the hero, holding
+the plan and nothing else. Price and
+"never moves money" live in the lede, not in a table. There is no sidebar at any width.
 
 **Poché walls.** The plan is a CSS grid whose background is ink; the grid gap is the wall
 (7px, 8px from a 720px container) and each room is a sheet-highlight cell. Four bedrooms sit
-above and below a hall (104px, 116px wide) where the trunks run in lanes and the meters stand
-at the hall's end; at 720px container width a hatched kitchen and living room join as a third
-column. Bottom-row rooms reverse their stack so the share sits by the hall wall.
+two above and two below a hall (104px, 116px tall) where the trunks run in lanes and the
+meters stand at the hall's end, the same four rooms at every width: no decorative rooms.
+Bottom-row rooms reverse their stack so the share sits by the hall wall. Above the rooms one
+bar: a tab per bill on the left, the mode toggle on the right; below them one line, the split
+in words with the sample note at its end.
 
-**The Lane Label Rule.** Each lane label is set in the rightmost gap along the hall that is clear
-of every drop, measured from its rendered width, and haloed in sheet highlight (4px paint-order
-stroke) so a drop passes under a label, never through it. Fall back to beside the meters.
+**The Lane Label Rule.** Only the selected bill's lane is labeled (name and total); the others
+are named by their tabs. The label is set in the rightmost gap along the hall that is clear of
+every drop, measured from its rendered width, and haloed in sheet highlight (4px paint-order
+stroke) so a drop passes under it, never through it. Fall back to beside the meters.
 
-**Below the sheet** the site calms: sections of 72px (104px from 640px) divided by 20% rules, a
-5:7 split from 900px with a sticky heading, numbered general notes and steps with mono
-counters, the reminder schedule drawn as a dimension string with segments to scale, and a
-framed close panel.
+**Below the sheet** the home page says three things and stops: three facts in one row from
+760px under a single 1.5px rule, one line on reminders handing off to How it works, then the
+close (a rule, the heading and the signup side by side from 900px). What How it works already
+covers is not repeated here. The inner pages keep their calmer rhythm: sections of 64px (96px
+from 640px) divided by 20% rules, a 5:7 split from 900px with a sticky heading, numbered notes
+and steps with mono counters, and a framed close panel.
 
-**Phone reflow.** The sheet stacks title block first, then the controls (mode toggle full
-width, bill legend 2 by 2), then the plan as a 2 by 2 room grid around the hall with the
-kitchen and living room dropped, then the title-block fields. The sheet index moves to its own
-row under the wordmark below 860px. The dimension string turns into a vertical run with ticks.
+**Phone reflow.** The order is the same, the pieces stack: H1, lede, the signup as a column,
+then the sheet with the bill tabs 2 by 2 and the mode toggle full width above the 2 by 2 rooms,
+the facts one under another, the close, and the footer as a column. The header stays one row
+at every width: wordmark, two page links, Sign in; the demo button appears from 640px because
+the hero's demo link is a thumb away on a phone.
 
 ### Elevation & Depth
 
 Flat and light only (`color-scheme: light`; there is no dark sheet: it is a sheet of paper and
 the figures must read on it at a glance). Depth is line weight: 1.5px ink for frames, fields,
 buttons and section tops, 1px for internal divisions, 20% ink for hairlines. The owner's share
-chip uses a 4px double border instead of any lift. No shadows anywhere.
+chip uses a 3px border in the bill's color instead of any lift. No shadows anywhere.
 
 ### Shapes
 
@@ -711,21 +720,26 @@ radius circles for splitters (filled in the utility color), both outlined in ink
   SVG. Color transitions 120ms ease-out.
 - **Fields:** square, 48px tall, 1.5px ink border, sheet-highlight fill, 16px text, ink caret;
   focus is the 2px water-blue outline. The signup pairs field and button in one row from
-  640px, with the hint below in ink 2.
+  640px (max 560px), with one line of small print below in ink 2 that also carries the demo
+  link; the field's label is for assistive tech, the heading above is its visible label.
 - **Text links:** 600 weight, underline 1.5px at 4px offset in rule color, inking on hover.
 - **Segmented toggle:** two equal ink-bordered cells; the pressed one fills ink.
-- **Bill legend:** a toggle per utility with its dashed swatch, name, mono total and owner; the
-  selected one takes an ink border, sheet-highlight ground and a 3px bottom rule in its color.
+- **Bill tabs:** a toggle per utility with its dashed swatch and name only (its total and who
+  fronts it appear on the plan once selected, and in the tab's accessible name); 42px tall,
+  bordered in 20% ink; the selected one takes an ink border, sheet-highlight ground and a 3px
+  bottom rule in its color. Two by two under a 560px container, one row above.
 - **Share chip:** a button in the room with the figure, a drawn checkbox and a caption ("owes
-  Jordan · due Oct 13"); the owner's chip is double-ruled and is not a toggle.
-- **Sheet-index nav:** the pages numbered as a drawing set, A-101 Home, A-201 How it works,
-  A-301 About, each a mono sheet number in ink 2 before an Archivo label; the current sheet
-  inks its label and takes a 2.5px ink underline that sits on the header's rule.
-- **Title-block footer:** a strip of cells (wordmark and note, Sheets, Start, Made by) divided
-  by 20% rules, each keyed in the title-block mono.
-- **Close panel:** the closing call to start, framed like the hero's title block: a 1.5px ink
-  frame on sheet highlight, heading and prose beside the signup from 900px, divided by a 1px
-  ink rule.
+  Jordan · due Oct 13"), 16rem wide; the owner's chip is ruled 3px in the bill's color, its
+  caption in ink ("fronted $104.12 · owed back"), and is not a toggle.
+- **Site nav:** the wordmark (the way home) and two plain Archivo links, How it works and
+  About, in ink 2; the current page inks its label and takes a 2.5px ink underline that sits
+  on the header's rule. No sheet numbers. `lib/site.ts` holds the links.
+- **Footer strip:** one row under a 1.5px rule: the wordmark, the page links plus Sign in (or
+  Your households) and Try the demo, and "© year Built by" with `BRAND.legalName` linked to
+  `BRAND.legalUrl` at the far end; a column under 640px.
+- **Close:** on the home page a 1.5px rule, the heading and prose beside the signup from
+  900px; on the inner pages a framed panel on sheet highlight, heading and prose beside the
+  signup from 900px, divided by a 1px ink rule.
 
 ### Motion
 
@@ -744,13 +758,16 @@ all of it to an instant.
   and a name.
 - **Do** set every amount, sheet number and drawing label in Martian Mono with tabular figures
   at a condensed width.
-- **Do** keep share figures bigger than the H1, and the owner's owed-back figure biggest.
-- **Do** number new public pages in the sheet index (A-401 and on).
+- **Do** keep share figures bigger than the H1, all one size, and mark the owner by color.
+- **Do** add a new public page to `SITE_LINKS` in `lib/site.ts` (the header and footer map
+  over it) and to `SITE_PAGES` so the proxy lets it through.
 - **Don't** put statement or peach on a site page, or the drafting sheet on a household page.
 - **Don't** tint a surface for tone. Hatch it.
 - **Don't** round a corner or add a shadow.
 - **Don't** add a dark scheme to the site.
 - **Don't** use a utility color for text or a fill.
+- **Don't** add a second frame, a sidebar or a key/value table to the home page. The sheet is
+  the only framed thing; everything else is plain type on the page.
 
 ## Do's and Don'ts
 

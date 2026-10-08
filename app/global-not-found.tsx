@@ -19,7 +19,7 @@ export default function GlobalNotFound() {
         <div className={`site ${archivo.variable} ${martian.variable}`}>
           <main className="s-wrap">
             <div className="s-page-head">
-              <p className="s-tb-key">404</p>
+              <p className="s-key">404</p>
               <h1 className="s-h1">There&apos;s no page at this address.</h1>
               <p className="s-lede">It may have moved, or the link has a typo.</p>
               <p className="s-demo-link s-404-actions">

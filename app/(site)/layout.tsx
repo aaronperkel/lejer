@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Archivo, Martian_Mono } from "next/font/google";
 import { BRAND } from "@/lib/brand";
 import { getSessionUser, homePath } from "@/lib/context";
-import { SHEETS } from "@/lib/site";
+import { SITE_LINKS } from "@/lib/site";
 import { baseMetadata } from "@/app/metadata";
 import SiteNav from "./SiteNav";
 import "../globals.css";
@@ -44,34 +44,29 @@ export default async function SiteLayout({
     <html lang="en" data-site="">
       <body>
         <div className={`site ${archivo.variable} ${martian.variable}`}>
+          {/* One row at every width: wordmark, the two page links, then the way in. */}
           <header className="s-header">
-            <div className="s-wrap">
-              <div className="s-header-row">
-                <Link href="/" className="s-wordmark">
-                  {BRAND.name}
-                </Link>
-                <SiteNav />
-                <div className="s-header-actions">
-                  {home ? (
-                    <Link className="s-btn s-btn-sm" href={home}>
-                      {home === "/new" ? "Set up your household" : "Open your household"}
+            <div className="s-wrap s-header-row">
+              <Link href="/" className="s-wordmark">
+                {BRAND.name}
+              </Link>
+              <SiteNav />
+              <div className="s-header-actions">
+                {home ? (
+                  <Link className="s-btn s-btn-sm" href={home}>
+                    {home === "/new" ? "Set up your household" : "Open your household"}
+                  </Link>
+                ) : (
+                  <>
+                    <Link className="s-link" href="/login">
+                      Sign in
                     </Link>
-                  ) : (
-                    <>
-                      <Link className="s-link" href="/login">
-                        Sign in
-                      </Link>
-                      <Link className="s-btn s-btn-sm s-btn-line" href="/demo">
-                        Try the demo
-                      </Link>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="s-header-index-row">
-              <div className="s-wrap">
-                <SiteNav />
+                    {/* On a phone the hero's demo link is a thumb away, so the button yields the room. */}
+                    <Link className="s-btn s-btn-sm s-btn-line s-header-demo" href="/demo">
+                      Try the demo
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </header>
@@ -79,48 +74,22 @@ export default async function SiteLayout({
           {children}
 
           <footer className="s-footer">
-            <div className="s-wrap s-footer-grid">
-              <div className="s-footer-cell">
-                <Link href="/" className="s-wordmark">
-                  {BRAND.name}
-                </Link>
-                <p className="s-footer-note">
-                  Shared bills for the people you live with. Free, no ads. It
-                  records payments and never moves money.
-                </p>
-              </div>
-              <div className="s-footer-cell">
-                <span className="s-tb-key">Sheets</span>
-                <ul>
-                  {SHEETS.map((s) => (
-                    <li key={s.href}>
-                      <Link href={s.href}>{s.label}</Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="s-footer-cell">
-                <span className="s-tb-key">Start</span>
-                <ul>
-                  <li>
-                    {user ? (
-                      <Link href="/households">Your households</Link>
-                    ) : (
-                      <Link href="/login">Sign in or sign up</Link>
-                    )}
-                  </li>
-                  <li>
-                    <Link href="/demo">Try the demo</Link>
-                  </li>
-                </ul>
-              </div>
-              <div className="s-footer-cell">
-                <span className="s-tb-key">Made by</span>
-                <p className="s-footer-note">
-                  Aaron Perkel LLC
-                  <br />© {new Date().getFullYear()}
-                </p>
-              </div>
+            <div className="s-wrap s-footer-row">
+              <Link href="/" className="s-wordmark s-wordmark-sm">
+                {BRAND.name}
+              </Link>
+              <nav className="s-footer-links" aria-label="Footer">
+                {SITE_LINKS.map((s) => (
+                  <Link key={s.href} href={s.href}>
+                    {s.label}
+                  </Link>
+                ))}
+                {user ? <Link href="/households">Your households</Link> : <Link href="/login">Sign in</Link>}
+                <Link href="/demo">Try the demo</Link>
+              </nav>
+              <p className="s-footer-note">
+                © {new Date().getFullYear()} Built by <a href={BRAND.legalUrl}>{BRAND.legalName}</a>
+              </p>
             </div>
           </footer>
         </div>

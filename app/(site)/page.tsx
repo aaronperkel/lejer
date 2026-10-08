@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 };
 
 // "/" for everyone, signed in or not (lib/site.ts). Households live at /{slug}.
+// Top to bottom: the pitch and the way in, the one drawing, three facts, a last chance to start.
 export default function Home() {
   // Sample due dates, relative to today so the plan never looks stale.
   const fmt = (days: number) => {
@@ -29,188 +30,68 @@ export default function Home() {
 
   return (
     <main>
-      <div className="s-wrap">
-        <section className="s-sheet" aria-labelledby="hero-title">
-          <div className="s-sheet-grid">
-            <div className="s-tb">
-              <div className="s-tb-cell">
-                <h1 className="s-h1" id="hero-title">
-                  Every house bill, split and on the record.
-                </h1>
-                <p className="s-lede">
-                  Whoever gets the bill posts it with the statement. Everyone
-                  sees their share, gets a reminder before it&apos;s due, and
-                  checks it off once they&apos;ve paid.
-                </p>
-              </div>
-              <div className="s-tb-cell s-tb-grow">
-                <Signup id="hero-email" />
-              </div>
-            </div>
-            <div className="s-drawing">
-              <FloorPlan due={due} />
-            </div>
-            {/* After the plan in source order, so a phone reaches the plan sooner; beside it from 1080px. */}
-            <div className="s-tb-fields">
-              <div className="s-tb-field">
-                <span className="s-tb-key">Price</span>
-                <span className="s-tb-val">Free. No ads. No card.</span>
-              </div>
-              <div className="s-tb-field">
-                <span className="s-tb-key">Money</span>
-                <span className="s-tb-val">Never moves it</span>
-              </div>
-              <div className="s-tb-field">
-                <span className="s-tb-key">Sign in</span>
-                <span className="s-tb-val">Email code, no password</span>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section className="s-section" aria-labelledby="notes-title">
-        <div className="s-wrap s-split">
-          <div className="s-section-head">
-            <h2 className="s-h2" id="notes-title">
-              General notes
-            </h2>
-            <p className="s-prose">
-              {BRAND.name} keeps the household&apos;s recurring bills on record,
-              so nobody has to keep a spreadsheet or chase anyone by text.
-            </p>
-          </div>
-          <ol className="s-notes">
-            <li>
-              <h3 className="s-h3">It never touches the money.</h3>
-              <p>
-                Pay each other however you already do: Venmo, cash, a bank
-                transfer. {BRAND.name} records that it happened. There&apos;s
-                nothing to link and no card on file.
-              </p>
-            </li>
-            <li>
-              <h3 className="s-h3">Every bill keeps its statement.</h3>
-              <p>
-                Attach the provider&apos;s PDF when you post a bill, and anyone
-                in the house can check the math later.
-              </p>
-            </li>
-            <li>
-              <h3 className="s-h3">
-                Shares are fixed when the bill is posted.
-              </h3>
-              <p>
-                The bill is split among whoever lives there when it&apos;s
-                posted. Someone who moves in later never owes on an old bill.
-              </p>
-            </li>
-            <li>
-              <h3 className="s-h3">
-                One person pays, or everyone fronts something.
-              </h3>
-              <p>
-                Some houses have one roommate who pays every bill. Others split
-                it up: one person has electric, another has internet. Pick the
-                one that fits and switch whenever you like.
-              </p>
-            </li>
-            <li>
-              <h3 className="s-h3">Private to your household.</h3>
-              <p>
-                Only members see the bills, the amounts and the statements. Each
-                household&apos;s records are kept apart in the database itself.
-              </p>
-            </li>
-          </ol>
+      <section className="s-hero" aria-labelledby="hero-title">
+        <div className="s-wrap">
+          <h1 className="s-h1" id="hero-title">
+            Every house bill, split and on the record.
+          </h1>
+          <p className="s-lede">
+            Whoever gets the bill posts it with the statement. Everyone sees their share, gets a
+            reminder before it&apos;s due, and checks it off once they&apos;ve paid. Free, with no
+            ads and no card, and it never moves money.
+          </p>
+          <Signup id="hero-email" />
         </div>
       </section>
 
-      <section className="s-section" aria-labelledby="remind-title">
+      <div className="s-wrap">
+        <section className="s-sheet" aria-label="A sample household, drawn as a floor plan">
+          <FloorPlan due={due} />
+        </section>
+      </div>
+
+      <section className="s-section" aria-labelledby="facts-title">
         <div className="s-wrap">
-          <div className="s-section-head">
-            <h2 className="s-h2" id="remind-title">
-              Reminders on the house&apos;s schedule, so nobody has to send
-              them.
-            </h2>
-            <p className="s-prose">
-              Your house picks the hour and the windows. Here are the defaults
-              for a bill due on the 15th. Every due date also lands in each
-              person&apos;s own calendar feed, for Apple or Google Calendar.
-            </p>
-          </div>
-          <div
-            className="s-dim"
-            role="img"
-            aria-label="Reminder schedule for a bill due on the 15th: an email when it's posted on the 1st, a heads-up on the 8th, a reminder each day from the 12th, then every 3 days after the 15th until it's paid."
-          >
-            <div className="s-dim-track" aria-hidden="true">
-              {[
-                ["1st", "Posted", "An email to everyone on the bill"],
-                ["8th", "7 days out", "One heads-up"],
-                ["12th", "Last 3 days", "A reminder each day"],
-                ["15th", "Due", "Then every 3 days until it's paid"],
-              ].map(([date, num, what], i) => (
-                <div
-                  key={date}
-                  className={`s-dim-seg${i === 3 ? " s-dim-seg-over" : ""}`}
-                >
-                  <span className="s-dim-num">
-                    {date} · {num}
-                  </span>
-                  <span className="s-dim-what">{what}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="s-mail">
-            <div className="s-mail-item">
-              <div className="s-mail-subject">
-                New bill: Electric, $26.03 your share
-              </div>
-              <div className="s-mail-from">
-                From Demo House via {BRAND.name}, when the bill is posted
-              </div>
-            </div>
-            <div className="s-mail-item">
-              <div className="s-mail-subject">
-                Due soon: your Electric share
-              </div>
-              <div className="s-mail-from">
-                In the last few days. Replies go straight to Jordan, who fronted
-                it
-              </div>
-            </div>
-            <div className="s-mail-item">
-              <div className="s-mail-subject">Payment recorded: Electric</div>
-              <div className="s-mail-from">
-                Once you&apos;re checked off, if your house turns receipts on
-              </div>
-            </div>
-          </div>
-          <Link className="s-link s-more" href="/how-it-works">
-            See how a whole month goes
-            <Arrow />
-          </Link>
+          <h2 className="sr-only" id="facts-title">
+            Three things to know
+          </h2>
+          <ul className="s-facts">
+            <li>
+              <h3 className="s-h3">It never touches the money.</h3>
+              <p>
+                Pay each other however you already do: Venmo, cash, a bank transfer.{" "}
+                {BRAND.name} records that it happened.
+              </p>
+            </li>
+            <li>
+              <h3 className="s-h3">Attach the statement to any bill.</h3>
+              <p>Anyone in the house can open the provider&apos;s PDF and check the math later.</p>
+            </li>
+            <li>
+              <h3 className="s-h3">Who splits a bill is set when it&apos;s posted.</h3>
+              <p>Roommates who move in later never owe on it.</p>
+            </li>
+          </ul>
+          <p className="s-prose s-facts-more">
+            Reminders go out on the house&apos;s schedule, and every due date lands in your own
+            calendar.{" "}
+            <Link className="s-link s-link-arrow" href="/how-it-works">
+              See how a whole month goes
+              <Arrow />
+            </Link>
+          </p>
         </div>
       </section>
 
       <section className="s-close" aria-labelledby="close-title">
-        <div className="s-wrap">
-          <div className="s-close-panel">
-            <div>
-              <h2 className="s-h2" id="close-title">
-                Put the next bill on the record.
-              </h2>
-              <p className="s-prose">
-                Add the bills you split and invite your roommates by email. The
-                next statement that arrives goes on the record.
-              </p>
-            </div>
-            <div>
-              <Signup id="close-email" wide />
-            </div>
+        <div className="s-wrap s-close-row">
+          <div>
+            <h2 className="s-h2" id="close-title">
+              Put the next bill on the record.
+            </h2>
+            <p className="s-prose">Invite your roommates by email. Private to your household, free, no card.</p>
           </div>
+          <Signup id="close-email" />
         </div>
       </section>
     </main>

@@ -7,6 +7,8 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 // fronts it, then into every room that splits it, where the share is written on. Rooms, shares
 // and controls are HTML (readable without JS); the lines are an SVG overlay measured from them.
 // Names and amounts match the /demo household (lib/demo.ts) and are labeled as a sample.
+// It is deliberately spare: four rooms around one hall, a tab per bill, and only the selected
+// bill's lane labeled, so the share figures stay the loudest thing on the sheet.
 
 export type UtilId = "electric" | "gas" | "water" | "wifi";
 type Mode = "single" | "ledger";
@@ -73,9 +75,9 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
   // Bumped on every redraw so the drop animation replays.
   const [draw, setDraw] = useState(0);
   const plan = useRef<HTMLDivElement>(null);
-  // Measured lane-label widths, so each label can be set in a gap clear of every drop.
-  const [labelW, setLabelW] = useState<Record<string, number>>({});
-  const labels = useRef<Record<string, SVGTextElement | null>>({});
+  // The selected lane's label, measured so it can be set in a gap clear of every drop.
+  const [labelW, setLabelW] = useState(0);
+  const label = useRef<SVGTextElement>(null);
 
   const util = UTILS.find((u) => u.id === selected)!;
   const ownerOf = useCallback((u: Util) => (mode === "single" ? PAYER : u.owner), [mode]);
@@ -137,9 +139,7 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
     });
 
   useLayoutEffect(() => {
-    const next: Record<string, number> = {};
-    for (const u of UTILS) next[u.id] = Math.ceil(labels.current[u.id]?.getComputedTextLength() ?? 0);
-    setLabelW((prev) => (UTILS.every((u) => prev[u.id] === next[u.id]) ? prev : next));
+    setLabelW(Math.ceil(label.current?.getComputedTextLength() ?? 0));
   }, [geo, selected]);
 
   const laneY = (i: number) => (geo ? geo.hall.top + ((geo.hall.bottom - geo.hall.top) * (i + 1)) / (UTILS.length + 1) : 0);
@@ -164,16 +164,35 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
     return geo.meterLeft - 8;
   };
 
+  // One sentence: who fronted it and what each of the others owes them.
   const summary =
     mode === "single"
-      ? `${PAYER} pays every bill, so everyone else owes ${PAYER}. ${util.name} is ${money(util.total)}, split four ways: ${money(util.share)} each.`
-      : `${owner} fronts ${util.name}. It's ${money(util.total)}, split four ways: ${money(util.share)} each, and ${owner}'s own share is already covered.`;
+      ? `${PAYER} pays every bill, so everyone else owes ${PAYER}: ${util.name} is ${money(util.total)}, ${money(util.share)} each.`
+      : `${owner} fronts ${util.name}, ${money(util.total)}, so the other three owe ${owner} ${money(util.share)} each.`;
 
   return (
     <div className="fp">
-      <div className="fp-controls">
+      <div className="fp-bar">
+        <div className="fp-bills" role="group" aria-label="This month's bills">
+          {UTILS.map((u) => (
+            <button
+              key={u.id}
+              type="button"
+              className="fp-bill"
+              data-util={u.id}
+              aria-pressed={u.id === selected}
+              aria-label={`${u.name}, ${money(u.total)}, ${ownerOf(u)} fronts it`}
+              onClick={() => choose(u.id)}
+            >
+              <svg className="fp-swatch" viewBox="0 0 44 8" aria-hidden="true">
+                <line x1="1" y1="4" x2="43" y2="4" strokeDasharray={u.dash} />
+              </svg>
+              <span className="fp-bill-name">{u.name}</span>
+            </button>
+          ))}
+        </div>
         <fieldset className="fp-mode">
-          <legend className="fp-control-label">Who fronts the bills?</legend>
+          <legend className="sr-only">Who fronts the bills</legend>
           <div className="fp-seg">
             <button type="button" aria-pressed={mode === "single"} onClick={() => switchMode("single")}>
               One person pays
@@ -183,23 +202,6 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
             </button>
           </div>
         </fieldset>
-        <div className="fp-legend" role="group" aria-label="This month's bills">
-          <span className="fp-control-label" aria-hidden="true">
-            This month&apos;s bills
-          </span>
-          <div className="fp-bills">
-            {UTILS.map((u) => (
-              <button key={u.id} type="button" className="fp-bill" data-util={u.id} aria-pressed={u.id === selected} onClick={() => choose(u.id)}>
-                <svg className="fp-swatch" viewBox="0 0 44 8" aria-hidden="true">
-                  <line x1="1" y1="4" x2="43" y2="4" strokeDasharray={u.dash} />
-                </svg>
-                <span className="fp-bill-name">{u.name}</span>
-                <span className="fp-bill-total">{money(u.total)}</span>
-                <span className="fp-bill-owner">{ownerOf(u)} fronts it</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="fp-plan" ref={plan} data-util={selected}>
@@ -216,9 +218,7 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
                 <div className="fp-share fp-share-owner" data-outlet="">
                   <Figure n={util.share * stillOwe.length} live />
                   <span className="fp-caption">
-                    {stillOwe.length === 0
-                      ? `fronted ${money(util.total)}, all paid back`
-                      : `owed back · fronted ${money(util.total)}`}
+                    {stillOwe.length === 0 ? `fronted ${money(util.total)} · all paid back` : `fronted ${money(util.total)} · owed back`}
                   </span>
                 </div>
               ) : (
@@ -245,12 +245,6 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
             </div>
           );
         })}
-        <div className="fp-room fp-room-quiet" style={{ gridArea: "kit" }} aria-hidden="true">
-          <span className="fp-room-no">Kitchen</span>
-        </div>
-        <div className="fp-room fp-room-quiet" style={{ gridArea: "liv" }} aria-hidden="true">
-          <span className="fp-room-no">Living</span>
-        </div>
         <div className="fp-hall" style={{ gridArea: "hall" }} data-hall="" aria-hidden="true">
           <div className="fp-meter" data-meter="">
             <span>Meters</span>
@@ -294,33 +288,20 @@ export default function FloorPlan({ due }: { due: Record<UtilId, string> }) {
                 );
               })}
             </g>
-            {/* Lane labels last, haloed in the sheet color, so a drop passes under a label, never through it. */}
-            {UTILS.map((u, i) => (
-              <text
-                key={u.id}
-                ref={(el) => {
-                  labels.current[u.id] = el;
-                }}
-                className="fp-lane-label"
-                data-on={u.id === selected || undefined}
-                x={labelX(labelW[u.id] ?? 0)}
-                y={laneY(i) - 4}
-                textAnchor="end"
-              >
-                {`${u.name.toUpperCase()} ${money(u.total)}`}
-              </text>
-            ))}
+            {/* Only the selected lane is labeled, last and haloed in the sheet color, so a drop passes under it, never through it. */}
+            <text ref={label} className="fp-lane-label" x={labelX(labelW)} y={laneY(selIndex) - 4} textAnchor="end">
+              {`${util.name.toUpperCase()} ${money(util.total)}`}
+            </text>
           </svg>
         )}
       </div>
 
-      <p className="fp-summary" aria-live="polite">
-        {summary}{" "}
-        {stillOwe.length === 0
-          ? "Everyone has paid back."
-          : `${stillOwe.join(stillOwe.length === 2 ? " and " : ", ")} still ${stillOwe.length === 1 ? "owes" : "owe"}. Tap a share to check it off.`}
-      </p>
-      <p className="fp-sample">Sample household. Names and amounts are made up.</p>
+      <div className="fp-foot">
+        <p className="fp-summary" aria-live="polite">
+          {summary} {stillOwe.length === 0 ? "Everyone has paid back." : "Tap a share to check it off."}
+        </p>
+        <p className="fp-sample">Sample household</p>
+      </div>
     </div>
   );
 }

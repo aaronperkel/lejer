@@ -191,7 +191,7 @@ export default function HowItWorks() {
               <p className="s-prose">Free, with no ads and no card. Or open the demo household and click around first.</p>
             </div>
             <div>
-              <Signup id="close-email" wide />
+              <Signup id="close-email" />
             </div>
           </div>
         </div>

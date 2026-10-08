@@ -81,7 +81,7 @@ export default function About() {
           </div>
           <div>
             <p className="s-prose">
-              {BRAND.name} is made by <strong>Aaron Perkel LLC</strong>. It&apos;s free, with no ads and no card, and it grows by
+              {BRAND.name} is made by <strong>{BRAND.legalName}</strong>. It&apos;s free, with no ads and no card, and it grows by
               word of mouth: one house tells the next.
             </p>
             <p className="s-prose">
@@ -102,7 +102,7 @@ export default function About() {
               <p className="s-prose">Invite your roommates by email, and the next bill goes on the record.</p>
             </div>
             <div>
-              <Signup id="close-email" wide />
+              <Signup id="close-email" />
             </div>
           </div>
         </div>

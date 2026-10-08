@@ -10,6 +10,9 @@ const NAME = "Lejer";
 const DOMAIN = "lejer.app";
 const MAIL_SUBDOMAIN = `mail.${DOMAIN}`;
 const COOKIE_PREFIX = "lejer";
+/** Who makes it: the footer's "Built by" line and the About page. */
+const LEGAL_NAME = "Aaron Perkel LLC";
+const LEGAL_URL = "https://aaronperkel.com";
 
 export const BRAND = {
   name: NAME,
@@ -17,6 +20,8 @@ export const BRAND = {
   /** Production URL; NEXT_PUBLIC_APP_URL overrides it per environment (see appUrl()). */
   url: `https://${DOMAIN}`,
   mailDomain: MAIL_SUBDOMAIN,
+  legalName: LEGAL_NAME,
+  legalUrl: LEGAL_URL,
   /** Account mail: login codes and invites. Display name is the product name, no Reply-To. */
   loginFrom: `login@${MAIL_SUBDOMAIN}`,
   /** Household mail, sent as "{household} via {name}". */
