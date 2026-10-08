@@ -1227,3 +1227,68 @@ button.fp-share:hover {
     margin-left: 0;
   }
 }
+
+/* ---------- Sign in: the code flow, a narrow column on the plain sheet ---------- */
+
+.s-login {
+  max-width: 536px; /* 480px of column inside the wrap's gutters */
+  flex: 1 0 auto;
+  padding-top: 56px;
+  padding-bottom: 96px;
+}
+
+@media (min-width: 640px) {
+  .s-login {
+    padding-top: 88px;
+  }
+}
+
+.s-login .s-key {
+  margin-bottom: 14px;
+}
+
+.s-login .s-h1 {
+  font-size: clamp(2.2rem, 1.5rem + 2.4vw, 3rem);
+}
+
+.s-login .s-lede strong {
+  color: var(--ink);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.s-login-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.s-label {
+  font-weight: 650;
+  font-size: 0.94rem;
+}
+
+/* The code is a figure: mono, wide-set, centered, the largest type in the form. */
+.s-code {
+  min-height: 60px;
+  font-family: var(--mono);
+  font-size: 1.6rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+  padding-left: calc(14px + 0.4em);
+}
+
+/* Errors: ink text with the electric line down its edge (color is never the only cue). */
+.s-alert {
+  border: 1.5px solid var(--ink);
+  border-left: 6px solid var(--electric);
+  background: var(--sheet-hi);
+  padding: 10px 14px;
+  font-size: 0.94rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.s-login .s-hint {
+  margin-top: 18px;
+}

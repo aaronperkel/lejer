@@ -1,6 +1,6 @@
 import Link from "next/link";
 import SubmitButton from "@/app/components/SubmitButton";
-import { requestCode } from "@/app/(app)/login/actions";
+import { requestCode } from "@/app/(site)/login/actions";
 
 // The real sign-up: the same email-code request as /login. A new address gets a code and the
 // verified code creates the account; it lands on /login's code step either way, then on

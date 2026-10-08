@@ -361,8 +361,7 @@ typewriter, like a ledger typed up and titled by hand.
 - **Page title:** statement uses the sans at 700, 1.25rem, tight tracking. Peach uses Fraunces
   at 600, 1.6rem, tracking -0.01em. One per page, usually a greeting ("Hi, {name}") or the
   section name.
-- **Display** (peach only; Fraunces 600, about 1.875rem): hero moments such as the login card and
-  empty states.
+- **Display** (peach only; Fraunces 600, about 1.875rem): hero moments such as empty states.
 - **Summary figure** (ledger mono at 600, 1.7rem, line-height 1.25, tabular): the three numbers
   in the dashboard strip (you owe or owed to you, next due, bills on record).
 - **Body** (sans, root size clamp(15px, 1vw + 12px, 16px), line-height 1.55): prose, table
@@ -594,7 +593,8 @@ without opting in.
 
 **Creative North Star: "The Floor Plan"**
 
-The signed-out site (`/`, `/how-it-works`, `/about`, the `app/(site)` route group) is a third
+The signed-out site (`/`, `/how-it-works`, `/about`, `/login`'s email and code steps, the
+`app/(site)` route group) is a third
 visual world, separate from both household themes, the way a theme marketplace's own homepage is
 not one of its themes. The household is drawn as an apartment floor plan on a cool white drafting
 sheet: each bill is a utility line that runs from the meters along the hall and drops into every

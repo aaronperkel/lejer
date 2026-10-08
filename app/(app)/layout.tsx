@@ -3,7 +3,8 @@ import AppShell, { appViewport } from "@/app/components/AppShell";
 import { baseMetadata } from "@/app/metadata";
 import { getSessionUser } from "@/lib/context";
 
-// Root layout for the pages outside any household: /login, /account, /households, /new.
+// Root layout for the pages outside any household: /account, /households, /new. (/login is
+// on the public site's root, app/(site).)
 // Household pages have their own root at app/(household)/[household] (see AppShell).
 
 export const metadata: Metadata = baseMetadata;

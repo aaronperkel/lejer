@@ -414,6 +414,10 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("signed out, a household URL → /login?next= that URL", res.status === 307 && (res.headers.get("location") ?? "").endsWith(`/login?next=${encodeURIComponent(A())}`), res.headers.get("location"));
   pg = await page("/households", bothCookie);
   r.check("/households links every household by its URL", pg.html.includes(`href="${A()}"`) && pg.html.includes(`href="${B()}"`));
+  pg = await page("/login", "");
+  r.check("/login is on the public site's root (its look, not a household theme)", pg.status === 200 && pg.html.includes("data-site") && !pg.html.includes("data-theme="), pg.status);
+  pg = await page(`/login?step=code&email=${encodeURIComponent(`x-${RUN}@verify.invalid`)}`, "");
+  r.check("…the code step too", pg.html.includes("data-site") && pg.html.includes('"one-time-code"'));
 
   r.section("http: the cron endpoint's lock");
   // Only the refusals go over the wire: an authorized tick would run every household in the
@@ -487,7 +491,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
 
   r.section("http: sign-in flow (console mail)");
   const fresh = email("signup");
-  const loginForm = (actionName: string, fields: Record<string, string>) => formPost("/login", id("app/(app)/login/actions.ts", actionName), fields, "");
+  const loginForm = (actionName: string, fields: Record<string, string>) => formPost("/login", id("app/(site)/login/actions.ts", actionName), fields, "");
   res = await loginForm("requestCode", { email: fresh.toUpperCase(), next: "/" });
   r.check("code requested (unknown email welcome)", (res.headers.get("location") ?? "").includes("step=code"), res.headers.get("location"));
   let code = "";

@@ -2,7 +2,7 @@ import type { Viewport } from "next";
 import Link from "next/link";
 import { Courier_Prime, Fraunces, IBM_Plex_Mono, Karla } from "next/font/google";
 import Nav from "@/app/components/Nav";
-import { signOut } from "@/app/(app)/login/actions";
+import { signOut } from "@/app/(site)/login/actions";
 import { BRAND } from "@/lib/brand";
 import { STATEMENT_DARK, THEME_COLORS } from "@/lib/theme-tokens";
 import type { Ctx } from "@/lib/context";
@@ -14,8 +14,8 @@ import type { User } from "@/lib/types";
 import "../globals.css";
 
 // The household app's <html>, shared by its two root layouts: app/(household)/[household]
-// (a household's pages, themed by it) and app/(app) (login, account, the household list and
-// onboarding, outside any household). Two roots rather than one because a root layout isn't
+// (a household's pages, themed by it) and app/(app) (account, the household list and
+// onboarding, outside any household; /login is on the public site's root, app/(site)). Two roots rather than one because a root layout isn't
 // re-rendered by a client navigation that keeps it, and the theme sits on <html>: with the
 // household's pages under their own [household] root, moving between households re-renders
 // it, and crossing to or from the account pages is a full page load.

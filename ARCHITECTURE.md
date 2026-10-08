@@ -624,7 +624,9 @@ has its own address.
   client navigations, so household pages have their own root at
   `app/(household)/[household]/layout.tsx` (re-rendered whenever the slug changes) and the
   account pages theirs at `app/(app)/layout.tsx`; both render `app/components/AppShell.tsx`.
-  The site is the third. Crossing between roots is a full page load.
+  The site is the third, and `/login` is on it: most sign-ins start at the home page's form,
+  so the code step continues that page's look rather than switching to a household theme
+  (which can't be known before sign-in anyway; signing out clears the household cookie). Crossing between roots is a full page load.
 - **Links carry the household.** Nav, tabs, pagination, redirects and `done()`/`fail()` paths go
   through `householdPath(h, path)`; every household email links to `appUrl(/{slug}…)` and the
   calendar feed's URL field to the household, so a link from one household never opens another

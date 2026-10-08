@@ -382,19 +382,20 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 
 - **Three root layouts.** A household's pages live in `app/(household)/[household]/` under its
   own root layout (re-rendered whenever the slug changes, since the theme sits on `<html>` and a
-  shared root layout survives client navigations); the pages outside a household (`login`,
-  `new`, `households`, `account`) live in `app/(app)/`; both roots render
-  `app/components/AppShell.tsx` (nav, theme, fonts, demo banner). The public site lives in
-  `app/(site)/` under its own root. URLs don't include groups, so paths below like
+  shared root layout survives client navigations); the pages outside a household (`new`,
+  `households`, `account`) live in `app/(app)/`; both roots render
+  `app/components/AppShell.tsx` (nav, theme, fonts, demo banner). The public site, `/login`
+  included, lives in `app/(site)/` under its own root. URLs don't include groups, so paths below like
   `app/portal/` mean `app/(household)/[household]/portal/`, served at `/{slug}/portal`.
   Crossing between roots is a full page load, so no `<html>` leaks into another.
   `app/global-not-found.tsx` (experimental `globalNotFound`) is the 404 for unmatched URLs,
   since no single layout covers them; `app/metadata.ts` holds the metadata the roots share
 - `app/(site)/` — the public site (`lib/site.ts`): home at `/` for everyone, `/how-it-works`,
-  `/about`. Its look is its own (`site.css` on
+  `/about`, and `/login`. Its look is its own (`site.css` on
   `html[data-site]`: a drafting sheet, Archivo + Martian Mono, the four utility-locate colors;
   DESIGN.md "Public Site"), not either household theme. `FloorPlan.tsx` is the interactive
-  sample household from `lib/demo.ts`; the sign-up form is the real `requestCode` action
+  sample household from `lib/demo.ts`; the sign-up form is the real `requestCode` action. The
+  site root has no `loading.tsx`, so `/login`'s signed-in `redirect()` is a real 307
 - `app/page.tsx` (`/{slug}`) — dashboard: mode-aware summary strip (you owe / next due / bills on record),
   house ledger (hidden in single-payer when the viewer is the payer), bills grouped by year,
   calendar subscribe buttons
@@ -414,8 +415,9 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 - `app/(app)/new/` — the onboarding wizard (`/new`) for a new user or a new household
 - `app/(app)/households/` — every household you're in, linked by URL (+ "start a new household")
 - `app/(app)/account/` — your name (all households) and a calendar link per joined household
-- `app/(app)/login/` — the code flow (redirects a signed-in visitor to their household) and
-  `signOut` (back to `/`)
+- `app/(site)/login/` — the code flow in the site's look, since most sign-ins start at the
+  home page's form (redirects a signed-in visitor to their household), and `signOut` (back
+  to `/`)
 - `/demo` — not a folder: the `[household]` routes serve the in-memory household in
   `lib/demo.ts` for the `demo` slug; data functions branch on `ctx.demo`, mutations refuse
   politely

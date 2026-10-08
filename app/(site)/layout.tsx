@@ -10,9 +10,9 @@ import "../globals.css";
 import "./site.css";
 
 // The public site's own root layout (lib/site.ts). It is a separate root from the household app
-// (app/components/AppShell.tsx), so crossing between them (the demo link, sign-in, the sign-up
-// form's redirect to the code step) is a full page load and neither <html> carries into the
-// other. "/" is this site for everyone; a signed-in visitor's way in is the header's button.
+// (app/components/AppShell.tsx), so crossing between them (the demo link, a finished sign-in,
+// "Open your household") is a full page load and neither <html> carries into the other. /login
+// lives here too, so the home page's sign-up form carries on into the code step in one look. "/" is this site for everyone; a signed-in visitor's way in is the header's button.
 // globals.css comes along for Tailwind's base and the reduced-motion rule; site.css overrides
 // its theme on html[data-site].
 const archivo = Archivo({
