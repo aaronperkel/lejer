@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money } from "./Shell";
 
@@ -9,6 +10,8 @@ import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money }
 export interface ReminderProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   recipientName: string;
   typeName: string;
   total: number;
@@ -49,7 +52,7 @@ export default function Reminder(p: ReminderProps) {
           { label: "Due", value: due, urgent: p.urgent },
         ]}
       />
-      <ButtonLink theme={p.theme} href={appUrl("/")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }))}>
         Open {p.householdName}
       </ButtonLink>
     </Shell>
@@ -59,6 +62,7 @@ export default function Reminder(p: ReminderProps) {
 Reminder.PreviewProps = {
   theme: "statement",
   householdName: "12 Elm Street",
+  householdSlug: "elm-street",
   recipientName: "Sam",
   typeName: "Electric",
   total: 50.33,

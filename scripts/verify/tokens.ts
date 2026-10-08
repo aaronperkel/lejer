@@ -124,11 +124,11 @@ export async function tokens(r: Results) {
   r.check("peach declares color-scheme: light", /color-scheme:\s*light;/.test(css.slice(css.search(/^:root\[data-theme="peach"\]/m)).split("}")[0]));
 
   // Fonts: statement's ledger face preloads; peach's three faces load only when used.
-  const layout = read("app/(app)/layout.tsx");
+  const layout = read("app/components/AppShell.tsx");
   const face = (fn: string) => layout.match(new RegExp(`${fn}\\(\\{[^}]*\\}`))?.[0] ?? "";
   r.check("IBM Plex Mono (the default theme's face) preloads", face("IBM_Plex_Mono").length > 0 && !/preload:\s*false/.test(face("IBM_Plex_Mono")));
   for (const fn of ["Fraunces", "Karla", "Courier_Prime"])
-    r.check(`${fn} (peach) is preload: false`, /preload:\s*false/.test(face(fn)), face(fn) || "not declared in app/(app)/layout.tsx");
+    r.check(`${fn} (peach) is preload: false`, /preload:\s*false/.test(face(fn)), face(fn) || "not declared in app/components/AppShell.tsx");
 
   const front = read("DESIGN.md").split(/^---$/m)[1] ?? "";
   const colorsYaml = front.split(/^colors:$/m)[1]?.split(/^\S/m)[0] ?? "";

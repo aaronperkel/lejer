@@ -1,19 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import SubmitButton from "@/app/components/SubmitButton";
-import { getCtx, getSessionUser } from "@/lib/context";
+import { getSessionUser } from "@/lib/context";
 import { withUser } from "@/lib/db";
 import { listMyHouseholds } from "@/lib/households";
-import { devBypass } from "@/lib/session";
-import { switchHousehold } from "./actions";
+import { householdPath } from "@/lib/paths";
 
 export const metadata: Metadata = { title: "Your households" };
 
+// Every household you're in, each at its own URL. Opening a pending invite accepts it (getCtx).
 export default async function HouseholdsPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const [ctx, households] = await Promise.all([getCtx(), withUser(user.id, (tx) => listMyHouseholds(tx, user.id))]);
+  const households = await withUser(user.id, (tx) => listMyHouseholds(tx, user.id));
 
   return (
     <main className="mx-auto max-w-xl space-y-6 py-6">
@@ -21,9 +20,6 @@ export default async function HouseholdsPage() {
         <span className="eyebrow mb-1">{user.email}</span>
         <h1 className="page-title">Your households</h1>
       </header>
-      {devBypass() && (
-        <p className="flash flash-err">APP_DEV_HOUSEHOLD pins this session to one household; switching has no effect.</p>
-      )}
 
       {households.length === 0 ? (
         <p className="text-sm text-ink-muted">You aren&apos;t in a household yet.</p>
@@ -31,27 +27,22 @@ export default async function HouseholdsPage() {
         <ul className="panel divide-y divide-line-soft">
           {households.map((h) => (
             <li key={h.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div>
+              <div className="min-w-0">
                 <span className="font-medium">{h.name}</span>
-                <span className="block text-xs text-ink-muted">
-                  {h.role}
+                <span className="block truncate text-xs text-ink-muted">
+                  <span className="figure">{householdPath(h)}</span> · {h.role}
                   {h.joinedAt ? "" : " · new invite"}
                 </span>
               </div>
-              {h.id === ctx?.household.id ? (
-                <span className="tag bg-accent-soft text-accent">Current</span>
-              ) : (
-                <form action={switchHousehold}>
-                  <input type="hidden" name="householdId" value={h.id} />
-                  <SubmitButton className="btn btn-sm" pendingLabel="Opening…">Open</SubmitButton>
-                </form>
-              )}
+              <Link className="btn btn-sm" href={householdPath(h)}>
+                Open
+              </Link>
             </li>
           ))}
         </ul>
       )}
 
-      <Link href="/welcome/household" className="btn">Start a new household</Link>
+      <Link href="/new" className="btn">Start a new household</Link>
     </main>
   );
 }

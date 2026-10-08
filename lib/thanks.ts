@@ -82,6 +82,7 @@ export async function flushThanks(
       react: createElement(Thanks, {
         theme: scope.household.theme,
         householdName: scope.household.name,
+        householdSlug: scope.household.slug,
         recipientName: first.name,
         bills: rows.map((r) => ({ typeName: r.typeName, dueDate: r.dueDate, perPersonCost: r.perPersonCost, ownerName: r.ownerName })),
       }),

@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 // Header: the household name as the wordmark (tagline beside it from sm), section links, and a
-// household switcher that only appears for people in more than one household. Below sm the
+// household switcher that only appears for people in more than one household (links to each
+// household's own URL). Below sm the
 // links fold into one "Menu" disclosure so the bar never overflows a phone. Peach's awning
 // tops the header, its scalloped hem hanging over the bar (.awning is display: none in statement). Server actions
 // arrive as props.
@@ -13,19 +14,20 @@ import { useEffect, useRef } from "react";
 export interface NavProps {
   brand: string;
   tagline: string | null;
+  /** Where the wordmark goes: the household's dashboard, or the public site outside one. */
+  home: string;
   links: { href: string; label: string }[];
-  households: { id: number; name: string }[];
+  households: { id: number; name: string; href: string }[];
   currentHouseholdId: number | null;
   demo: boolean;
   signedIn: boolean;
-  switchHousehold: (formData: FormData) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-const isActive = (href: string, pathname: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
-
-export default function Nav({ brand, tagline, links, households, currentHouseholdId, demo, signedIn, switchHousehold, signOut }: NavProps) {
+export default function Nav({ brand, tagline, home, links, households, currentHouseholdId, demo, signedIn, signOut }: NavProps) {
   const pathname = usePathname();
+  // The dashboard is the household's own root, so it only matches exactly.
+  const isActive = (href: string) => (href === home ? pathname === home : pathname === href || pathname.startsWith(`${href}/`));
   const menu = useRef<HTMLDetailsElement>(null);
   const switcher = useRef<HTMLDetailsElement>(null);
 
@@ -57,16 +59,14 @@ export default function Nav({ brand, tagline, links, households, currentHousehol
             </summary>
             <div className="panel absolute left-0 z-30 mt-2 min-w-56 p-1 shadow-sm">
               {households.map((h) => (
-                <form key={h.id} action={switchHousehold}>
-                  <input type="hidden" name="householdId" value={h.id} />
-                  <button
-                    type="submit"
-                    className={`block w-full rounded-(--radius-sm) px-3 py-2 text-left text-sm hover:bg-panel-2 ${h.id === currentHouseholdId ? "font-semibold" : ""}`}
-                    aria-current={h.id === currentHouseholdId ? "true" : undefined}
-                  >
-                    {h.name}
-                  </button>
-                </form>
+                <Link
+                  key={h.id}
+                  href={h.href}
+                  className={`block rounded-(--radius-sm) px-3 py-2 text-sm no-underline hover:bg-panel-2 ${h.id === currentHouseholdId ? "font-semibold" : ""}`}
+                  aria-current={h.id === currentHouseholdId ? "true" : undefined}
+                >
+                  {h.name}
+                </Link>
               ))}
               <Link href="/households" className="block border-t border-line-soft px-3 py-2 text-sm text-ink-muted hover:text-ink">
                 All households
@@ -74,7 +74,7 @@ export default function Nav({ brand, tagline, links, households, currentHousehol
             </div>
           </details>
         ) : (
-          <Link href="/" className="flex min-w-0 items-baseline gap-3 no-underline">
+          <Link href={home} className="flex min-w-0 items-baseline gap-3 no-underline">
             {wordmark}
           </Link>
         )}
@@ -83,7 +83,7 @@ export default function Nav({ brand, tagline, links, households, currentHousehol
           {/* sm and up: the links in a row */}
           <nav className="hidden h-full items-center gap-5 sm:flex" aria-label="Main navigation">
             {links.map(({ href, label }) => (
-              <Link key={href} href={href} aria-current={isActive(href, pathname) ? "page" : undefined} className="nav-link">
+              <Link key={href} href={href} aria-current={isActive(href) ? "page" : undefined} className="nav-link">
                 {label}
               </Link>
             ))}
@@ -113,7 +113,7 @@ export default function Nav({ brand, tagline, links, households, currentHousehol
               </summary>
               <nav className="nav-menu-sheet" aria-label="Main navigation">
                 {links.map(({ href, label }) => (
-                  <Link key={href} href={href} aria-current={isActive(href, pathname) ? "page" : undefined} className="nav-menu-link">
+                  <Link key={href} href={href} aria-current={isActive(href) ? "page" : undefined} className="nav-menu-link">
                     {label}
                   </Link>
                 ))}

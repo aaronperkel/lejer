@@ -1,11 +1,12 @@
 import { readBlob } from "@/lib/blob";
-import { getCtx } from "@/lib/context";
-import { authorizeFile } from "@/lib/files";
+import { getCtxForHousehold } from "@/lib/context";
+import { authorizeFile, keyHouseholdId } from "@/lib/files";
 
 // The only read path into the private Blob store. lib/files.ts decides; this streams.
 export async function GET(_req: Request, { params }: RouteContext<"/files/[...path]">) {
   const key = (await params).path.join("/");
-  const decision = await authorizeFile(await getCtx(), key);
+  const householdId = keyHouseholdId(key);
+  const decision = await authorizeFile(householdId === null ? null : await getCtxForHousehold(householdId), key);
   if (!decision.ok) return new Response(decision.status === 403 ? "Forbidden" : "Not found", { status: decision.status });
 
   const stream = await readBlob(key);

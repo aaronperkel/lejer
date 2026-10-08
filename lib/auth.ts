@@ -1,22 +1,27 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCtx, getSessionUser, type Ctx } from "@/lib/context";
 import type { Tx } from "@/lib/db";
 import { DEMO_REFUSAL } from "@/lib/demo";
 import { ActionError } from "@/lib/errors";
+import { householdPath } from "@/lib/paths";
 
 // Page-level authorization redirects; action-level authorization throws. Every server action
 // calls one of the *Action helpers itself: proxy.ts is only the first lock.
 
-/** A household context, or off to onboarding (signed in, no household) / login. */
+/**
+ * The household the URL names, for a member of it. Signed in but not a member (or no such
+ * household): not found, so a slug never confirms that a household exists. Signed out: login.
+ */
 export async function requireUser(): Promise<Ctx> {
   const ctx = await getCtx();
   if (ctx) return ctx;
-  redirect((await getSessionUser()) ? "/welcome/household" : "/login");
+  if (await getSessionUser()) notFound();
+  redirect("/login");
 }
 
 export async function requireAdmin(): Promise<Ctx> {
   const ctx = await requireUser();
-  if (ctx.membership.role !== "admin") redirect("/no-access");
+  if (ctx.membership.role !== "admin") redirect(householdPath(ctx.household, "/no-access"));
   return ctx;
 }
 

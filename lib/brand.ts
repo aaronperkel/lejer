@@ -23,7 +23,8 @@ export const BRAND = {
   notifyFrom: `notify@${MAIL_SUBDOMAIN}`,
   cookies: {
     session: `${COOKIE_PREFIX}_session`,
-    demo: `${COOKIE_PREFIX}_demo`,
+    /** Not a credential: the last household opened, so "Sign in" knows where to go. */
+    household: `${COOKIE_PREFIX}_household`,
   },
 } as const;
 

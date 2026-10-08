@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import SubmitButton from "@/app/components/SubmitButton";
+import { getSessionUser, homePath } from "@/lib/context";
 import { safeNext } from "@/lib/flash";
 import { requestCode, submitCode } from "./actions";
 import { BRAND } from "@/lib/brand";
@@ -23,6 +25,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const email = one(sp.email);
   const step = one(sp.step);
   const next = safeNext(one(sp.next));
+  // Already signed in: "Sign in" goes straight to the household, like any app's. Not on the
+  // code step, which someone signing in as another address reaches from the site's form.
+  const user = step === "code" ? null : await getSessionUser();
+  if (user) redirect(next !== "/" ? next : await homePath(user));
 
   const flash = err && <div className="flash flash-err" role="alert">{ERRORS[err] ?? "Something went wrong."}</div>;
   const restart = `/login?${new URLSearchParams({ ...(email ? { email } : {}), ...(next !== "/" ? { next } : {}) })}`;
@@ -88,9 +94,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
               </SubmitButton>
             </form>
             <p className="mt-4 text-center text-sm">
-              {/* A plain link: entering the demo swaps the cookie the root layout renders from, so it
-                  needs a full page load, not a client navigation that keeps this layout. */}
-              <a className="text-ink-muted underline" href="/demo">Look around the demo first</a>
+              <Link className="text-ink-muted underline" href="/demo">Look around the demo first</Link>
             </p>
           </>
         )}

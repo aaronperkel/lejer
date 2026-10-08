@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money, nameList } from "./Shell";
 
@@ -12,6 +13,8 @@ import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money, 
 export interface NewBillProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   recipientName: string;
   typeName: string;
   total: number;
@@ -70,7 +73,7 @@ export default function NewBill(p: NewBillProps) {
           { label: "Due", value: due },
         ]}
       />
-      <ButtonLink theme={p.theme} href={appUrl("/")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }))}>
         {p.hasPdf ? "See the bill and the statement" : `Open ${p.householdName}`}
       </ButtonLink>
     </Shell>
@@ -80,6 +83,7 @@ export default function NewBill(p: NewBillProps) {
 NewBill.PreviewProps = {
   theme: "peach",
   householdName: "7 Oak Lane",
+  householdSlug: "oak-lane",
   recipientName: "Alex",
   typeName: "Water",
   total: 42.18,

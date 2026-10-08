@@ -1,11 +1,9 @@
 // The public site (home, how it works, about), in its own root layout at app/(site)/layout.tsx.
-// proxy.ts lets its pages through without a session and rewrites a signed-out "/" to SITE_HOME.
+// "/" is the home page for everyone, signed in or not; households live at /{slug}
+// (lib/paths.ts). proxy.ts lets these pages through without a session.
 
-/** Site pages anyone can open, signed in or not. "/" is the site only without a session. */
-export const SITE_PAGES = /^\/(?:how-it-works|about)$/;
-
-/** Where "/" is rewritten for signed-out visitors. Requested directly, it redirects to "/". */
-export const SITE_HOME = "/home";
+/** Site pages anyone can open, signed in or not. */
+export const SITE_PAGES = /^\/(?:how-it-works|about)?$/;
 
 /** The site's pages, numbered like the sheets of a drawing set (the header's sheet index). */
 export const SHEETS = [

@@ -4,19 +4,26 @@ import CalendarLinks from "@/app/components/CalendarLinks";
 import CopyField from "@/app/components/CopyField";
 import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
-import { getCtx, getSessionUser } from "@/lib/context";
+import { getSessionUser } from "@/lib/context";
+import { withUser } from "@/lib/db";
+import { listMyCalendarTokens, listMyHouseholds } from "@/lib/households";
 import { calendarLinks } from "@/lib/ics";
-import { loadCalendarToken } from "@/lib/views";
 import { resetCalendarLink, updateMyName } from "./actions";
 
 export const metadata: Metadata = { title: "Account" };
 
+// You, across households: your name, and your calendar link in each household you've joined.
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const ctx = await getCtx();
   const { ok, err } = await searchParams;
-  const token = ctx ? await loadCalendarToken(ctx) : null;
+  const [households, tokens] = await withUser(user.id, async (tx) =>
+    Promise.all([listMyHouseholds(tx, user.id), listMyCalendarTokens(tx, user.id)]),
+  );
+  const calendars = households.flatMap((h) => {
+    const token = tokens.get(h.id);
+    return token ? [{ ...h, token }] : [];
+  });
 
   return (
     <main className="mx-auto max-w-xl space-y-6 py-6">
@@ -37,29 +44,30 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         </form>
       </section>
 
-      {ctx && token && (
-        <section className="panel space-y-4 p-5" aria-labelledby="calendar-heading">
+      {calendars.map((h) => (
+        <section key={h.id} className="panel space-y-4 p-5" aria-labelledby={`calendar-heading-${h.id}`}>
           <div>
-            <h2 id="calendar-heading" className="eyebrow mb-1">
-              Calendar · {ctx.household.name}
+            <h2 id={`calendar-heading-${h.id}`} className="eyebrow mb-1">
+              Calendar · {h.name}
             </h2>
             <p className="text-sm text-ink-muted">
               Every bill&apos;s due date in your own calendar, saying what you owe and to whom. It updates on its own.
             </p>
           </div>
-          <CalendarLinks token={token} />
-          <CopyField id="calendar-url" label="Or paste this link into any calendar app" value={calendarLinks(token).https} />
+          <CalendarLinks token={h.token} />
+          <CopyField id={`calendar-url-${h.id}`} label="Or paste this link into any calendar app" value={calendarLinks(h.token).https} />
           <div className="border-t border-line-soft pt-4">
             <p className="mb-3 text-sm text-ink-muted">
               The link is yours alone. If it ends up somewhere it shouldn&apos;t, reset it: the old link stops working right
               away, and nobody else&apos;s changes.
             </p>
             <form action={resetCalendarLink}>
+              <input type="hidden" name="householdId" value={h.id} />
               <SubmitButton className="btn" pendingLabel="Resetting…">Reset my calendar link</SubmitButton>
             </form>
           </div>
         </section>
-      )}
+      ))}
     </main>
   );
 }

@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate } from "./Shell";
 
@@ -7,6 +8,8 @@ import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate } from "
 export interface BatchConfirmationProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   date: string; // the household's local date the batch ran
   sent: { name: string; typeName: string; urgent: boolean }[];
   failed: number;
@@ -31,7 +34,7 @@ export default function BatchConfirmation(p: BatchConfirmationProps) {
         </Paragraph>
       )}
       <Rows theme={p.theme} rows={p.sent.map((s) => ({ label: s.name, value: `${s.typeName}${s.urgent ? " · due soon" : ""}`, urgent: s.urgent }))} />
-      <ButtonLink theme={p.theme} href={appUrl("/portal")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
         Open the portal
       </ButtonLink>
     </Shell>
@@ -41,6 +44,7 @@ export default function BatchConfirmation(p: BatchConfirmationProps) {
 BatchConfirmation.PreviewProps = {
   theme: "peach",
   householdName: "7 Oak Lane",
+  householdSlug: "oak-lane",
   date: "2026-10-07",
   sent: [
     { name: "Sam", typeName: "Electric", urgent: true },

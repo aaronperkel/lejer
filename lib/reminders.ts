@@ -72,6 +72,7 @@ export function reminderMessage(h: Household, r: Omit<DueReminder, "personId">):
     react: createElement(Reminder, {
       theme: h.theme,
       householdName: h.name,
+      householdSlug: h.slug,
       recipientName: r.name,
       typeName: r.typeName,
       total: r.total,
@@ -94,6 +95,7 @@ export function batchConfirmationMessage(h: Household, today: string, sent: DueR
     react: createElement(BatchConfirmation, {
       theme: h.theme,
       householdName: h.name,
+      householdSlug: h.slug,
       date: today,
       sent: sent.map((s) => ({ name: s.name, typeName: s.typeName, urgent: s.level !== "heads_up" })),
       failed,

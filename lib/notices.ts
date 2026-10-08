@@ -159,6 +159,7 @@ async function sendBatch(scope: TenantScope & { household: Household }, b: Batch
       react: createElement(NewBill, {
         theme: scope.household.theme,
         householdName: scope.household.name,
+        householdSlug: scope.household.slug,
         recipientName: p.name,
         typeName: bill.typeName,
         total: bill.total,
@@ -193,7 +194,7 @@ async function ownerEmail(scope: TenantScope, ownerId: number | null): Promise<s
 async function sendDigest(
   scope: TenantScope & { household: Household },
   mail: Mailer,
-  p: Omit<DigestCopyProps, "theme" | "householdName">,
+  p: Omit<DigestCopyProps, "theme" | "householdName" | "householdSlug">,
 ): Promise<void> {
   const to = scope.household.digestEmail;
   if (!to) return;
@@ -201,7 +202,7 @@ async function sendDigest(
     ctx: scope,
     to,
     subject: digestSubject(p.event, p.typeName, p.sentTo.length),
-    react: createElement(DigestCopy, { ...p, theme: scope.household.theme, householdName: scope.household.name }),
+    react: createElement(DigestCopy, { ...p, theme: scope.household.theme, householdName: scope.household.name, householdSlug: scope.household.slug }),
     kind: "digest",
   });
 }
@@ -230,6 +231,7 @@ export async function sendBillRemoved(ctx: Ctx, removed: RemovedBill, opts: { ma
       react: createElement(BillRemoved, {
         theme: ctx.household.theme,
         householdName: ctx.household.name,
+        householdSlug: ctx.household.slug,
         recipientName: p.name,
         typeName: removed.typeName,
         total: removed.total,

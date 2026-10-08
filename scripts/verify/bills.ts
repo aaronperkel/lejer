@@ -208,6 +208,6 @@ export async function bills(r: Results, { owner }: { owner: Sql }) {
   r.check("own prefix but not recorded → 404", (await authorizeFile(admin, `h/${lg.id}/bills/2030/gas/0101-999999.pdf`)).ok === false);
   r.check("own prefix with ../ → 404", (await authorizeFile(admin, `h/${lg.id}/../${other.id}/bills/x.pdf`)).ok === false);
   r.check("SVG never served", (await authorizeFile(admin, `h/${lg.id}/documents/x.svg`)).ok === false);
-  r.check("no session → 403", JSON.stringify(await authorizeFile(null, key)) === '{"ok":false,"status":403}');
+  r.check("no household context → 404 (a key never confirms it exists)", JSON.stringify(await authorizeFile(null, key)) === '{"ok":false,"status":404}');
   r.check("demo → 404", (await authorizeFile(demoCtx(), key)).ok === false);
 }

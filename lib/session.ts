@@ -2,20 +2,20 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { BRAND } from "@/lib/brand";
 
-// Two signed cookies, never interchangeable (different audiences); names come from lib/brand.ts:
-// - session { uid, hid }: a real sign-in. hid is null until the user has a household.
-// - demo    { demo: true }: the /demo visitor. Only consulted when there is no session.
+// The session cookie is identity only: { uid }, signed, audience "session". Which household a
+// page shows comes from its URL (lib/paths.ts), never from the cookie. Names come from
+// lib/brand.ts. Tokens issued before households had URLs also carry a hid; it is ignored.
 
 export const SESSION_COOKIE = BRAND.cookies.session;
-export const DEMO_COOKIE = BRAND.cookies.demo;
+/** The slug of the household last opened, set by proxy.ts. A preference, not a credential. */
+export const HOUSEHOLD_COOKIE = BRAND.cookies.household;
 const SESSION_DAYS = 30;
-export const DEMO_DAYS = 7;
 /** proxy.ts re-issues the session cookie once it is this old (sliding 30-day session). */
 export const RENEW_AFTER_SECONDS = 7 * 24 * 60 * 60;
 
 /**
- * APP_DEV_USER + APP_DEV_HOUSEHOLD sign every request in as that email in that household.
- * Never in production, whatever the env says.
+ * APP_DEV_USER signs every request in as that email; APP_DEV_HOUSEHOLD (a slug) is where
+ * "Sign in" lands. Both must be set. Never in production, whatever the env says.
  */
 export function devBypass(): { email: string; slug: string } | null {
   const email = process.env.APP_DEV_USER;
@@ -32,12 +32,11 @@ function secretKey(): Uint8Array {
 
 export interface Session {
   uid: number;
-  hid: number | null;
   issuedAt: number; // unix seconds, for sliding renewal
 }
 
-export async function createSessionToken(uid: number, hid: number | null): Promise<string> {
-  return new SignJWT({ uid, hid })
+export async function createSessionToken(uid: number): Promise<string> {
+  return new SignJWT({ uid })
     .setProtectedHeader({ alg: "HS256" })
     .setAudience("session")
     .setIssuedAt()
@@ -49,30 +48,11 @@ export async function readSessionToken(token: string | undefined): Promise<Sessi
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey(), { audience: "session" });
-    const { uid, hid, iat } = payload;
-    if (!Number.isInteger(uid) || !(hid === null || Number.isInteger(hid))) return null;
-    return { uid: uid as number, hid: hid as number | null, issuedAt: iat ?? 0 };
+    const { uid, iat } = payload;
+    if (!Number.isInteger(uid)) return null;
+    return { uid: uid as number, issuedAt: iat ?? 0 };
   } catch {
     return null;
-  }
-}
-
-export async function createDemoToken(): Promise<string> {
-  return new SignJWT({ demo: true })
-    .setProtectedHeader({ alg: "HS256" })
-    .setAudience("demo")
-    .setIssuedAt()
-    .setExpirationTime(`${DEMO_DAYS}d`)
-    .sign(secretKey());
-}
-
-export async function readDemoToken(token: string | undefined): Promise<boolean> {
-  if (!token) return false;
-  try {
-    const { payload } = await jwtVerify(token, secretKey(), { audience: "demo" });
-    return payload.demo === true;
-  } catch {
-    return false;
   }
 }
 
@@ -91,21 +71,13 @@ export async function getSession(): Promise<Session | null> {
   return readSessionToken((await cookies()).get(SESSION_COOKIE)?.value);
 }
 
-export async function hasDemoCookie(): Promise<boolean> {
-  return readDemoToken((await cookies()).get(DEMO_COOKIE)?.value);
-}
-
 /** Server actions and route handlers only (cookies cannot be set while rendering). */
-export async function startSession(uid: number, hid: number | null): Promise<void> {
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, await createSessionToken(uid, hid), cookieOptions());
-  jar.delete(DEMO_COOKIE);
+export async function startSession(uid: number): Promise<void> {
+  (await cookies()).set(SESSION_COOKIE, await createSessionToken(uid), cookieOptions());
 }
 
 export async function endSession(): Promise<void> {
-  (await cookies()).delete(SESSION_COOKIE);
-}
-
-export async function startDemo(): Promise<void> {
-  (await cookies()).set(DEMO_COOKIE, await createDemoToken(), cookieOptions(DEMO_DAYS));
+  const jar = await cookies();
+  jar.delete(SESSION_COOKIE);
+  jar.delete(HOUSEHOLD_COOKIE);
 }

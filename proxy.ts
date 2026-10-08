@@ -1,49 +1,61 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { DEMO_SLUG, HOUSEHOLD_HEADER, householdSlugOf } from "@/lib/paths";
 import {
-  DEMO_COOKIE,
+  HOUSEHOLD_COOKIE,
   RENEW_AFTER_SECONDS,
   SESSION_COOKIE,
   cookieOptions,
   createSessionToken,
   devBypass,
-  readDemoToken,
   readSessionToken,
 } from "@/lib/session";
-import { SITE_HOME, SITE_PAGES } from "@/lib/site";
+import { SITE_PAGES } from "@/lib/site";
 
-// First lock only: a valid session (or demo) cookie for everything that isn't public.
-// Pages and server actions still authorize themselves (lib/auth.ts); hid is validated
-// against memberships in getCtx(), not here.
+// First lock only: a valid session cookie for everything that isn't public. Pages and server
+// actions still authorize themselves (lib/auth.ts), and getCtx() checks the household the URL
+// names against memberships; this file only reads the slug off the path (lib/paths.ts).
 
 // Public surfaces. /api/documents/upload is public because Blob's upload-completed callback
-// carries no cookie; the route gates token minting on requireAdminAction() itself.
+// carries no cookie; the route gates token minting on admin of the key's household itself.
 const PUBLIC = [
   /^\/login(?:\/|$)/,
-  /^\/demo(?:\/|$)/,
   /^\/cal\.ics$/,
   /^\/api\/cron(?:\/|$)/,
   /^\/api\/documents\/upload$/,
-  /^\/no-access$/,
 ];
+
+/** How long the last-opened-household cookie lasts; refreshed on every visit. */
+const HOUSEHOLD_COOKIE_DAYS = 365;
 
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  if (SITE_PAGES.test(path)) return NextResponse.next();
-  if (path === SITE_HOME) return NextResponse.redirect(new URL("/", req.url));
-  if (PUBLIC.some((re) => re.test(path)) || devBypass()) return NextResponse.next();
+  const slug = householdSlugOf(path);
+
+  // The URL's household, for getCtx(). Whatever the client sent under this name is dropped.
+  const headers = new Headers(req.headers);
+  headers.delete(HOUSEHOLD_HEADER);
+  if (slug) headers.set(HOUSEHOLD_HEADER, slug);
+  const pass = () => NextResponse.next({ request: { headers } });
+  /** A signed-in GET of a household page: remember it as where "Sign in" goes next time. */
+  const remember = (res: NextResponse) => {
+    if (slug && slug !== DEMO_SLUG && req.method === "GET" && req.cookies.get(HOUSEHOLD_COOKIE)?.value !== slug) {
+      res.cookies.set(HOUSEHOLD_COOKIE, slug, cookieOptions(HOUSEHOLD_COOKIE_DAYS));
+    }
+    return res;
+  };
+
+  // The public site, sign-in and the demo household need no session.
+  if (SITE_PAGES.test(path) || PUBLIC.some((re) => re.test(path)) || slug === DEMO_SLUG) return pass();
+  if (devBypass()) return remember(pass());
 
   const session = await readSessionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (session) {
-    const res = NextResponse.next();
+    const res = remember(pass());
     if (Date.now() / 1000 - session.issuedAt > RENEW_AFTER_SECONDS) {
-      res.cookies.set(SESSION_COOKIE, await createSessionToken(session.uid, session.hid), cookieOptions());
+      res.cookies.set(SESSION_COOKIE, await createSessionToken(session.uid), cookieOptions());
     }
     return res;
   }
-  if (await readDemoToken(req.cookies.get(DEMO_COOKIE)?.value)) return NextResponse.next();
-  // Signed out at "/": the public home page instead of the sign-in form. Every method, since
-  // its sign-up form is a server action that posts back to "/".
-  if (path === "/") return NextResponse.rewrite(new URL(SITE_HOME, req.url));
 
   if (req.method !== "GET" && req.method !== "HEAD") {
     return new NextResponse("Unauthorized", { status: 401 });

@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Prose, Rows, Shell } from "./Shell";
 
@@ -7,6 +8,8 @@ import { ButtonLink, Eyebrow, Heading, Prose, Rows, Shell } from "./Shell";
 export interface BulkReceiptProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   senderName: string;
   subject: string;
   body: string;
@@ -29,7 +32,7 @@ export default function BulkReceipt(p: BulkReceiptProps) {
       />
       <Eyebrow theme={p.theme}>The message</Eyebrow>
       <Prose theme={p.theme} text={p.body} />
-      <ButtonLink theme={p.theme} href={appUrl("/portal")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
         Open the portal
       </ButtonLink>
     </Shell>
@@ -39,6 +42,7 @@ export default function BulkReceipt(p: BulkReceiptProps) {
 BulkReceipt.PreviewProps = {
   theme: "statement",
   householdName: "12 Elm Street",
+  householdSlug: "elm-street",
   senderName: "Alex",
   subject: "Internet is switching providers",
   body: "Heads up: the new internet plan starts on the 20th.",

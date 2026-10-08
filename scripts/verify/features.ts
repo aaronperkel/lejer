@@ -108,12 +108,14 @@ export async function features(r: Results, { owner }: { owner: Sql }) {
 
   // -------------------------------------------------------------------------------------------
   r.section("features: gating");
+  const F = (p: string) => `/${f.slug}${p}`;
   let links = navLinks(await member()).map((l) => l.href);
-  r.check("nav: trends on, documents off → Trends shown, Docs hidden", links.includes("/trends") && !links.includes("/documents"), links);
+  r.check("nav: trends on, documents off → Trends shown, Docs hidden", links.includes(F("/trends")) && !links.includes(F("/documents")), links);
   await owner`UPDATE households SET feature_trends = false, feature_documents = true WHERE id = ${f.id}`;
   links = navLinks(await member()).map((l) => l.href);
-  r.check("nav: trends off, documents on → the reverse", !links.includes("/trends") && links.includes("/documents"), links);
-  r.check("the demo nav has no Account", !navLinks(demoCtx()).some((l) => l.href === "/account"));
+  r.check("nav: trends off, documents on → the reverse", !links.includes(F("/trends")) && links.includes(F("/documents")), links);
+  r.check("nav links live under the household's URL (Account aside)", links.filter((l) => l !== "/account").every((l) => l === F("") || l.startsWith(F("/"))), links);
+  r.check("the demo nav has no Account, and stays under /demo", !navLinks(demoCtx()).some((l) => l.href === "/account") && navLinks(demoCtx()).every((l) => l.href.startsWith("/demo")));
 
   // Thanks off (saved above): checking someone off queues nothing.
   await owner`DELETE FROM payment_thanks WHERE household_id = ${f.id}`;

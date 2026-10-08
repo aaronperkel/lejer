@@ -3,6 +3,7 @@ import { BRAND, appUrl } from "@/lib/brand";
 import type { Tx } from "@/lib/db";
 import { hasFeature } from "@/lib/features";
 import { getCurrentHousehold } from "@/lib/households";
+import { householdPath } from "@/lib/paths";
 
 // The personal calendar feed (/cal.ics?k=<token>): every bill's due date as an all-day event,
 // worded for the person whose token it is ("you owe Jordan $26.03", "2 still owe you"), plus
@@ -106,7 +107,7 @@ export async function buildCalendar(tx: Tx, membershipId: number): Promise<strin
     "X-PUBLISHED-TTL:PT6H",
   ];
 
-  const link = appUrl("/");
+  const link = appUrl(householdPath(h));
   for (const b of bills) {
     const owner = b.ownerId === null ? (b.hadOwner ? FORMER_MEMBER : "the house") : (b.ownerName ?? FORMER_MEMBER);
     let status: string;

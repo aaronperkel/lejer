@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money } from "./Shell";
 
@@ -8,6 +9,8 @@ import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money }
 export interface ThanksProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   recipientName: string;
   bills: { typeName: string; dueDate: string; perPersonCost: number; ownerName: string | null }[];
 }
@@ -36,7 +39,7 @@ export default function Thanks(p: ThanksProps) {
         Your payment{many ? "s are" : " is"} on the record. You&apos;re settled up on the bill{many ? "s" : ""} below.
       </Paragraph>
       <Rows theme={p.theme} rows={rows} />
-      <ButtonLink theme={p.theme} href={appUrl("/")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }))}>
         Open {p.householdName}
       </ButtonLink>
     </Shell>
@@ -46,6 +49,7 @@ export default function Thanks(p: ThanksProps) {
 Thanks.PreviewProps = {
   theme: "statement",
   householdName: "12 Elm Street",
+  householdSlug: "elm-street",
   recipientName: "Sam",
   bills: [
     { typeName: "Electric", dueDate: "2026-10-09", perPersonCost: 25.17, ownerName: "Alex" },

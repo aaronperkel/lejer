@@ -5,7 +5,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { BRAND } from "@/lib/brand";
-import { DEMO_COOKIE, SESSION_COOKIE } from "@/lib/session";
+import { HOUSEHOLD_COOKIE, SESSION_COOKIE } from "@/lib/session";
 import type { Results } from "./harness";
 
 const ROOT = path.join(import.meta.dirname, "..", "..");
@@ -21,7 +21,7 @@ function files(rel: string): string[] {
 export async function brand(r: Results) {
   r.section("brand: one source of truth");
   const literal = new RegExp(
-    [BRAND.name, BRAND.domain.replace(".", "\\."), `${BRAND.cookies.session.split("_")[0]}_(?:session|demo)`].join("|"),
+    [BRAND.name, BRAND.domain.replace(".", "\\."), `${BRAND.cookies.session.split("_")[0]}_(?:session|household)`].join("|"),
   );
   const hits: string[] = [];
   for (const f of SCAN.flatMap(files)) {
@@ -31,6 +31,6 @@ export async function brand(r: Results) {
     });
   }
   r.check("no brand literals outside lib/brand.ts", hits.length === 0, hits.join("\n"));
-  r.check("cookie names come from the brand", SESSION_COOKIE === BRAND.cookies.session && DEMO_COOKIE === BRAND.cookies.demo);
+  r.check("cookie names come from the brand", SESSION_COOKIE === BRAND.cookies.session && HOUSEHOLD_COOKIE === BRAND.cookies.household);
   r.check("mail addresses sit on the mail subdomain", BRAND.loginFrom.endsWith(`@${BRAND.mailDomain}`) && BRAND.notifyFrom.endsWith(`@${BRAND.mailDomain}`));
 }

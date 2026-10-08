@@ -3,11 +3,11 @@ import SubmitButton from "@/app/components/SubmitButton";
 import { requestCode } from "@/app/(app)/login/actions";
 
 // The real sign-up: the same email-code request as /login. A new address gets a code and the
-// verified code creates the account; it lands on /login's code step either way.
+// verified code creates the account; it lands on /login's code step either way, then on
+// onboarding (/new) for a new account or the household for a returning one.
 export default function Signup({ id, wide = false, demo = true }: { id: string; wide?: boolean; demo?: boolean }) {
   return (
     <form action={requestCode} className={`s-signup${wide ? " s-signup-wide" : ""}`}>
-      <input type="hidden" name="next" value="/" />
       <label htmlFor={id}>Start your household</label>
       <div className="s-signup-row">
         <input className="s-input" type="email" id={id} name="email" autoComplete="email" placeholder="you@example.com" required />

@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Prose, Shell } from "./Shell";
 
@@ -8,6 +9,8 @@ import { ButtonLink, Eyebrow, Heading, Prose, Shell } from "./Shell";
 export interface CustomNoteProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   senderName: string;
   subject: string;
   body: string;
@@ -19,7 +22,7 @@ export default function CustomNote(p: CustomNoteProps) {
       <Eyebrow theme={p.theme}>A note from {p.senderName}</Eyebrow>
       <Heading theme={p.theme}>{p.subject}</Heading>
       <Prose theme={p.theme} text={p.body} />
-      <ButtonLink theme={p.theme} href={appUrl("/")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }))}>
         Open {p.householdName}
       </ButtonLink>
     </Shell>
@@ -29,6 +32,7 @@ export default function CustomNote(p: CustomNoteProps) {
 CustomNote.PreviewProps = {
   theme: "statement",
   householdName: "12 Elm Street",
+  householdSlug: "elm-street",
   senderName: "Alex",
   subject: "Internet is switching providers",
   body: "Heads up: the new internet plan starts on the 20th.\n\nThe bill will be a little lower, and the router stays where it is.",

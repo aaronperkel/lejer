@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Archivo, Martian_Mono } from "next/font/google";
 import { BRAND } from "@/lib/brand";
-import { getSessionUser } from "@/lib/context";
+import { getSessionUser, homePath } from "@/lib/context";
 import { SHEETS } from "@/lib/site";
 import { baseMetadata } from "@/app/metadata";
 import SiteNav from "./SiteNav";
@@ -10,8 +10,9 @@ import "../globals.css";
 import "./site.css";
 
 // The public site's own root layout (lib/site.ts). It is a separate root from the household app
-// (app/(app)/layout.tsx), so crossing between them (the demo link, sign-in, the sign-up form's
-// redirect to the code step) is a full page load and neither <html> carries into the other.
+// (app/components/AppShell.tsx), so crossing between them (the demo link, sign-in, the sign-up
+// form's redirect to the code step) is a full page load and neither <html> carries into the
+// other. "/" is this site for everyone; a signed-in visitor's way in is the header's button.
 // globals.css comes along for Tailwind's base and the reduced-motion rule; site.css overrides
 // its theme on html[data-site].
 const archivo = Archivo({
@@ -38,6 +39,7 @@ export default async function SiteLayout({
   children: React.ReactNode;
 }) {
   const user = await getSessionUser();
+  const home = user ? await homePath(user) : null;
   return (
     <html lang="en" data-site="">
       <body>
@@ -50,9 +52,9 @@ export default async function SiteLayout({
                 </Link>
                 <SiteNav />
                 <div className="s-header-actions">
-                  {user ? (
-                    <Link className="s-btn s-btn-sm" href="/">
-                      Open your household
+                  {home ? (
+                    <Link className="s-btn s-btn-sm" href={home}>
+                      {home === "/new" ? "Set up your household" : "Open your household"}
                     </Link>
                   ) : (
                     <>

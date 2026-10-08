@@ -1,4 +1,5 @@
 import { adminSql, type Tx } from "@/lib/db";
+import { isReservedSlug } from "@/lib/paths";
 import type { ColorScheme, Household, HouseholdMode, Membership, ReminderRun, Theme, User } from "@/lib/types";
 
 // Households, memberships and the switcher list. Every function takes the caller's tx except
@@ -41,7 +42,7 @@ export async function findMembership(
   return household ? { membership, household } : null;
 }
 
-/** The household by slug (dev bypass). Under withUser: only the user's own households match. */
+/** The household a URL names, by slug. Under withUser: only the user's own households match. */
 export async function findMembershipBySlug(
   tx: Tx,
   userId: number,
@@ -93,6 +94,14 @@ export async function listMyHouseholds(tx: Tx, userId: number): Promise<MyHouseh
     ORDER BY h.name, h.id`;
 }
 
+/** Your calendar token in each household you've joined, for /account. Under withUser. */
+export async function listMyCalendarTokens(tx: Tx, userId: number): Promise<Map<number, string>> {
+  const rows = await tx<{ householdId: number; token: string }[]>`
+    SELECT household_id AS "householdId", calendar_token AS token
+    FROM memberships WHERE user_id = ${userId} AND joined_at IS NOT NULL`;
+  return new Map(rows.map((r) => [r.householdId, r.token]));
+}
+
 /** Marks a pending invite accepted. Must run in withHousehold for that household. */
 export async function markJoined(tx: Tx, membershipId: number): Promise<void> {
   await tx`UPDATE memberships SET joined_at = now() WHERE id = ${membershipId} AND joined_at IS NULL`;
@@ -123,13 +132,14 @@ export interface NewHousehold {
 
 /**
  * Signup: household + its first admin membership in one owner-role transaction. The wizard's
- * choices drive the defaults: ask_bill_date on for single_payer, peach is light-only.
+ * choices drive the defaults: ask_bill_date on for single_payer, peach is light-only. The slug
+ * is the household's URL (lib/paths.ts): a name that is a reserved route starts at "-2".
  */
 export async function createHousehold(h: NewHousehold): Promise<{ id: number; slug: string }> {
   const base = slugify(h.name);
   const colorScheme: ColorScheme = h.theme === "peach" ? "light" : "system";
   return adminSql().begin(async (tx) => {
-    for (let n = 1; n <= 50; n++) {
+    for (let n = isReservedSlug(base) ? 2 : 1; n <= 50; n++) {
       const slug = n === 1 ? base : `${base}-${n}`;
       const [row] = await tx<{ id: number }[]>`
         INSERT INTO households (slug, name, mode, theme, color_scheme, timezone, ask_bill_date, reply_to)

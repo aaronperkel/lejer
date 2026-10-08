@@ -1,4 +1,5 @@
 import { BRAND, appUrl } from "../lib/brand";
+import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Rows, Shell, longDate, money } from "./Shell";
 
@@ -9,6 +10,8 @@ import { ButtonLink, Eyebrow, Heading, Rows, Shell, longDate, money } from "./Sh
 export interface DigestCopyProps {
   theme: Theme;
   householdName: string;
+  /** The household's URL slug: links open that household (lib/paths.ts). */
+  householdSlug: string;
   event: "new_bill" | "bill_updated" | "bill_removed" | "reminder";
   actorName: string | null; // who posted, corrected or removed the bill, or pressed the reminder button; null: not recorded
   typeName: string;
@@ -48,7 +51,7 @@ export default function DigestCopy(p: DigestCopyProps) {
           ...(p.failed ? [{ label: "Didn't send", value: String(p.failed), urgent: true }] : []),
         ]}
       />
-      <ButtonLink theme={p.theme} href={appUrl("/portal")}>
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
         Open the portal
       </ButtonLink>
     </Shell>
@@ -58,6 +61,7 @@ export default function DigestCopy(p: DigestCopyProps) {
 DigestCopy.PreviewProps = {
   theme: "statement",
   householdName: "12 Elm Street",
+  householdSlug: "elm-street",
   event: "new_bill",
   actorName: "Alex",
   typeName: "Electric",

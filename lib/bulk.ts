@@ -73,7 +73,7 @@ export async function sendBulkEmail(
       ctx,
       to: r.email,
       subject,
-      react: createElement(CustomNote, { theme: ctx.household.theme, householdName: ctx.household.name, senderName: ctx.user.name, subject, body }),
+      react: createElement(CustomNote, { theme: ctx.household.theme, householdName: ctx.household.name, householdSlug: ctx.household.slug, senderName: ctx.user.name, subject, body }),
       kind: "custom",
       replyTo: ctx.user.email, // replies reach the person who wrote it
     });
@@ -88,6 +88,7 @@ export async function sendBulkEmail(
       react: createElement(BulkReceipt, {
         theme: ctx.household.theme,
         householdName: ctx.household.name,
+        householdSlug: ctx.household.slug,
         senderName: ctx.user.name,
         subject,
         body,

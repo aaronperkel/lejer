@@ -33,14 +33,14 @@ export interface SendReport {
 }
 
 /** The digest copy for digest_email (when set): what went out about one bill, and to whom. */
-async function sendDigest(ctx: Ctx, p: Omit<DigestCopyProps, "theme" | "householdName" | "actorName">): Promise<void> {
+async function sendDigest(ctx: Ctx, p: Omit<DigestCopyProps, "theme" | "householdName" | "householdSlug" | "actorName">): Promise<void> {
   const to = ctx.household.digestEmail;
   if (!to) return;
   await sendMail({
     ctx,
     to,
     subject: digestSubject(p.event, p.typeName, p.sentTo.length),
-    react: createElement(DigestCopy, { ...p, theme: ctx.household.theme, householdName: ctx.household.name, actorName: ctx.user.name }),
+    react: createElement(DigestCopy, { ...p, theme: ctx.household.theme, householdName: ctx.household.name, householdSlug: ctx.household.slug, actorName: ctx.user.name }),
     kind: "digest",
   });
 }
@@ -75,6 +75,7 @@ export async function remindBill(ctx: Ctx, billId: number): Promise<SendReport &
       react: createElement(Reminder, {
         theme: ctx.household.theme,
         householdName: ctx.household.name,
+        householdSlug: ctx.household.slug,
         recipientName: r.name,
         typeName: bill.typeName,
         total: bill.total,

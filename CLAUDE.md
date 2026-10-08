@@ -100,9 +100,10 @@ Env lives in `.env.local` (see `.env.example`). Keys:
   import script.
 - `CRON_SECRET` — bearer token for `/api/cron/tick`; must match the GitHub Actions repo secret.
 - `NEXT_PUBLIC_APP_URL` — `https://lejer.app`; used for absolute links in email and `/cal.ics`.
-- `APP_DEV_USER` + `APP_DEV_HOUSEHOLD` — bypass login as that email in that household slug.
+- `APP_DEV_USER` + `APP_DEV_HOUSEHOLD` — bypass login as that email (both must be set); the
+  slug is where "Sign in" lands, while pages still show the household their URL names.
   Honored only when `VERCEL_ENV !== "production"` (local + preview). There is no passphrase
-  login and no `APP_DEMO_MODE`; the demo is the `/demo` route.
+  login and no `APP_DEMO_MODE`; the demo is the `/demo` household URL.
 
 **Recovering `.env.local` on a new machine.** The Vercel project's **Development** environment
 holds the dev values (Neon `dev` branch URLs, `SESSION_SECRET`, `CRON_SECRET`, the Blob
@@ -125,9 +126,21 @@ resetting dev's never touches production.
 
 ### Request context and tenancy
 
-`lib/context.ts` `getCtx()` (React `cache()`, once per request) turns the session into
-`{ user, membership, household, demo }` or `null`, validating the cookie's `hid` against
-`memberships` every time. It replaces the old `getCurrentPerson()`.
+**Every household lives at its own URL** (ARCHITECTURE.md §5 "Household URLs"): `/` is the
+public site for everyone, `/{slug}` a household's dashboard and `/{slug}/portal`, `/trends`,
+`/documents`, `/welcome` its pages; `/login`, `/new` (onboarding), `/households` and
+`/account` sit outside any household. `lib/paths.ts` holds `householdPath(h, path)` (build
+every household link and redirect with it), `householdSlugOf()` and `RESERVED_SLUGS`: a new
+top-level route needs its name reserved first (the identity suite checks).
+
+`lib/context.ts` `getCtx()` (React `cache()`, once per request) turns the URL's household plus
+the session into `{ user, membership, household, demo }` or `null`. `proxy.ts` reads the slug
+off the path and passes it in the `x-household` request header (any client-sent copy is
+dropped); `getCtx()` looks it up under `withUser`, so no membership means no ctx, and opening a
+pending invite's household accepts it. `/demo…` is the in-memory demo for anyone. Routes whose
+URL has no slug (`/files`, the document upload handshake, `/account`'s calendar reset) use
+`getCtxForHousehold(id)` with the id the key or form names. It replaces the old
+`getCurrentPerson()`.
 
 **No tenant query runs outside `withHousehold`.** `lib/db.ts` exports:
 
@@ -238,27 +251,30 @@ bill sends a "Bill removed" note right away.
 
 ### Auth flow
 
-`proxy.ts` requires a valid `lejer_session` (or `lejer_demo`) cookie for everything except
-`/login`, `/demo*`, `/cal.ics`, `/api/cron`, `/api/documents/upload`, `/no-access`, the public
-site (`/how-it-works`, `/about`, and `/` itself for a visitor with neither cookie, rewritten to
-`/home`, any method, since its sign-up form posts back to `/`), icons and static assets;
-non-GET without one gets 401, GET redirects to `/login?next=`; the 30-day
-session cookie is re-issued once a week old. The session JWT carries `{ uid, hid }` (`hid`
-null until the user has a household); the demo JWT is `{ demo: true }`. The two use different
-JWT audiences, so neither verifies as the other (`lib/session.ts`). `next=` goes through
-`safeNext()` (`lib/flash.ts`), which rejects `//host` and `/\host`.
+`proxy.ts` requires a valid `lejer_session` cookie for everything except `/login`, `/demo…`,
+`/cal.ics`, `/api/cron`, `/api/documents/upload`, the public site (`/`, `/how-it-works`,
+`/about`, any method, since the home page's sign-up form posts back to `/`), icons and static
+assets; non-GET without one gets 401, GET redirects to `/login?next=`; the 30-day session
+cookie is re-issued once a week old. The session JWT is identity only, `{ uid }` (audience
+`session`; older tokens' `hid` is ignored). On a signed-in GET of a household page the proxy
+also sets `lejer_household` (the slug; a preference, not a credential), which `homePath()` in
+`lib/context.ts` uses: the last household opened, else the first joined, else `/new`. `next=`
+goes through `safeNext()` (`lib/flash.ts`), which rejects `//host` and `/\host`.
 
-`getCtx()` order: dev bypass → session → demo cookie (only with no session). A stale or revoked
-`hid` falls back to the user's first membership; a signed-in user with no membership gets
-`null`, and `getSessionUser()` serves pages that need the user but no household (onboarding,
-`/households`, `/account`).
+The flow is a normal product site's: `/` is the landing page signed in or not (its header
+says "Open your household" to someone signed in); `GET /login` while signed in redirects to
+`next=` or `homePath()` (except on the code step, so you can sign in as another address);
+signing out lands on `/`. `getSessionUser()` serves pages that need the user but no household
+(`/new`, `/households`, `/account`).
 
 `/login` is the same two-step form as before: email → 6-digit code → session. Differences:
 an unknown email still gets a code (anyone can sign up) and the request writes nothing to
 `users`; a verified code creates the `users` row with a placeholder name from the email's
-local part, and first-timers land on onboarding (`/welcome/household`: their real name first,
-then household name, mode, theme, timezone), which calls `createHousehold()` and sets
-`ask_bill_date` from the mode. Every email is normalized once (`normalizeEmail()`: trim +
+local part, and first-timers land on onboarding (`/new`: their real name first, then
+household name, mode, theme, timezone), which calls `createHousehold()` (slug from the name,
+`-2` and up on a collision or a reserved name) and sets `ask_bill_date` from the mode, then
+opens `/{slug}/portal/household` to invite people. A returning user goes to `next=`, else
+the newest invite, else `homePath()`. Every email is normalized once (`normalizeEmail()`: trim +
 lowercase) and the column is citext, so all per-email caps key on one spelling. Codes: sha256
 at rest, 10-minute TTL, 5 wrong guesses, 30 s burst dedupe, 5 per email per 10 min, 10 per IP
 per hour (`ip_hash`), and a global 40 per UTC day from `email_sends_since(…, 'login_code')`,
@@ -272,8 +288,9 @@ for anything the person should be told; actions turn it into `?err=` or an inlin
 anything else propagates as a bug. Pages read through one loader each in `lib/views.ts`, which
 is where the `ctx.demo` branch lives.
 
-**Page-level authorization** is `requireUser()` (no ctx → onboarding if signed in, else
-`/login`) / `requireAdmin()` (`/no-access`) in `lib/auth.ts`, and `requireUserAction()` /
+**Page-level authorization** is `requireUser()` (no ctx → not-found if signed in, so a slug
+never confirms a household exists, else `/login`) / `requireAdmin()` (`/{slug}/no-access`) in
+`lib/auth.ts`, and `requireUserAction()` /
 `requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions (throw). Every
 action authorizes itself; `proxy.ts` is only the first lock. A `member` can read everything
 (including `/portal/household`, read-only) and, for types they own, post bills and mark
@@ -283,15 +300,14 @@ front (an admin vouched for the address; the typed name only applies if the pers
 the code login proves address ownership, so there is no invite-token table. Names live on
 `users` and are shared across households, so only their owner edits them (`/account`).
 
-Switcher: `/households` lists the user's memberships; choosing one re-issues the cookie with the
-new `hid` (and accepts it if it was a pending invite). Nav shows the household name and a
-dropdown only when there is more than one. The dev bypass pins `APP_DEV_HOUSEHOLD`, so switching
-does nothing while it is set.
+Switcher: `/households` lists the user's memberships as links to each household's URL. Nav
+shows the household name and a dropdown of links only when there is more than one; two
+households can be open in two tabs.
 
-Demo: `GET /demo` sets `lejer_demo` and opens `/`. `lib/demo.ts` serves an in-memory ledger
-household, `withHousehold` throws on a demo scope, and actions refuse with `DEMO_REFUSAL`. A
-signed-in user hitting `/demo` gets `/demo/signed-in` ("You're signed in to <household>. Sign
-out to view the demo, or go back.") and is never dropped into either household silently.
+Demo: `/demo` is the in-memory ledger household from `lib/demo.ts` at its own URL, for anyone,
+with no cookie; `withHousehold` throws on a demo scope, and actions refuse with
+`DEMO_REFUSAL`. A signed-in visitor sees it there too and their own household stays at its
+own URL.
 
 ### Stored files
 
@@ -304,15 +320,16 @@ because providers reuse one name per statement; `addBill` reserves the id with `
 uploads, then inserts); documents
 `h/{household_id}/documents/{slug}-{suffix}.{ext}` (`addRandomSuffix: true`).
 
-`app/files/[...path]/route.ts` is the only read path: requires a ctx, rejects keys not under
+`app/files/[...path]/route.ts` is the only read path: resolves the ctx of the household the key
+names (`h/{id}/`, `getCtxForHousehold`; no membership → 404), rejects keys not under
 `h/{ctx.household.id}/`, then confirms the key exists in `bills.pdf_path` or
 `documents.file_path` **inside `withHousehold`** (RLS as the second lock), applies the extension
 allowlist (pdf/png/jpg/jpeg/heic/heif, no SVG) + `nosniff`, and streams `get()`.
 
 Bill PDFs go through the `addBill` server action (4 MB `bodySizeLimit` under Vercel's 4.5 MB
 cap, optional). Documents upload client-direct via `handleUpload` in
-`app/api/documents/upload/route.ts`, which gates on `requireAdminAction()` and **refuses** any
-pathname outside the household's documents prefix (the client token is bound to the requested
+`app/api/documents/upload/route.ts`, which gates on admin of the household the pathname names
+(`getCtxForHousehold`) and **refuses** any pathname outside that household's documents prefix (the client token is bound to the requested
 pathname and can't be rewritten; the page passes the prefix to the form); `onUploadCompleted` is intentionally a no-op
 (never fires against localhost) and `addDocument()` `head()`s the key before inserting.
 
@@ -363,20 +380,22 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 
 ### Key surfaces
 
-- **Two root layouts.** Household pages live in the `app/(app)/` route group under
-  `app/(app)/layout.tsx` (nav, theme, demo banner); the public site lives in `app/(site)/` under
-  its own root layout. URLs don't include the group, so paths below like `app/portal/` mean
-  `app/(app)/portal/`. Crossing between the two is a full page load, so neither `<html>` leaks
-  into the other; a link that changes identity inside the app (the login page's demo link) is a
-  plain `<a>` for the same reason. `app/global-not-found.tsx` (experimental `globalNotFound`) is
-  the 404 for unmatched URLs, since no single layout covers both; `app/metadata.ts` holds the
-  metadata both roots share
-- `app/(site)/` — the public site (`lib/site.ts`): home (served at `/` when signed out; `/home`
-  itself redirects to `/`), `/how-it-works`, `/about`. Its look is its own (`site.css` on
+- **Three root layouts.** A household's pages live in `app/(household)/[household]/` under its
+  own root layout (re-rendered whenever the slug changes, since the theme sits on `<html>` and a
+  shared root layout survives client navigations); the pages outside a household (`login`,
+  `new`, `households`, `account`) live in `app/(app)/`; both roots render
+  `app/components/AppShell.tsx` (nav, theme, fonts, demo banner). The public site lives in
+  `app/(site)/` under its own root. URLs don't include groups, so paths below like
+  `app/portal/` mean `app/(household)/[household]/portal/`, served at `/{slug}/portal`.
+  Crossing between roots is a full page load, so no `<html>` leaks into another.
+  `app/global-not-found.tsx` (experimental `globalNotFound`) is the 404 for unmatched URLs,
+  since no single layout covers them; `app/metadata.ts` holds the metadata the roots share
+- `app/(site)/` — the public site (`lib/site.ts`): home at `/` for everyone, `/how-it-works`,
+  `/about`. Its look is its own (`site.css` on
   `html[data-site]`: a drafting sheet, Archivo + Martian Mono, the four utility-locate colors;
   DESIGN.md "Public Site"), not either household theme. `FloorPlan.tsx` is the interactive
   sample household from `lib/demo.ts`; the sign-up form is the real `requestCode` action
-- `app/page.tsx` — dashboard: mode-aware summary strip (you owe / next due / bills on record),
+- `app/page.tsx` (`/{slug}`) — dashboard: mode-aware summary strip (you owe / next due / bills on record),
   house ledger (hidden in single-payer when the viewer is the payer), bills grouped by year,
   calendar subscribe buttons
 - `app/portal/` — `/portal` bills (add-bill disclosure honoring `ask_bill_date`, payment
@@ -390,15 +409,16 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 - `app/trends/` — Chart.js line per bill type (series slots from `--series-N`, HTML legend
   toggles, rebuilt on theme/scheme change), totals table, CSV of the whole history at
   `/trends/csv` (feature-gated; `lib/trends.ts` is pure, so the demo shares it)
-- `app/welcome/` — `household/` is the onboarding wizard for new users; `/welcome` itself is the
-  animated tour (feature-gated), told for the household's mode; the dashboard sends each member
-  there once (`welcomed_at`)
-- `app/households/` — the switcher (+ "start a new household")
-- `app/account/` — your name (all households) and "reset my calendar link" for the current one
-- `app/login/` — the code flow and `signOut`
-- `app/demo/` — `route.ts` sets the `lejer_demo` cookie over the in-memory household in
-  `lib/demo.ts`; `signed-in/` is the notice for signed-in visitors; data functions branch on
-  `ctx.demo`, mutations refuse politely
+- `app/welcome/` — the animated tour (feature-gated), told for the household's mode; the
+  dashboard sends each member there once (`welcomed_at`)
+- `app/(app)/new/` — the onboarding wizard (`/new`) for a new user or a new household
+- `app/(app)/households/` — every household you're in, linked by URL (+ "start a new household")
+- `app/(app)/account/` — your name (all households) and a calendar link per joined household
+- `app/(app)/login/` — the code flow (redirects a signed-in visitor to their household) and
+  `signOut` (back to `/`)
+- `/demo` — not a folder: the `[household]` routes serve the in-memory household in
+  `lib/demo.ts` for the `demo` slug; data functions branch on `ctx.demo`, mutations refuse
+  politely
 - `app/cal.ics/route.ts` — public iCal feed per membership (`/cal.ics?k=<calendar_token>`, no
   household param), resolved through `calendar_context()` and built by `lib/ics.ts` inside
   `withHousehold` (events worded for the token's owner, rent RRULE only with `feature_rent`);

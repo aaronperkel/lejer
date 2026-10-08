@@ -1,10 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireUserAction } from "@/lib/auth";
-import { getSessionUser } from "@/lib/context";
+import { getCtxForHousehold, getSessionUser } from "@/lib/context";
 import { withHousehold, withUser } from "@/lib/db";
-import { DEMO_REFUSAL } from "@/lib/demo";
 import { done, fail } from "@/lib/flash";
 
 const PATH = "/account";
@@ -20,12 +18,14 @@ export async function updateMyName(formData: FormData): Promise<void> {
 }
 
 /**
- * Rotates your calendar token for the current household: the old /cal.ics?k= link stops
+ * Rotates your calendar token in one of your households: the old /cal.ics?k= link stops
  * working at once. Other members' links are untouched.
  */
-export async function resetCalendarLink(): Promise<void> {
-  const ctx = await requireUserAction();
-  if (ctx.demo) fail(PATH, DEMO_REFUSAL);
+export async function resetCalendarLink(formData: FormData): Promise<void> {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const ctx = await getCtxForHousehold(Number(formData.get("householdId")));
+  if (!ctx) fail(PATH, "You're not in that household any more.");
   await withHousehold(ctx, (tx) => tx`
     UPDATE memberships SET calendar_token = DEFAULT WHERE id = ${ctx.membership.id}`);
   done(PATH, `Your calendar link for ${ctx.household.name} was reset. Re-subscribe with the new one.`);

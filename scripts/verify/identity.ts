@@ -2,6 +2,8 @@
 // resolution, createHousehold(), and sendMail's console mode. Library-level, so it needs no
 // running server.
 
+import { readdirSync } from "node:fs";
+import path from "node:path";
 import { SignJWT } from "jose";
 import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
@@ -9,10 +11,10 @@ import { withHousehold, withUser } from "@/lib/db";
 import { safeNext } from "@/lib/flash";
 import { createHousehold, findMembership, slugify } from "@/lib/households";
 import { createLoginCode, hashIp, normalizeEmail, verifyLoginCode } from "@/lib/login-codes";
-import { DEMO_COOKIE, SESSION_COOKIE, createDemoToken, createSessionToken, readDemoToken, readSessionToken } from "@/lib/session";
+import { HOUSEHOLD_HEADER, RESERVED_SLUGS, SLUG_RE, householdPath, householdSlugOf } from "@/lib/paths";
+import { HOUSEHOLD_COOKIE, SESSION_COOKIE, createSessionToken, readSessionToken } from "@/lib/session";
 import { LOG_MARK, RUN, type Results, type Sql, email, makeHousehold, rolledBack } from "./harness";
 import { BRAND } from "@/lib/brand";
-import { SITE_HOME } from "@/lib/site";
 
 export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sql }) {
   const a = await makeHousehold(owner, "ia");
@@ -106,16 +108,37 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
   r.check("the right code verifies once", (await withUser(null, (tx) => verifyLoginCode(tx, e3, ok.code))) === "ok");
   r.check("…and is then gone", (await withUser(null, (tx) => verifyLoginCode(tx, e3, ok.code))) === "expired");
 
+  r.section("identity: household URLs");
+  // Every top-level route in app/ (inside route groups too) must be reserved, or a household
+  // could take its name and never be reachable. A folder is a route if a page or route handler
+  // sits anywhere under it (app/components isn't one).
+  const appDir = path.join(process.cwd(), "app");
+  const dirs = (d: string) => readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory());
+  const routes = (d: string): boolean =>
+    readdirSync(d, { withFileTypes: true }).some((e) => (e.isDirectory() ? routes(path.join(d, e.name)) : /^(page|route)\.tsx?$/.test(e.name)));
+  const topLevel = dirs(appDir)
+    .flatMap((d) => (/^\(.+\)$/.test(d.name) ? dirs(path.join(appDir, d.name)).map((e) => path.join(d.name, e.name)) : [d.name]))
+    .filter((rel) => routes(path.join(appDir, rel)))
+    .map((rel) => path.basename(rel));
+  const unreserved = topLevel.filter((n) => SLUG_RE.test(n) && !RESERVED_SLUGS.has(n));
+  r.check("every top-level route name is a reserved slug", unreserved.length === 0, unreserved.join(", "));
+  r.check("…and the scan saw the routes", ["login", "account", "households", "new", "about", "how-it-works", "files", "api"].every((n) => topLevel.includes(n)), topLevel.join(", "));
+  for (const [p, want] of [["/oak-lane", "oak-lane"], ["/oak-lane/portal/household", "oak-lane"], ["/demo/portal", "demo"], ["/", null], ["/login", null], ["/about", null], ["/new", null], ["/Oak-Lane", null], ["/cal.ics", null], ["/_next/static/x.js", null]] as const) {
+    r.check(`householdSlugOf(${JSON.stringify(p)}) → ${want}`, householdSlugOf(p) === want, householdSlugOf(p));
+  }
+  r.check("householdPath builds /{slug}/…", householdPath({ slug: "oak-lane" }) === "/oak-lane" && householdPath({ slug: "oak-lane" }, "/portal") === "/oak-lane/portal");
+  const [{ n: takenReserved }] = await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM households WHERE slug = ANY(${[...RESERVED_SLUGS]})`;
+  r.check("no household in this database holds a reserved slug", takenReserved === 0, takenReserved);
+
   r.section("identity: sessions and the proxy");
-  const tok = await createSessionToken(a.admin.userId, a.id);
+  const tok = await createSessionToken(a.admin.userId);
   const read = await readSessionToken(tok);
-  r.check("session token round-trips {uid, hid}", read?.uid === a.admin.userId && read?.hid === a.id);
-  r.check("hid may be null (signed in, no household yet)", (await readSessionToken(await createSessionToken(1, null)))?.hid === null);
-  const demo = await createDemoToken();
-  r.check("a demo token is not a session", (await readSessionToken(demo)) === null);
-  r.check("a session token is not a demo token", (await readDemoToken(tok)) === false);
-  r.check("demo token verifies as demo", await readDemoToken(demo));
+  r.check("session token round-trips {uid}", read?.uid === a.admin.userId);
   const key = new TextEncoder().encode(process.env.SESSION_SECRET!);
+  const legacy = await new SignJWT({ uid: a.admin.userId, hid: a.id }).setProtectedHeader({ alg: "HS256" }).setAudience("session").setIssuedAt().setExpirationTime("1d").sign(key);
+  r.check("a token from before household URLs (with hid) still signs in", (await readSessionToken(legacy))?.uid === a.admin.userId);
+  const otherAud = await new SignJWT({ uid: a.admin.userId }).setProtectedHeader({ alg: "HS256" }).setAudience("demo").setIssuedAt().setExpirationTime("1d").sign(key);
+  r.check("a token for another audience is not a session", (await readSessionToken(otherAud)) === null);
   const forged = await new SignJWT({ uid: 1, hid: null }).setProtectedHeader({ alg: "HS256" }).setAudience("session").setIssuedAt().setExpirationTime("1d").sign(new TextEncoder().encode("wrong"));
   r.check("a token signed with another key is rejected", (await readSessionToken(forged)) === null);
   const badShape = await new SignJWT({ uid: "1", hid: null }).setProtectedHeader({ alg: "HS256" }).setAudience("session").setIssuedAt().setExpirationTime("1d").sign(key);
@@ -124,42 +147,57 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
   const devUser = process.env.APP_DEV_USER;
   delete process.env.APP_DEV_USER; // the proxy short-circuits under the dev bypass
   try {
-    const call = (path: string, init: { method?: string; cookie?: string } = {}) =>
-      proxy(new NextRequest(`http://localhost${path}`, { method: init.method ?? "GET", headers: init.cookie ? { cookie: init.cookie } : {} }));
-    let res = await call("/portal/household?x=1");
-    r.check("proxy: no cookie, GET → /login?next=", res.status === 307 && res.headers.get("location")?.endsWith("/login?next=%2Fportal%2Fhousehold%3Fx%3D1") === true, res.headers.get("location"));
+    const call = (p: string, init: { method?: string; cookie?: string; headers?: Record<string, string> } = {}) =>
+      proxy(new NextRequest(`http://localhost${p}`, { method: init.method ?? "GET", headers: { ...init.headers, ...(init.cookie ? { cookie: init.cookie } : {}) } }));
+    const passed = (res: Response) => res.headers.get("x-middleware-next") === "1";
+    /** The household slug the proxy hands getCtx() (Next forwards x-middleware-request-*). */
+    const forwarded = (res: Response) => res.headers.get(`x-middleware-request-${HOUSEHOLD_HEADER}`);
+    const session = `${SESSION_COOKIE}=${tok}`;
+
+    let res = await call(`/${a.slug}/portal/household?x=1`);
+    r.check("proxy: no cookie, GET → /login?next=", res.status === 307 && res.headers.get("location")?.endsWith(`/login?next=${encodeURIComponent(`/${a.slug}/portal/household?x=1`)}`) === true, res.headers.get("location"));
     res = await call("/account", { method: "POST" });
     r.check("proxy: no cookie, POST → 401", res.status === 401);
-    for (const p of ["/login", "/demo", "/demo/signed-in", "/cal.ics", "/api/cron/tick", "/api/documents/upload", "/no-access"]) {
+    for (const p of ["/", "/about", "/how-it-works", "/login", "/demo", "/demo/portal", "/cal.ics", "/api/cron/tick", "/api/documents/upload"]) {
       res = await call(p);
-      r.check(`proxy: ${p} is public`, res.headers.get("x-middleware-next") === "1", res.status);
+      r.check(`proxy: ${p} is public`, passed(res), res.status);
     }
+    res = await call("/", { method: "POST" });
+    r.check("proxy: the home page's sign-up action posts without a session", passed(res), res.status);
+    res = await call("/", { cookie: session });
+    r.check("proxy: signed in, / is still the public home page (no rewrite, no redirect)", passed(res) && !res.headers.get("x-middleware-rewrite") && forwarded(res) === null, res.status);
     res = await call("/loginx");
     r.check("proxy: /loginx is not public (exact segment match)", res.status === 307);
-    res = await call("/", { cookie: `${SESSION_COOKIE}=${tok}` });
-    r.check("proxy: fresh session passes without re-issuing", res.headers.get("x-middleware-next") === "1" && !res.headers.get("set-cookie"));
-    const old = await new SignJWT({ uid: a.admin.userId, hid: a.id }).setProtectedHeader({ alg: "HS256" }).setAudience("session")
+    res = await call("/new");
+    r.check("proxy: /new (onboarding) needs a session", res.status === 307);
+
+    res = await call(`/${a.slug}/portal`, { cookie: session });
+    r.check("proxy: a household path hands its slug to getCtx", passed(res) && forwarded(res) === a.slug, forwarded(res));
+    res = await call("/demo/trends");
+    r.check("…the demo's too, signed out", passed(res) && forwarded(res) === "demo", forwarded(res));
+    res = await call("/account", { cookie: session, headers: { [HOUSEHOLD_HEADER]: b.slug } });
+    const kept = (res.headers.get("x-middleware-override-headers") ?? "").split(",");
+    r.check("proxy: a client-sent household header is dropped", passed(res) && forwarded(res) === null && !kept.includes(HOUSEHOLD_HEADER), kept);
+    res = await call(`/${a.slug}`, { cookie: session, headers: { [HOUSEHOLD_HEADER]: b.slug } });
+    r.check("…and replaced by the URL's", forwarded(res) === a.slug, forwarded(res));
+
+    res = await call(`/${a.slug}`, { cookie: session });
+    const remembered = res.headers.get("set-cookie") ?? "";
+    r.check("proxy: opening a household remembers it for Sign in", remembered.startsWith(`${HOUSEHOLD_COOKIE}=${a.slug};`), remembered);
+    res = await call(`/${a.slug}/trends`, { cookie: `${session}; ${HOUSEHOLD_COOKIE}=${a.slug}` });
+    r.check("…without re-setting it when unchanged (fresh session: no cookies at all)", passed(res) && !res.headers.get("set-cookie"), res.headers.get("set-cookie"));
+    res = await call("/demo", { cookie: session });
+    r.check("…and never remembers the demo", !(res.headers.get("set-cookie") ?? "").includes(HOUSEHOLD_COOKIE));
+
+    const old = await new SignJWT({ uid: a.admin.userId }).setProtectedHeader({ alg: "HS256" }).setAudience("session")
       .setIssuedAt(Math.floor(Date.now() / 1000) - 8 * 86400).setExpirationTime("30d").sign(key);
-    res = await call("/", { cookie: `${SESSION_COOKIE}=${old}` });
+    res = await call("/account", { cookie: `${SESSION_COOKIE}=${old}` });
     const renewed = res.headers.get("set-cookie") ?? "";
     r.check("proxy: an 8-day-old session is re-issued", renewed.startsWith(`${SESSION_COOKIE}=`) && !renewed.includes(old));
     const reissued = await readSessionToken(renewed.split(";")[0].split("=")[1]);
-    r.check("…keeping uid and hid", reissued?.uid === a.admin.userId && reissued?.hid === a.id);
-    res = await call("/", { cookie: `${DEMO_COOKIE}=${demo}` });
-    r.check("proxy: demo cookie passes", res.headers.get("x-middleware-next") === "1");
-    res = await call("/portal", { cookie: `${SESSION_COOKIE}=${demo}` });
-    r.check("proxy: demo token in the session cookie is refused", res.status === 307);
-    // The public site: signed out, "/" is the home page (lib/site.ts), never the dashboard.
-    res = await call("/", { cookie: `${SESSION_COOKIE}=${demo}` });
-    r.check("proxy: signed out at / → the public home page", res.headers.get("x-middleware-rewrite")?.endsWith(SITE_HOME) === true, res.headers.get("x-middleware-rewrite"));
-    res = await call("/", { method: "POST" });
-    r.check("…for its sign-up action too", res.headers.get("x-middleware-rewrite")?.endsWith(SITE_HOME) === true, res.status);
-    res = await call(SITE_HOME);
-    r.check(`proxy: ${SITE_HOME} requested directly → /`, res.status === 307 && new URL(res.headers.get("location") ?? "").pathname === "/", res.headers.get("location"));
-    for (const p of ["/how-it-works", "/about"]) {
-      res = await call(p);
-      r.check(`proxy: ${p} is public`, res.headers.get("x-middleware-next") === "1", res.status);
-    }
+    r.check("…keeping uid", reissued?.uid === a.admin.userId);
+    res = await call(`/${a.slug}/portal`, { cookie: `${SESSION_COOKIE}=${otherAud}` });
+    r.check("proxy: another audience's token in the session cookie is refused", res.status === 307);
   } finally {
     if (devUser !== undefined) process.env.APP_DEV_USER = devUser;
   }
@@ -180,6 +218,14 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
   const h2 = await createHousehold({ userId: founder.id, email: email("founder"), name, mode: "ledger", theme: "peach", timezone: "UTC" });
   r.check("slug from the name", h1.slug === slugify(name) && h1.slug === `verify-${RUN}-house-1`, h1.slug);
   r.check("slug collision gets a suffix", h2.slug === `${h1.slug}-2`, h2.slug);
+  // A household named like a route can't take the route's URL. Outside the verify- prefix, so
+  // it is deleted here rather than by the sweep.
+  const routeNamed = await createHousehold({ userId: founder.id, email: email("founder"), name: "Login", mode: "ledger", theme: "statement", timezone: "UTC" });
+  try {
+    r.check("a reserved name gets a suffix from the start (Login → login-2)", /^login-\d+$/.test(routeNamed.slug), routeNamed.slug);
+  } finally {
+    await owner`DELETE FROM households WHERE id = ${routeNamed.id}`;
+  }
   const made2 = await owner<{ slug: string; askBillDate: boolean; colorScheme: string; replyTo: string; role: string; joined: boolean }[]>`
     SELECT h.slug, h.ask_bill_date AS "askBillDate", h.color_scheme AS "colorScheme", h.reply_to AS "replyTo",
            m.role, m.joined_at IS NOT NULL AS joined

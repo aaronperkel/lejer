@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Ctx } from "@/lib/context";
 import { ActionError } from "@/lib/errors";
+import { householdPath } from "@/lib/paths";
 import type { Household } from "@/lib/types";
 
 // The household's optional features, in one place: the nav, the footer, the portal tabs, the
@@ -34,10 +35,10 @@ export function assertFeature(ctx: Ctx, f: Feature): void {
 export function navLinks(ctx: Ctx): { href: string; label: string }[] {
   const h = ctx.household;
   return [
-    { href: "/", label: "Dashboard" },
-    { href: "/portal", label: "Portal" },
-    ...(hasFeature(h, "trends") ? [{ href: "/trends", label: "Trends" }] : []),
-    ...(hasFeature(h, "documents") ? [{ href: "/documents", label: "Docs" }] : []),
+    { href: householdPath(h), label: "Dashboard" },
+    { href: householdPath(h, "/portal"), label: "Portal" },
+    ...(hasFeature(h, "trends") ? [{ href: householdPath(h, "/trends"), label: "Trends" }] : []),
+    ...(hasFeature(h, "documents") ? [{ href: householdPath(h, "/documents"), label: "Docs" }] : []),
     ...(ctx.demo ? [] : [{ href: "/account", label: "Account" }]),
   ];
 }

@@ -73,7 +73,7 @@ Decided here; override by editing this table:
 | Public `/api/unpaid` | yes | no | Dropped. A per-household token could return later. |
 | Passphrase login | yes | yes | Dropped. |
 | `APP_LOCAL_DEV_USER` | yes | yes | `APP_DEV_USER` + `APP_DEV_HOUSEHOLD`, honored only when `VERCEL_ENV !== "production"`. |
-| Session cookie | `utilities_session` {email} | `peachcob_session` {email} | `lejer_session` {uid, hid}. |
+| Session cookie | `utilities_session` {email} | `peachcob_session` {email} | `lejer_session` {uid}; the household is in the URL (§5). |
 | Timezone | hardcoded NY | hardcoded NY | `households.timezone` (IANA). |
 | Login-code subject | "Perk Utilities login code" | "Peach Cob sign-in code" | Lejer-branded. The household is unknown at login. |
 | Footer phone number | yes | no | Dropped. |
@@ -343,7 +343,7 @@ Nothing queries outside a household transaction. `lib/context.ts` resolves the r
 
 ```ts
 export interface Ctx { user: User; membership: Membership; household: Household; demo: boolean }
-export const getCtx = cache(async (): Promise<Ctx | null> => { /* session → ctx, dev bypass, demo */ });
+export const getCtx = cache(async (): Promise<Ctx | null> => { /* URL slug + session → ctx (§5 Household URLs), demo */ });
 ```
 
 `lib/db.ts` exposes the only sanctioned way to run tenant SQL:
@@ -500,7 +500,8 @@ h/{household_id}/documents/{slug}-{randomSuffix}.{ext} addRandomSuffix: true
 
 `/files/[...path]/route.ts`:
 
-1. `getCtx()` or 403.
+1. The household the key names (`h/{id}/`), through `getCtxForHousehold(id)`: no membership →
+   404 (§5 Household URLs; before 2026-10-07 this was the cookie's current household, or 403).
 2. Reject unless the key starts with `h/${ctx.household.id}/` (cheap first lock).
 3. Inside `withHousehold`, confirm the key exists in `bills.pdf_path` or
    `documents.file_path` (RLS is the second lock: a key from another household returns no row
@@ -535,9 +536,9 @@ and for the import script.
 - **One email, many households.** `users` is global; `memberships` is per household. Nav shows
   the household name; a switcher appears only when a user has more than one membership.
 - **Login** stays email-code: enter email → 6-digit code (sha256 at rest, 10 min TTL, 5 wrong
-  guesses kill it, 30 s burst dedupe) → `lejer_session` JWT `{ uid, hid }`, 30 days, re-issued
-  by `proxy.ts` once a week old. `hid` is validated against `memberships` on every request in
-  `getCtx()`; a stale or revoked `hid` falls back to the user's first membership or `/households`.
+  guesses kill it, 30 s burst dedupe) → `lejer_session` JWT `{ uid }`, 30 days, re-issued by
+  `proxy.ts` once a week old. Which household a page shows comes from its URL, not the cookie
+  (Household URLs, below).
 - **Unknown email is not an error anymore.** Anyone can sign up, so the code is sent regardless
   (this also stops login from enumerating members). `login_codes` is keyed by the normalized
   email (citext; `0002` replaced `user_id`, revised 2026-10-06 because a NOT NULL `user_id`
@@ -549,9 +550,9 @@ and for the import script.
   admin membership) → "invite your roommates".
 - **Invites by email.** An admin enters name + email (+ role, `splits_bills`). This upserts the
   `users` row (name only if new) and inserts a `memberships` row with `joined_at NULL`. Resend
-  sends "{Admin} added you to {Household} on Lejer" with a `/login?email=` link. The email-code
+  sends "{Admin} added you to {Household} on Lejer" with a `/login?email=&next=/{slug}` link. The email-code
   login already proves ownership of the address, so there is no invite-token table; signing in
-  stamps `joined_at` (and so does opening the household from the switcher). "Resend invite"
+  stamps `joined_at` (and so does opening the household's URL while signed in, in `getCtx()`). "Resend invite"
   re-sends the email. Removing a membership cascades debts and thanks, nulls
   owner/uploader/poster references (same outcome as `removePerson` today). Unlike login,
   invites do create the `users` row up front: an admin vouched for the address.
@@ -571,16 +572,63 @@ and for the import script.
     `x-forwarded-for`'s first hop, never the raw IP);
   - global: 40 code emails per UTC day, counted from `email_log` via `email_sends_since()`; past that the form says
     "try again later" and logs. This reserves ~60% of Resend's 100/day for household mail.
-- **Dev bypass.** `APP_DEV_USER=<email>` + `APP_DEV_HOUSEHOLD=<slug>`; `getCtx()` resolves both
-  and `proxy.ts` short-circuits, **only** when `VERCEL_ENV !== "production"` (local and preview
-  deployments). The passphrase fallback and `SITE_OWNER_EMAIL` are deleted.
-- **Demo.** `GET /demo` sets a separate signed `lejer_demo` cookie `{ demo: true }` (its own JWT
-  audience), which `getCtx()` consults only when there is no real session. It returns an
-  in-memory ledger-mode household (ported `lib/demo.ts`, relative dates, neutral names); data
-  functions branch on `ctx.demo` and mutations return the polite refusal; theme switching works
-  so it doubles as a theme preview. No env flag. A signed-in user hitting `/demo` sees "You're
-  signed in to <household>. Sign out to view the demo, or go back." and is never silently
-  redirected into their own household.
+- **Dev bypass.** `APP_DEV_USER=<email>` + `APP_DEV_HOUSEHOLD=<slug>`: every request is signed
+  in as that email and `proxy.ts` short-circuits, **only** when `VERCEL_ENV !== "production"`
+  (local and preview deployments). The household still comes from the URL (a membership is
+  required as usual); `APP_DEV_HOUSEHOLD` is where "Sign in" lands. The passphrase fallback and
+  `SITE_OWNER_EMAIL` are deleted.
+- **Demo.** The demo is a household URL like any other: `/demo`, `/demo/portal`, … are public,
+  and `getCtx()` returns the in-memory ledger-mode household for them (ported `lib/demo.ts`,
+  relative dates, neutral names) whoever is asking, signed in or not. Data functions branch on
+  `ctx.demo` and mutations return the polite refusal. No env flag and no cookie. (Before
+  2026-10-07 it was a `lejer_demo` cookie that took over `/` and needed a "you're signed in"
+  notice to avoid confusion with the real household; a URL can't be confused.)
+
+### Household URLs (decided 2026-10-07)
+
+Lejer flows like any hosted product (gmail.com is the reference the owner gave): the domain
+is a public site, you make an account there, then you provision a household, and the household
+has its own address.
+
+- **`/` is the public site for everyone**, signed in or not (`app/(site)/page.tsx`). The header
+  says "Sign in" to a visitor and "Open your household" (or "Set up your household") to someone
+  signed in. Signing out lands back on `/`.
+- **Each household lives at `/{slug}`** (`lib/paths.ts`): `/oak-lane` is the dashboard,
+  `/oak-lane/portal`, `/oak-lane/trends`, `/oak-lane/documents`, `/oak-lane/welcome` the rest.
+  The slug is made from the name at signup and never changes (renaming keeps it). Pages
+  outside any household stay at the top: `/login`, `/new` (onboarding), `/households`,
+  `/account`.
+- **"Sign in" goes straight to your ledger.** `GET /login` with a session redirects to `next=`
+  if given, else `homePath()`: the household opened last (a plain `lejer_household` cookie the
+  proxy sets on each household GET; a preference, not a credential), else the first joined,
+  else `/new`. After a code: `/new` for a new account, else `next=`, else the newest invite,
+  else `homePath()`. The code step skips the redirect, so a signed-in person can still sign in
+  as another address from the site's form.
+- **The URL picks the household; the membership authorizes it.** `proxy.ts` reads the first
+  path segment, drops any client-sent `x-household` header and sets its own; `getCtx()` looks
+  the slug up under `withUser` (RLS shows only the viewer's households) and returns `null`
+  without a membership. `requireUser()` then answers not-found to a signed-in non-member, so a
+  slug never confirms a household exists. Server actions post to the page's URL, so they get
+  the same household. One session can have two households open in two tabs.
+- **Routes with no slug in the URL** resolve the household from what they name: `/files/h/{id}/…`
+  and the document-upload handshake use the key's `h/{id}/` through `getCtxForHousehold(id)`
+  (membership required; every refusal past sign-in is a 404). `/account` lists a calendar link
+  per joined household and resets one by id.
+- **Reserved slugs.** Every top-level route name, Next's metadata routes, the pre-URL paths
+  (`portal`, `trends`, …) and names a public site grows into (`pricing`, `blog`, `help`, …) are
+  in `RESERVED_SLUGS`; `createHousehold()` starts such a name at `-2`. The identity suite fails
+  if a top-level route isn't reserved or a household holds a reserved slug. Adding a top-level
+  route means reserving its name first; a household that already has it must be renamed by
+  hand.
+- **Three root layouts.** The theme sits on `<html>`, and Next keeps a shared root layout across
+  client navigations, so household pages have their own root at
+  `app/(household)/[household]/layout.tsx` (re-rendered whenever the slug changes) and the
+  account pages theirs at `app/(app)/layout.tsx`; both render `app/components/AppShell.tsx`.
+  The site is the third. Crossing between roots is a full page load.
+- **Links carry the household.** Nav, tabs, pagination, redirects and `done()`/`fail()` paths go
+  through `householdPath(h, path)`; every household email links to `appUrl(/{slug}…)` and the
+  calendar feed's URL field to the household, so a link from one household never opens another
+  (with the old cookie, an oak-lane email opened whichever household you were last in).
 
 ---
 

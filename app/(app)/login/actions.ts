@@ -4,11 +4,13 @@ import { createElement } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import LoginCode from "@/emails/LoginCode";
+import { homePath } from "@/lib/context";
 import { withHousehold, withUser } from "@/lib/db";
 import { safeNext } from "@/lib/flash";
 import { getUserByEmail, markJoined } from "@/lib/households";
 import { createLoginCode, deleteLoginCode, hashIp, normalizeEmail, verifyLoginCode } from "@/lib/login-codes";
 import { sendMail } from "@/lib/mail";
+import { householdPath } from "@/lib/paths";
 import { endSession, startSession } from "@/lib/session";
 import type { User } from "@/lib/types";
 import { BRAND } from "@/lib/brand";
@@ -76,20 +78,25 @@ export async function submitCode(formData: FormData): Promise<void> {
 
   // Signing in accepts every pending invite. memberships_write only admits the current
   // household, so each stamp runs in that household's own transaction.
-  const memberships = await withUser(user.id, (tx) => tx<{ id: number; householdId: number; joinedAt: Date | null }[]>`
-    SELECT id, household_id AS "householdId", joined_at AS "joinedAt"
-    FROM memberships WHERE user_id = ${user.id} ORDER BY id`);
+  const memberships = await withUser(user.id, (tx) => tx<{ id: number; householdId: number; slug: string; joinedAt: Date | null }[]>`
+    SELECT m.id, m.household_id AS "householdId", h.slug, m.joined_at AS "joinedAt"
+    FROM memberships m JOIN households h ON h.id = m.household_id
+    WHERE m.user_id = ${user.id} ORDER BY m.id`);
   const pending = memberships.filter((m) => !m.joinedAt);
   for (const m of pending) {
     await withHousehold({ household: { id: m.householdId }, user }, (tx) => markJoined(tx, m.id));
   }
 
-  // Land in the newest invite if there is one; otherwise getCtx picks the first household.
-  await startSession(user.id, pending.at(-1)?.householdId ?? null);
-  redirect(memberships.length ? next : "/welcome/household");
+  await startSession(user.id);
+  if (memberships.length === 0) redirect("/new");
+  if (next !== "/") redirect(next);
+  // Otherwise the newest invite if there is one, else the household opened last (homePath).
+  const invited = pending.at(-1);
+  redirect(invited ? householdPath({ slug: invited.slug }) : await homePath(user));
 }
 
+/** Back to the public site, signed out. */
 export async function signOut(): Promise<void> {
   await endSession();
-  redirect("/login");
+  redirect("/");
 }

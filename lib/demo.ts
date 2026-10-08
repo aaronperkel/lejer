@@ -1,9 +1,10 @@
 import type { Ctx } from "@/lib/context";
 import type { Bill, BillType, Debt, Person } from "@/lib/bills";
+import { DEMO_SLUG } from "@/lib/paths";
 import type { Household } from "@/lib/types";
 
-// The /demo household: in memory, ledger mode, no database. getCtx() returns demoCtx() for a
-// visitor holding the demo cookie; data functions branch on ctx.demo and mutations
+// The /demo household: in memory, ledger mode, no database. getCtx() returns demoCtx() for any
+// page under /demo, signed in or not; data functions branch on ctx.demo and mutations
 // refuse with DEMO_REFUSAL. Dates are relative to today so the demo never looks stale.
 // Ported from peach-cob's lib/demo.ts with neutral names.
 
@@ -81,7 +82,7 @@ export const DEMO_SPLITTERS: Person[] = SPLITTERS.map(({ id, name }) => ({ id, n
 
 const DEMO_HOUSEHOLD: Household = {
   id: -1, // never a database id; withHousehold refuses demo scopes anyway
-  slug: "demo",
+  slug: DEMO_SLUG,
   name: "Demo House",
   tagline: "Who owes whom",
   mode: "ledger",
