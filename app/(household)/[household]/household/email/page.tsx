@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Flash from "@/app/components/Flash";
-import PortalTabs from "@/app/(household)/[household]/portal/PortalTabs";
+import HouseholdTabs from "@/app/(household)/[household]/household/HouseholdTabs";
 import { requireAdmin } from "@/lib/auth";
 import { nameList } from "@/emails/Shell";
 import { nextUtcMidnight } from "@/lib/time";
@@ -11,7 +11,7 @@ import BulkEmailForm from "./BulkEmailForm";
 export const metadata: Metadata = { title: "Email the household" };
 
 // Bulk email (feature_bulk_email): an admin's note to everyone who has signed in.
-export default async function BulkEmailPage({ searchParams }: PageProps<"/[household]/portal/email">) {
+export default async function BulkEmailPage({ searchParams }: PageProps<"/[household]/household/email">) {
   const ctx = await requireAdmin();
   if (!ctx.household.featureBulkEmail) notFound();
   const { ok, err } = await searchParams;
@@ -20,7 +20,7 @@ export default async function BulkEmailPage({ searchParams }: PageProps<"/[house
 
   return (
     <main>
-      <PortalTabs active="email" ctx={ctx} />
+      <HouseholdTabs active="email" ctx={ctx} />
       <Flash ok={ok} err={err} />
       <div className="mb-2 flex items-center gap-3">
         <h2 className="eyebrow">Email the household</h2>

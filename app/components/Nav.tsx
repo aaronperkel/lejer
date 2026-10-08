@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-// Header: the household name as the wordmark (tagline beside it from sm), section links, and a
-// household switcher that only appears for people in more than one household (links to each
-// household's own URL). Below sm the
-// links fold into one "Menu" disclosure so the bar never overflows a phone. Peach's awning
+// Header: the household name as the wordmark (tagline beside it from sm), the household's
+// section links, a household switcher that only appears for people in more than one household
+// (links to each household's own URL), and at the right edge a menu under the person's name for
+// their own pages (account, households, sign out), which live outside any household. Below sm
+// both sets of links fold into one "Menu" disclosure so the bar never overflows a phone. Peach's awning
 // tops the header, its scalloped hem hanging over the bar (.awning is display: none in statement). Server actions
 // arrive as props.
 
@@ -20,21 +21,28 @@ export interface NavProps {
   households: { id: number; name: string; href: string }[];
   currentHouseholdId: number | null;
   demo: boolean;
-  signedIn: boolean;
+  /** The signed-in person, for the name menu; null signed out (the demo). */
+  user: { name: string; email: string } | null;
   signOut: () => Promise<void>;
 }
 
-export default function Nav({ brand, tagline, home, links, households, currentHouseholdId, demo, signedIn, signOut }: NavProps) {
+/** The name menu's links: the person's own pages, outside any household. */
+const YOU_LINKS = [
+  { href: "/account", label: "Account" },
+  { href: "/households", label: "Your households" },
+];
+
+export default function Nav({ brand, tagline, home, links, households, currentHouseholdId, demo, user, signOut }: NavProps) {
   const pathname = usePathname();
   // The dashboard is the household's own root, so it only matches exactly.
   const isActive = (href: string) => (href === home ? pathname === home : pathname === href || pathname.startsWith(`${href}/`));
   const menu = useRef<HTMLDetailsElement>(null);
   const switcher = useRef<HTMLDetailsElement>(null);
+  const you = useRef<HTMLDetailsElement>(null);
 
-  // A disclosure stays open across client navigations; close both whenever the page changes.
+  // A disclosure stays open across client navigations; close them all whenever the page changes.
   useEffect(() => {
-    menu.current?.removeAttribute("open");
-    switcher.current?.removeAttribute("open");
+    for (const d of [menu, switcher, you]) d.current?.removeAttribute("open");
   }, [pathname]);
 
   const wordmark = (
@@ -87,14 +95,37 @@ export default function Nav({ brand, tagline, home, links, households, currentHo
                 {label}
               </Link>
             ))}
-            {signedIn && (
-              <form action={signOut} className="flex h-full items-center">
-                <button type="submit" className="nav-link cursor-pointer">
-                  Sign out
-                </button>
-              </form>
-            )}
           </nav>
+
+          {user && (
+            <>
+              {links.length > 0 && <span className="hidden h-5 w-px bg-line sm:block" aria-hidden="true" />}
+              <details ref={you} className="relative hidden h-full sm:block">
+                <summary className="nav-link cursor-pointer list-none gap-1.5 [&::-webkit-details-marker]:hidden">
+                  <span className="max-w-40 truncate">{user.name}</span>
+                  <span aria-hidden="true">▾</span>
+                </summary>
+                <div className="panel absolute right-0 top-full z-30 mt-1 min-w-56 p-1 shadow-sm">
+                  <span className="block truncate px-3 pb-1 pt-2 text-xs text-ink-muted">{user.email}</span>
+                  {YOU_LINKS.map(({ href, label }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={isActive(href) ? "page" : undefined}
+                      className="block rounded-(--radius-sm) px-3 py-2 text-sm no-underline hover:bg-panel-2 aria-[current=page]:font-semibold"
+                    >
+                      {label}
+                    </Link>
+                  ))}
+                  <form action={signOut} className="border-t border-line-soft">
+                    <button type="submit" className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink-muted hover:text-ink">
+                      Sign out
+                    </button>
+                  </form>
+                </div>
+              </details>
+            </>
+          )}
 
           {demo && (
             <Link href="/login" className="btn btn-sm btn-primary">
@@ -103,7 +134,7 @@ export default function Nav({ brand, tagline, home, links, households, currentHo
           )}
 
           {/* Below sm: one disclosure. Static positioning so the sheet spans the header. */}
-          {(links.length > 0 || signedIn) && (
+          {(links.length > 0 || user) && (
             <details ref={menu} className="nav-menu sm:hidden">
               <summary>
                 <span>Menu</span>
@@ -117,12 +148,20 @@ export default function Nav({ brand, tagline, home, links, households, currentHo
                     {label}
                   </Link>
                 ))}
-                {signedIn && (
-                  <form action={signOut}>
-                    <button type="submit" className="nav-menu-link cursor-pointer border-b-0">
-                      Sign out
-                    </button>
-                  </form>
+                {user && (
+                  <>
+                    <span className="eyebrow block truncate pb-1 pt-4">{user.name}</span>
+                    {YOU_LINKS.map(({ href, label }) => (
+                      <Link key={href} href={href} aria-current={isActive(href) ? "page" : undefined} className="nav-menu-link">
+                        {label}
+                      </Link>
+                    ))}
+                    <form action={signOut}>
+                      <button type="submit" className="nav-menu-link cursor-pointer border-b-0">
+                        Sign out
+                      </button>
+                    </form>
+                  </>
                 )}
               </nav>
             </details>

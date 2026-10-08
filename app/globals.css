@@ -336,7 +336,7 @@ select {
     @apply text-right;
   }
 
-  /* Portal sub-nav */
+  /* Section sub-nav (the Household tabs) */
   .tab {
     @apply inline-flex items-center border-b-2 border-transparent px-1 pb-2
       text-sm font-medium text-ink-muted no-underline

@@ -3,7 +3,7 @@ import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Prose, Shell } from "./Shell";
 
-// A freeform note from an admin to the whole household (/portal/email). The subject doubles as
+// A freeform note from an admin to the whole household (/{slug}/household/email). The subject doubles as
 // the heading; the body is the admin's own words, split into paragraphs.
 
 export interface CustomNoteProps {

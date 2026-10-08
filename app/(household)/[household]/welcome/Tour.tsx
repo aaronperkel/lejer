@@ -196,7 +196,7 @@ function steps(mode: HouseholdMode, household: string, owners: Owner[], reminder
       title: "You won't have to remember",
       body: reminders
         ? "Reminders only go to people who still owe, and the calendar feed keeps every due date where you'll see it."
-        : "Anyone fronting a bill can send a reminder from the Portal, and the calendar feed keeps every due date where you'll see it.",
+        : "Anyone fronting a bill can send a reminder from the Bills page, and the calendar feed keeps every due date where you'll see it.",
       scene: <SceneReminders reminders={reminders} />,
     },
   ];

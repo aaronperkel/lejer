@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setPaidAction } from "@/app/(household)/[household]/portal/actions";
+import { setPaidAction } from "@/app/(household)/[household]/bills/actions";
 
 /**
  * One checkbox per debtor on a bill (its fixed debtor set). Each toggle saves that one row and

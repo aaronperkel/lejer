@@ -4,8 +4,8 @@ import { useActionState, useEffect, useRef } from "react";
 import ConfirmButton from "@/app/components/ConfirmButton";
 import Dialog, { DialogBody, DialogFooter, type DialogHandle } from "@/app/components/Dialog";
 import { PencilIcon } from "@/app/components/icons";
-import { type AddBillState, deleteBillAction, editBill } from "@/app/(household)/[household]/portal/actions";
-import BillFields, { type TypeOption } from "@/app/(household)/[household]/portal/BillFields";
+import { type AddBillState, deleteBillAction, editBill } from "@/app/(household)/[household]/bills/actions";
+import BillFields, { type TypeOption } from "@/app/(household)/[household]/bills/BillFields";
 import { NOTICE_DELAY_MINUTES } from "@/lib/notice-delay";
 
 export interface EditableBill {

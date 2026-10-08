@@ -1,5 +1,5 @@
 // Household URLs (ARCHITECTURE.md §5, "Household URLs"). Every household page lives under its slug:
-// /oak-lane is the dashboard, /oak-lane/portal the portal, and so on; "/" is the public site
+// /oak-lane is the dashboard, /oak-lane/bills its bills, and so on; "/" is the public site
 // for everyone. proxy.ts reads the slug off the path and hands it to getCtx() in a request
 // header; getCtx() checks it against the viewer's memberships, so the URL picks the household
 // and the membership authorizes it.
@@ -40,14 +40,14 @@ export const isReservedSlug = (slug: string): boolean => RESERVED_SLUGS.has(slug
  */
 export const HOUSEHOLD_HEADER = "x-household";
 
-/** The household a path names ("/oak-lane/portal" → "oak-lane", "/demo" → "demo"), or null. */
+/** The household a path names ("/oak-lane/bills" → "oak-lane", "/demo" → "demo"), or null. */
 export function householdSlugOf(pathname: string): string | null {
   const seg = pathname.split("/")[1] ?? "";
   if (seg === DEMO_SLUG) return seg;
   return SLUG_RE.test(seg) && !isReservedSlug(seg) ? seg : null;
 }
 
-/** A path inside a household: householdPath(h) is its dashboard, householdPath(h, "/portal") its portal. */
+/** A path inside a household: householdPath(h) is its dashboard, householdPath(h, "/bills") its bills page. */
 export function householdPath(h: { slug: string }, path = ""): string {
   return `/${h.slug}${path}`;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { type AddBillState, addBill } from "@/app/(household)/[household]/portal/actions";
-import BillFields, { type TypeOption } from "@/app/(household)/[household]/portal/BillFields";
+import { type AddBillState, addBill } from "@/app/(household)/[household]/bills/actions";
+import BillFields, { type TypeOption } from "@/app/(household)/[household]/bills/BillFields";
 import { NOTICE_DELAY_MINUTES } from "@/lib/notice-delay";
 
 /**

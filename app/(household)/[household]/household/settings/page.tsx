@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Flash from "@/app/components/Flash";
-import PortalTabs from "@/app/(household)/[household]/portal/PortalTabs";
+import HouseholdTabs from "@/app/(household)/[household]/household/HouseholdTabs";
 import { requireUser } from "@/lib/auth";
 import { BRAND } from "@/lib/brand";
 import { OVERDUE_EVERY_DAYS } from "@/lib/reminders";
@@ -15,7 +15,7 @@ import { hourLabel, scheduleSentence } from "./schedule";
 export const metadata: Metadata = { title: "Settings" };
 
 // Every household setting (ARCHITECTURE.md §7). Everyone can read them; only admins get the form.
-export default async function SettingsPage({ searchParams }: PageProps<"/[household]/portal/settings">) {
+export default async function SettingsPage({ searchParams }: PageProps<"/[household]/household/settings">) {
   const ctx = await requireUser();
   const { ok, err } = await searchParams;
   const { run, members, payerId } = await loadSettings(ctx);
@@ -25,7 +25,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/[househ
 
   return (
     <main>
-      <PortalTabs active="settings" ctx={ctx} />
+      <HouseholdTabs active="settings" ctx={ctx} />
       <Flash ok={ok} err={err} />
       {isAdmin ? (
         <SettingsForm

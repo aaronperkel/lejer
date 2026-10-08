@@ -393,7 +393,7 @@ vertical rules from `sm`), and then ruled tables grouped under eyebrows. Panel c
 
 **Responsive:** the one breakpoint that changes structure is `sm` (640px). Below it, any
 `.table-stack` table drops its header and reflows each row into a small ledger card, a CSS grid
-with named areas (bill and amount on top, then due date, status and actions; the portal's bills,
+with named areas (bill and amount on top, then due date, status and actions; the bills page's,
 which carry check-offs and up to four row actions, put the check-offs and then the actions on
 rows of their own), so nothing ever scrolls sideways. Inputs are 16px below `sm` so iOS doesn't zoom on focus. Coarse pointers get
 36px icon buttons.
@@ -443,7 +443,7 @@ Friendly and sturdy: a comfortable height, soft corners, and plain sans labels.
 - **Small** (28px min, 4px by 10px padding, 0.8rem): for inline row actions only.
 - **Icon** (28px square, 36px on touch): a transparent background with a soft rule and muted
   icon. It turns ink on hover. Phones have no hover titles, so in a phone card's action row the
-  portal's remind and edit buttons widen to carry their word ("Remind", "Edit").
+  bills page's remind and edit buttons widen to carry their word ("Remind", "Edit").
 - **Focus:** a 2px accent outline offset by 2px on every button. **Disabled:** 60% opacity with
   the default cursor.
 - **Motion:** colors transition in 100ms and nothing moves.
@@ -489,9 +489,14 @@ From `sm` the row stays in place at the end of the form, with the count after th
 ### Navigation
 - **Header:** a sheet-colored bar with a soft bottom rule. On the left is the household name as
   the wordmark, with its tagline beside it in the eyebrow voice from `md`, and the wordmark
-  becomes a dropdown only for people in more than one household. On the right are text links
-  (Dashboard, Portal, Trends, Docs, Account) and Sign out. A feature that's off loses its link.
-- **Phone menu:** below `sm` the links fold into one "Menu" disclosure, a default button with a
+  becomes a dropdown only for people in more than one household. On the right are the household's text
+  links (Overview, Bills, Trends, Docs, Household); a feature that's off loses its link. After a
+  short vertical rule, the person's name with a caret opens their own menu (email in small
+  muted type, Account, Your households, Sign out) in the switcher's panel style, right-aligned.
+  It's set apart because those pages leave the household. Outside a household there are no
+  section links, only the name menu, and the wordmark goes back to the last household.
+- **Phone menu:** below `sm` both sets of links fold into one "Menu" disclosure (the
+  household's, then the name as an eyebrow over Account, Your households and Sign out), a default button with a
   caret. Its sheet drops under the header at full width with the dropdown shadow (it floats),
   and the links stack at a 44px height, divided by soft rules. The current link is ink with a
   2px accent rule on its left edge. The menu closes on every navigation.
@@ -501,11 +506,11 @@ From `sm` the row stays in place at the end of the form, with the count after th
   under the bar.
 - **No logo, in either theme.** The household name is the identity. Peach-cob's PeachMark was
   that house's mark and doesn't come over. A product mark arrives later, with the final brand.
-- **Portal tabs** (`.tab`, `.tab-active`, `PortalTabs`): the same underline language at a
-  smaller scale, under the portal's page title. The labels are muted sans at 0.875rem/500 and
+- **Household tabs** (`.tab`, `.tab-active`, `HouseholdTabs`): the same underline language at a
+  smaller scale, under the Household page title. The labels are muted sans at 0.875rem/500 and
   turn ink on hover, while the current tab is ink with a 2px accent underline. A soft rule runs
   the full width beneath them, and they scroll sideways inside their own strip rather than
-  wrap, the one sanctioned horizontal scroll. Bills, Household and Settings show for everyone;
+  wrap, the one sanctioned horizontal scroll. Members and Settings show for everyone;
   Email shows only to admins, and only while bulk email is on.
 
 ### Dialogs
@@ -564,7 +569,7 @@ you"). An empty figure reads "None" in muted ink, never a dash.
 
 ### House Ledger
 One row per direction, as recorded: "Alex owes you $30.00", "You owe Alex $12.00". The money
-on every surface is gross and agrees with the strip, the portal and the reminders. When two
+on every surface is gross and agrees with the strip, the bills page and the reminders. When two
 people owe each other their rows sit together, followed by one muted 0.75rem line: "Settling
 at once? Alex pays you $18.00 and you both check off each other's bills." The net never
 appears as a primary figure. The viewer's own rows come first.
@@ -604,7 +609,7 @@ sidewalk-locate utility colors are the whole palette. Tone comes from hatching, 
 **Boundary.** Every token below lives only in `app/(site)/site.css`, scoped to `html[data-site]`
 (set by the site's own root layout, `app/(site)/layout.tsx`, which never renders household chrome). None of it is
 in `lib/theme-tokens.ts`, the frontmatter above or `.impeccable/design.json`'s `colorMeta`, and
-none of it ever applies to household pages, the portal or email. Statement and peach never
+none of it ever applies to household pages or email. Statement and peach never
 reach the site. The household themes stay exactly as documented above.
 
 **Key Characteristics:**

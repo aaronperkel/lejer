@@ -2,7 +2,7 @@
 
 import ConfirmButton from "@/app/components/ConfirmButton";
 import { EnvelopeIcon } from "@/app/components/icons";
-import { sendReminder } from "@/app/(household)/[household]/portal/actions";
+import { sendReminder } from "@/app/(household)/[household]/bills/actions";
 
 export default function ReminderButton({ billId, typeName }: { billId: number; typeName: string }) {
   return (

@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Flash from "@/app/components/Flash";
 import SubmitButton from "@/app/components/SubmitButton";
-import BillTypesSection from "@/app/(household)/[household]/portal/BillTypesSection";
-import PortalTabs from "@/app/(household)/[household]/portal/PortalTabs";
+import BillTypesSection from "@/app/(household)/[household]/household/BillTypesSection";
+import HouseholdTabs from "@/app/(household)/[household]/household/HouseholdTabs";
 import { requireUser } from "@/lib/auth";
 import { getBillTypes } from "@/lib/bills";
 import { BRAND } from "@/lib/brand";
 import { withHousehold } from "@/lib/db";
 import { DEMO_BILL_TYPES, DEMO_PEOPLE } from "@/lib/demo";
 import type { Role } from "@/lib/types";
-import { inviteMember } from "../actions";
+import { inviteMember } from "./actions";
 import MemberEditDialog from "./MemberEditDialog";
 
 export const metadata: Metadata = { title: "Household" };
@@ -25,7 +25,7 @@ interface MemberView {
 }
 
 // Members and bill types. Everyone in the household can read it; only admins see the controls.
-export default async function MembersPage({ searchParams }: PageProps<"/[household]/portal/household">) {
+export default async function MembersPage({ searchParams }: PageProps<"/[household]/household">) {
   const ctx = await requireUser();
   const { ok, err } = await searchParams;
   const isAdmin = ctx.membership.role === "admin";
@@ -48,7 +48,7 @@ export default async function MembersPage({ searchParams }: PageProps<"/[househo
   return (
     <main className="space-y-8">
       <div>
-        <PortalTabs active="household" ctx={ctx} />
+        <HouseholdTabs active="members" ctx={ctx} />
         <Flash ok={ok} err={err} />
       </div>
 

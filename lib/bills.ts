@@ -559,7 +559,7 @@ export interface LedgerGroup {
 
 /**
  * The dashboard's house ledger (decided 2026-10-07): every row is the gross amount recorded per
- * bill, in both directions, agreeing with the strip, the portal and the reminders. When two
+ * bill, in both directions, agreeing with the strip, the bills page and the reminders. When two
  * people owe each other, their two rows sit together and carry a secondary hint with the net
  * (netPairs), so they can settle in one transfer and check off each other's bills. No net
  * figure is ever the primary number. Order follows `pairs` (first appearance of each pair).

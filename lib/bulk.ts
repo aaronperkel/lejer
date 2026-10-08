@@ -8,7 +8,7 @@ import { ActionError } from "@/lib/errors";
 import { BULK_DAILY_LIMIT, type Mailer, mailer as defaultMailer, sendsToday } from "@/lib/mail";
 import { nextUtcMidnight } from "@/lib/time";
 
-// Bulk email (/portal/email, feature_bulk_email): an admin's note to every member who has joined.
+// Bulk email (/{slug}/household/email, feature_bulk_email): an admin's note to every member who has joined.
 // It's optional and reminders aren't, so it stops at BULK_DAILY_LIMIT account-wide sends for the
 // UTC day (ARCHITECTURE.md §6), leaving headroom for the reminder batch and login codes.
 

@@ -319,7 +319,7 @@ The 2026-10-07 critique's open P1: a posted bill was irreversible and its email 
 
 ### Gross ledger with a net hint (decided 2026-10-07)
 
-Gross is the truth everywhere. The dashboard's strip, its house ledger, the portal's "Still
+Gross is the truth everywhere. The dashboard's strip, its house ledger, the bills page's "Still
 owed" and the reminders all show what is recorded per bill, in both directions: Alex owes Sam
 $30 and Sam owes Alex $12 are two rows. When two people owe each other, `ledgerGroups()` keeps
 their two rows together and adds one muted line computed by `netPairs()`: "Settling at once?
@@ -329,7 +329,7 @@ recorded as such: each person still checks off each bill. Pairs owed to the hous
 member have nobody to offset and get no hint. There is no "I sent it" flow.
 
 (A first cut showed the net as the ledger row itself. The re-critique found one relationship
-reading as three different numbers across the strip, the ledger and the portal, so the net was
+reading as three different numbers across the strip, the ledger and the bills page, so the net was
 demoted to the hint.)
 
 ---
@@ -400,7 +400,7 @@ CREATE POLICY households_write ON households FOR ALL
   WITH CHECK (id = app_household_id());
 
 -- email_log: login codes are sent before any household exists, so inserts accept NULL;
--- reads stay household-only (portal readouts); no UPDATE/DELETE policy (append-only).
+-- reads stay household-only (settings readouts); no UPDATE/DELETE policy (append-only).
 CREATE POLICY email_log_read ON email_log FOR SELECT
   USING (household_id = app_household_id());
 CREATE POLICY email_log_insert ON email_log FOR INSERT
@@ -534,7 +534,12 @@ and for the import script.
 ## 5. Identity
 
 - **One email, many households.** `users` is global; `memberships` is per household. Nav shows
-  the household name; a switcher appears only when a user has more than one membership.
+  the household name; a switcher appears only when a user has more than one membership. The
+  household's sections (Overview, Bills, Trends, Docs, Household) are the nav's links; the
+  person's own pages (Account, Your households, Sign out) sit apart in a menu under their name,
+  since they leave the household. (Until 2026-10-07 the nav read Dashboard · Portal · Trends ·
+  Docs · Account, and Portal held Bills · Household · Email · Settings as tabs: "Portal" said
+  nothing about what was in it, and Account looked like one more household section.)
 - **Login** stays email-code: enter email → 6-digit code (sha256 at rest, 10 min TTL, 5 wrong
   guesses kill it, 30 s burst dedupe) → `lejer_session` JWT `{ uid }`, 30 days, re-issued by
   `proxy.ts` once a week old. Which household a page shows comes from its URL, not the cookie
@@ -577,7 +582,7 @@ and for the import script.
   (local and preview deployments). The household still comes from the URL (a membership is
   required as usual); `APP_DEV_HOUSEHOLD` is where "Sign in" lands. The passphrase fallback and
   `SITE_OWNER_EMAIL` are deleted.
-- **Demo.** The demo is a household URL like any other: `/demo`, `/demo/portal`, … are public,
+- **Demo.** The demo is a household URL like any other: `/demo`, `/demo/bills`, … are public,
   and `getCtx()` returns the in-memory ledger-mode household for them (ported `lib/demo.ts`,
   relative dates, neutral names) whoever is asking, signed in or not. Data functions branch on
   `ctx.demo` and mutations return the polite refusal. No env flag and no cookie. (Before
@@ -593,8 +598,11 @@ has its own address.
 - **`/` is the public site for everyone**, signed in or not (`app/(site)/page.tsx`). The header
   says "Sign in" to a visitor and "Open your household" (or "Set up your household") to someone
   signed in. Signing out lands back on `/`.
-- **Each household lives at `/{slug}`** (`lib/paths.ts`): `/oak-lane` is the dashboard,
-  `/oak-lane/portal`, `/oak-lane/trends`, `/oak-lane/documents`, `/oak-lane/welcome` the rest.
+- **Each household lives at `/{slug}`** (`lib/paths.ts`): `/oak-lane` is the overview,
+  `/oak-lane/bills`, `/oak-lane/household` (with `/settings` and `/email` under it),
+  `/oak-lane/trends`, `/oak-lane/documents`, `/oak-lane/welcome` the rest. The pre-2026-10
+  `/{slug}/portal…` paths redirect there (`next.config.ts`, temporary, before `proxy.ts`), since
+  emails already sent link to them.
   The slug is made from the name at signup and never changes (renaming keeps it). Pages
   outside any household stay at the top: `/login`, `/new` (onboarding), `/households`,
   `/account`.
@@ -671,7 +679,7 @@ has its own address.
   day never clears, tomorrow's window sends), logs `deferred: budget` in the tick response, and
   continues with the next household. Login codes, invites and thanks are never deferred.
 - **Bulk email has a lower ceiling (decided 2026-10-07).** It is optional and reminders aren't, so
-  `/portal/email` refuses when today's account-wide sends plus its recipients (and the receipt)
+  `/household/email` refuses when today's account-wide sends plus its recipients (and the receipt)
   would pass **60**, leaving headroom for the reminder batch and login codes. The refusal names
   the next UTC midnight in the household's timezone as the time to try again.
 - **Digest copies.** When `digest_email` is set it gets the batch confirmation, the bulk-email
@@ -680,7 +688,7 @@ has its own address.
 
 ---
 
-## 7. Per-household settings (`/portal/settings`)
+## 7. Per-household settings (`/household/settings`)
 
 | Group | Settings |
 |---|---|
@@ -693,7 +701,7 @@ has its own address.
 | Email | `from_name`, `reply_to`, `digest_email` |
 | Rent | `monthly_rent`, `lease_start`, `lease_end` (shown when `feature_rent`) |
 
-Disabled features disappear from nav, footer, the portal tabs and the iCal feed, and their
+Disabled features disappear from nav, footer, the Household tabs and the iCal feed, and their
 routes answer not-found (`lib/features.ts`: `requireFeature` for pages, `assertFeature` for
 actions, `navLinks` for the header). The calendar feed itself is not a feature: every member
 always has one (decided 2026-10-07); `feature_rent` only adds the rent event to it. Themes are
@@ -764,12 +772,12 @@ joined member, with `days` = due date minus the household's today:
   constant, not a setting).
 Utilities reminded daily forever once overdue. That contradicted the product principle "never
 make someone feel nagged", so Lejer slows to every third day once a bill is late; the per-bill
-button in the portal is still there for a nudge in between. A day with no tick at or after the
+button on the bills page is still there for a nudge in between. A day with no tick at or after the
 send hour skips that day's reminders (the heads-up included); GitHub dropping every run in a
 local day is rare enough to accept.
 
 **Scheduler.** Vercel Hobby crons are limited to **once per day** with ±59 min jitter, and
-sub-daily expressions fail the deployment, so a portal-configurable send hour cannot ride Vercel
+sub-daily expressions fail the deployment, so a configurable send hour cannot ride Vercel
 Cron. Keep the **GitHub Actions** hourly ping (`7 * * * *`, pinging `https://lejer.app/api/cron/tick`
 with the repo secret). GitHub drops (does not queue) delayed scheduled runs, which the
 "first tick at or after send_hour, once per local day" rule already tolerates. If dropped runs

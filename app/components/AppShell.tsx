@@ -5,7 +5,7 @@ import Nav from "@/app/components/Nav";
 import { signOut } from "@/app/(site)/login/actions";
 import { BRAND } from "@/lib/brand";
 import { STATEMENT_DARK, THEME_COLORS } from "@/lib/theme-tokens";
-import type { Ctx } from "@/lib/context";
+import { type Ctx, homePath } from "@/lib/context";
 import { hasFeature, navLinks } from "@/lib/features";
 import { withUser } from "@/lib/db";
 import { listMyHouseholds } from "@/lib/households";
@@ -46,15 +46,10 @@ export function appViewport(ctx: Ctx | null): Viewport {
 export default async function AppShell({ ctx, user, children }: { ctx: Ctx | null; user: User | null; children: React.ReactNode }) {
   const households = user ? await withUser(user.id, (tx) => listMyHouseholds(tx, user.id)) : [];
 
-  // Outside a household (/account, /households, /new) a signed-in user gets the account links.
-  const links = ctx
-    ? navLinks(ctx)
-    : user
-      ? [
-          { href: "/households", label: "Households" },
-          { href: "/account", label: "Account" },
-        ]
-      : [];
+  // Inside a household: its sections. Outside one (/account, /households, /new) there are none;
+  // the name menu carries the person's own pages, and the wordmark goes back to their household.
+  const links = ctx ? navLinks(ctx) : [];
+  const home = ctx ? householdPath(ctx.household) : user ? await homePath(user) : "/";
   const contact = ctx?.household.replyTo;
   const theme = ctx?.household.theme ?? "statement";
   // Peach is light-only whatever the column says; statement honors the household's choice.
@@ -71,12 +66,12 @@ export default async function AppShell({ ctx, user, children }: { ctx: Ctx | nul
         <Nav
           brand={ctx?.household.name ?? BRAND.name}
           tagline={ctx?.household.tagline ?? null}
-          home={ctx ? householdPath(ctx.household) : "/"}
+          home={home}
           links={links}
           households={households.map((h) => ({ id: h.id, name: h.name, href: householdPath(h) }))}
           currentHouseholdId={ctx?.household.id ?? null}
           demo={ctx?.demo ?? false}
-          signedIn={!!user}
+          user={user && { name: user.name, email: user.email }}
           signOut={signOut}
         />
         {ctx?.demo && (

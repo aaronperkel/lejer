@@ -5,17 +5,16 @@ import Flash from "@/app/components/Flash";
 import Pagination from "@/app/components/Pagination";
 import StatusTag from "@/app/components/StatusTag";
 import { DownloadIcon, EyeIcon } from "@/app/components/icons";
-import AddBillForm from "@/app/(household)/[household]/portal/AddBillForm";
-import EditBillDialog from "@/app/(household)/[household]/portal/EditBillDialog";
-import PaymentCheckboxes from "@/app/(household)/[household]/portal/PaymentCheckboxes";
-import PortalTabs from "@/app/(household)/[household]/portal/PortalTabs";
-import ReminderButton from "@/app/(household)/[household]/portal/ReminderButton";
+import AddBillForm from "@/app/(household)/[household]/bills/AddBillForm";
+import EditBillDialog from "@/app/(household)/[household]/bills/EditBillDialog";
+import PaymentCheckboxes from "@/app/(household)/[household]/bills/PaymentCheckboxes";
+import ReminderButton from "@/app/(household)/[household]/bills/ReminderButton";
 import { requireUser } from "@/lib/auth";
 import { fileHref } from "@/lib/files";
-import { loadPortal } from "@/lib/views";
+import { loadBills } from "@/lib/views";
 import { householdPath } from "@/lib/paths";
 
-export const metadata: Metadata = { title: "Portal" };
+export const metadata: Metadata = { title: "Bills" };
 
 const money = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -27,12 +26,12 @@ function shortDate(ymd: string): string {
 // Everyone in the household can see this page. Admins manage every bill; a member manages
 // (posts, marks payments, reminds, and edits or deletes until someone has paid) only bills they
 // own.
-export default async function PortalPage({ searchParams }: PageProps<"/[household]/portal">) {
+export default async function BillsPage({ searchParams }: PageProps<"/[household]/bills">) {
   const ctx = await requireUser();
   const sp = await searchParams;
   const requested = Math.max(1, Number(sp.page) || 1);
-  const data = await loadPortal(ctx, requested);
-  if (data.page !== requested && data.totalBills > 0) redirect(`${householdPath(ctx.household, "/portal")}?page=${data.page}`);
+  const data = await loadBills(ctx, requested);
+  if (data.page !== requested && data.totalBills > 0) redirect(`${householdPath(ctx.household, "/bills")}?page=${data.page}`);
 
   const isAdmin = ctx.membership.role === "admin";
   const manages = (ownerId: number | null) => isAdmin || (ownerId !== null && ownerId === ctx.membership.id);
@@ -43,7 +42,10 @@ export default async function PortalPage({ searchParams }: PageProps<"/[househol
 
   return (
     <main>
-      <PortalTabs active="bills" ctx={ctx} />
+      <header className="mb-6">
+        <span className="eyebrow mb-1">{ctx.household.name}</span>
+        <h1 className="page-title">Bills</h1>
+      </header>
       <Flash ok={sp.ok} err={sp.err} />
 
       {data.pairs.length > 0 && (
@@ -72,7 +74,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/[househol
       />
       {data.types.length === 0 && (
         <p className="mb-5 text-sm text-ink-muted">
-          {isAdmin ? "Add a bill type on the Household tab first (Gas, Electric, …)." : "No bill types yet. An admin adds them on the Household tab."}
+          {isAdmin ? "Add a bill type under Household first (Gas, Electric, …)." : "No bill types yet. An admin adds them under Household."}
         </p>
       )}
 
@@ -161,7 +163,7 @@ export default async function PortalPage({ searchParams }: PageProps<"/[househol
         </table>
       </div>
 
-      <Pagination currentPage={data.page} totalPages={data.totalPages} basePath={householdPath(ctx.household, "/portal")} />
+      <Pagination currentPage={data.page} totalPages={data.totalPages} basePath={householdPath(ctx.household, "/bills")} />
     </main>
   );
 }

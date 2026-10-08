@@ -34,8 +34,8 @@ export default function BatchConfirmation(p: BatchConfirmationProps) {
         </Paragraph>
       )}
       <Rows theme={p.theme} rows={p.sent.map((s) => ({ label: s.name, value: `${s.typeName}${s.urgent ? " · due soon" : ""}`, urgent: s.urgent }))} />
-      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
-        Open the portal
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/bills"))}>
+        See the bills
       </ButtonLink>
     </Shell>
   );

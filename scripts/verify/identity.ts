@@ -63,7 +63,7 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
   r.check("normalizeEmail trims and lowercases", normalizeEmail("  Jo.Smith@Example.COM ") === "jo.smith@example.com");
   r.check("normalizeEmail rejects junk", normalizeEmail("nope") === null && normalizeEmail("a b@c.d") === null && normalizeEmail(`${"x".repeat(250)}@a.co`) === null);
   r.check("hashIp keys on the first x-forwarded-for hop", hashIp("203.0.113.9, 10.0.0.1") === hashIp("203.0.113.9") && hashIp(null) === null);
-  for (const [input, out] of [["/portal?x=1", "/portal?x=1"], ["//evil.example", "/"], ["/\\evil.example", "/"], ["https://evil.example", "/"], ["portal", "/"], [undefined, "/"]] as const) {
+  for (const [input, out] of [["/bills?x=1", "/bills?x=1"], ["//evil.example", "/"], ["/\\evil.example", "/"], ["https://evil.example", "/"], ["portal", "/"], [undefined, "/"]] as const) {
     r.check(`safeNext(${JSON.stringify(input)}) → ${out}`, safeNext(input) === out, safeNext(input));
   }
 
@@ -123,10 +123,10 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
   const unreserved = topLevel.filter((n) => SLUG_RE.test(n) && !RESERVED_SLUGS.has(n));
   r.check("every top-level route name is a reserved slug", unreserved.length === 0, unreserved.join(", "));
   r.check("…and the scan saw the routes", ["login", "account", "households", "new", "about", "how-it-works", "files", "api"].every((n) => topLevel.includes(n)), topLevel.join(", "));
-  for (const [p, want] of [["/oak-lane", "oak-lane"], ["/oak-lane/portal/household", "oak-lane"], ["/demo/portal", "demo"], ["/", null], ["/login", null], ["/about", null], ["/new", null], ["/Oak-Lane", null], ["/cal.ics", null], ["/_next/static/x.js", null]] as const) {
+  for (const [p, want] of [["/oak-lane", "oak-lane"], ["/oak-lane/household", "oak-lane"], ["/demo/bills", "demo"], ["/", null], ["/login", null], ["/about", null], ["/new", null], ["/Oak-Lane", null], ["/cal.ics", null], ["/_next/static/x.js", null]] as const) {
     r.check(`householdSlugOf(${JSON.stringify(p)}) → ${want}`, householdSlugOf(p) === want, householdSlugOf(p));
   }
-  r.check("householdPath builds /{slug}/…", householdPath({ slug: "oak-lane" }) === "/oak-lane" && householdPath({ slug: "oak-lane" }, "/portal") === "/oak-lane/portal");
+  r.check("householdPath builds /{slug}/…", householdPath({ slug: "oak-lane" }) === "/oak-lane" && householdPath({ slug: "oak-lane" }, "/bills") === "/oak-lane/bills");
   const [{ n: takenReserved }] = await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM households WHERE slug = ANY(${[...RESERVED_SLUGS]})`;
   r.check("no household in this database holds a reserved slug", takenReserved === 0, takenReserved);
 
@@ -154,11 +154,11 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     const forwarded = (res: Response) => res.headers.get(`x-middleware-request-${HOUSEHOLD_HEADER}`);
     const session = `${SESSION_COOKIE}=${tok}`;
 
-    let res = await call(`/${a.slug}/portal/household?x=1`);
-    r.check("proxy: no cookie, GET → /login?next=", res.status === 307 && res.headers.get("location")?.endsWith(`/login?next=${encodeURIComponent(`/${a.slug}/portal/household?x=1`)}`) === true, res.headers.get("location"));
+    let res = await call(`/${a.slug}/household?x=1`);
+    r.check("proxy: no cookie, GET → /login?next=", res.status === 307 && res.headers.get("location")?.endsWith(`/login?next=${encodeURIComponent(`/${a.slug}/household?x=1`)}`) === true, res.headers.get("location"));
     res = await call("/account", { method: "POST" });
     r.check("proxy: no cookie, POST → 401", res.status === 401);
-    for (const p of ["/", "/about", "/how-it-works", "/login", "/demo", "/demo/portal", "/cal.ics", "/api/cron/tick", "/api/documents/upload"]) {
+    for (const p of ["/", "/about", "/how-it-works", "/login", "/demo", "/demo/bills", "/cal.ics", "/api/cron/tick", "/api/documents/upload"]) {
       res = await call(p);
       r.check(`proxy: ${p} is public`, passed(res), res.status);
     }
@@ -171,7 +171,7 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     res = await call("/new");
     r.check("proxy: /new (onboarding) needs a session", res.status === 307);
 
-    res = await call(`/${a.slug}/portal`, { cookie: session });
+    res = await call(`/${a.slug}/bills`, { cookie: session });
     r.check("proxy: a household path hands its slug to getCtx", passed(res) && forwarded(res) === a.slug, forwarded(res));
     res = await call("/demo/trends");
     r.check("…the demo's too, signed out", passed(res) && forwarded(res) === "demo", forwarded(res));
@@ -196,7 +196,7 @@ export async function identity(r: Results, { owner, app }: { owner: Sql; app: Sq
     r.check("proxy: an 8-day-old session is re-issued", renewed.startsWith(`${SESSION_COOKIE}=`) && !renewed.includes(old));
     const reissued = await readSessionToken(renewed.split(";")[0].split("=")[1]);
     r.check("…keeping uid", reissued?.uid === a.admin.userId);
-    res = await call(`/${a.slug}/portal`, { cookie: `${SESSION_COOKIE}=${otherAud}` });
+    res = await call(`/${a.slug}/bills`, { cookie: `${SESSION_COOKIE}=${otherAud}` });
     r.check("proxy: another audience's token in the session cookie is refused", res.status === 307);
   } finally {
     if (devUser !== undefined) process.env.APP_DEV_USER = devUser;

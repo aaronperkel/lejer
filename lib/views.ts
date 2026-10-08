@@ -115,7 +115,7 @@ export async function loadDashboard(ctx: Ctx, requestedPage: number): Promise<Da
   });
 }
 
-export interface Portal extends Paged {
+export interface BillsView extends Paged {
   /** The household's today (YYYY-MM-DD). */
   today: string;
   types: BillType[];
@@ -124,7 +124,7 @@ export interface Portal extends Paged {
   pairs: OwedPair[];
 }
 
-export async function loadPortal(ctx: Ctx, requestedPage: number): Promise<Portal> {
+export async function loadBills(ctx: Ctx, requestedPage: number): Promise<BillsView> {
   const perPage = ctx.household.billsPerPage;
   const today = localDate(ctx.household.timezone);
   if (ctx.demo) {
@@ -161,7 +161,7 @@ export interface SettingsView {
   payerId: number | null;
 }
 
-/** /portal/settings. */
+/** /{slug}/household/settings. */
 export async function loadSettings(ctx: Ctx): Promise<SettingsView> {
   if (ctx.demo) {
     return {
@@ -187,7 +187,7 @@ export interface BulkEmailView {
   fits: boolean;
 }
 
-/** /portal/email: who a note would reach, and whether today's allowance has room for it. */
+/** /{slug}/household/email: who a note would reach, and whether today's allowance has room for it. */
 export async function loadBulkEmail(ctx: Ctx): Promise<BulkEmailView> {
   if (ctx.demo) return { joined: DEMO_PEOPLE.map((p) => ({ name: p.name, email: p.email })), pending: [], fits: true };
   return withHousehold(ctx, async (tx) => {

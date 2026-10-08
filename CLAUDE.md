@@ -127,7 +127,7 @@ resetting dev's never touches production.
 ### Request context and tenancy
 
 **Every household lives at its own URL** (ARCHITECTURE.md §5 "Household URLs"): `/` is the
-public site for everyone, `/{slug}` a household's dashboard and `/{slug}/portal`, `/trends`,
+public site for everyone, `/{slug}` a household's overview (dashboard) and `/{slug}/bills`, `/household`, `/trends`,
 `/documents`, `/welcome` its pages; `/login`, `/new` (onboarding), `/households` and
 `/account` sit outside any household. `lib/paths.ts` holds `householdPath(h, path)` (build
 every household link and redirect with it), `householdSlugOf()` and `RESERVED_SLUGS`: a new
@@ -227,7 +227,7 @@ Tables (all tenant tables carry `household_id`; children also have composite FKs
 - `login_codes` (`email` citext, `code_hash`, `attempts`, `ip_hash`, `created_at`, `expires_at`) —
   keyed by the normalized email, not `users.id`: requesting a code never creates a user
 - `email_log` (`household_id` nullable, `kind`, `to_hash`, `ok`, `sent_at`) — every send;
-  source of truth for the daily budget (via `email_sends_since()`) and the portal readouts
+  source of truth for the daily budget (via `email_sends_since()`) and the settings readouts
 
 Bill math: `total = amount + processing_fee`, `per_person_cost = round(total / splitters, 2)`
 where splitters are memberships with `splits_bills`; debt rows for every splitter except the
@@ -273,7 +273,7 @@ an unknown email still gets a code (anyone can sign up) and the request writes n
 local part, and first-timers land on onboarding (`/new`: their real name first, then
 household name, mode, theme, timezone), which calls `createHousehold()` (slug from the name,
 `-2` and up on a collision or a reserved name) and sets `ask_bill_date` from the mode, then
-opens `/{slug}/portal/household` to invite people. A returning user goes to `next=`, else
+opens `/{slug}/household` to invite people. A returning user goes to `next=`, else
 the newest invite, else `homePath()`. Every email is normalized once (`normalizeEmail()`: trim +
 lowercase) and the column is citext, so all per-email caps key on one spelling. Codes: sha256
 at rest, 10-minute TTL, 5 wrong guesses, 30 s burst dedupe, 5 per email per 10 min, 10 per IP
@@ -293,7 +293,7 @@ never confirms a household exists, else `/login`) / `requireAdmin()` (`/{slug}/n
 `lib/auth.ts`, and `requireUserAction()` /
 `requireAdminAction()` / `requireBillManager(tx, typeId)` for server actions (throw). Every
 action authorizes itself; `proxy.ts` is only the first lock. A `member` can read everything
-(including `/portal/household`, read-only) and, for types they own, post bills and mark
+(including `/household` and its settings, read-only) and, for types they own, post bills and mark
 payments. `admin` does everything. The last **joined** admin can't be demoted, and nobody can
 remove themselves. Invites are memberships with `joined_at NULL` plus a `users` row created up
 front (an admin vouched for the address; the typed name only applies if the person is new);
@@ -302,7 +302,9 @@ the code login proves address ownership, so there is no invite-token table. Name
 
 Switcher: `/households` lists the user's memberships as links to each household's URL. Nav
 shows the household name and a dropdown of links only when there is more than one; two
-households can be open in two tabs.
+households can be open in two tabs. The nav's links are the household's own (`navLinks`:
+Overview, Bills, Trends, Docs, Household); the person's pages (Account, Your households,
+Sign out) sit apart in a menu under their name, since they leave the household's root.
 
 Demo: `/demo` is the in-memory ledger household from `lib/demo.ts` at its own URL, for anyone,
 with no cookie; `withHousehold` throws on a demo scope, and actions refuse with
@@ -369,12 +371,12 @@ claimed>`), so a slow failing tick can't clobber a later success. Who gets what 
 `urgent_reminder_days` through the due date, then every `OVERDUE_EVERY_DAYS` (3) once overdue
 (overdue days 1, 4, 7, …). `scripts/send-reminders.ts` runs the same per-household tick for one
 slug, ignoring `send_hour` (`--force` also skips the claim and budget). Bulk email
-(`/portal/email`) refuses past **60** sends for the day, leaving room for reminders and codes.
+(`/household/email`) refuses past **60** sends for the day, leaving room for reminders and codes.
 Verify never ticks the seed households: `tick({ only })` takes fixture ids, and every library-level
 send goes through an injected recorder (`.env.local` may hold a real `RESEND_API_KEY`).
 
 Scheduler is `.github/workflows/tick.yml` pinging hourly; Vercel Hobby crons run once a day,
-which would defeat the portal-configurable send hour. GitHub drops delayed runs, which the
+which would defeat the configurable send hour. GitHub drops delayed runs, which the
 "at or after, once per day" rule tolerates. The workflow is committed inactive: its job runs only once the repo
 variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 
@@ -386,7 +388,7 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
   `households`, `account`) live in `app/(app)/`; both roots render
   `app/components/AppShell.tsx` (nav, theme, fonts, demo banner). The public site, `/login`
   included, lives in `app/(site)/` under its own root. URLs don't include groups, so paths below like
-  `app/portal/` mean `app/(household)/[household]/portal/`, served at `/{slug}/portal`.
+  `app/bills/` mean `app/(household)/[household]/bills/`, served at `/{slug}/bills`.
   Crossing between roots is a full page load, so no `<html>` leaks into another.
   `app/global-not-found.tsx` (experimental `globalNotFound`) is the 404 for unmatched URLs,
   since no single layout covers them; `app/metadata.ts` holds the metadata the roots share
@@ -399,11 +401,15 @@ variable `TICK_URL` is set (cutover), and it reads the secret `CRON_SECRET`.
 - `app/page.tsx` (`/{slug}`) — dashboard: mode-aware summary strip (you owe / next due / bills on record),
   house ledger (hidden in single-payer when the viewer is the payer), bills grouped by year,
   calendar subscribe buttons
-- `app/portal/` — `/portal` bills (add-bill disclosure honoring `ask_bill_date`, payment
-  checkboxes, per-bill reminders, the edit/delete dialog while nobody has paid), `/portal/household` members (invite/edit/remove) + bill
-  types (owner column in ledger mode), `/portal/settings` (features, theme, reminders,
-  timezone, email identity, rent, mode switch), `/portal/email` bulk email (feature-gated).
-  All mutations are server actions (portal ones in `app/portal/actions.ts`); flash messages
+- `app/bills/` — `/bills` (add-bill disclosure honoring `ask_bill_date`, payment
+  checkboxes, per-bill reminders, the edit/delete dialog while nobody has paid); actions in
+  `app/bills/actions.ts`
+- `app/household/` — the Household section, tabs in `HouseholdTabs.tsx`: `/household` members
+  (invite/edit/remove) + bill types (owner column in ledger mode), actions in
+  `app/household/actions.ts`; `/household/settings` (features, theme, reminders, timezone,
+  email identity, rent, mode switch); `/household/email` bulk email (feature-gated, admins).
+  The old `/{slug}/portal…` URLs (in emails already sent) redirect in `next.config.ts`.
+  All mutations are server actions; `attempt()` turns an `ActionError` into `?err=`; flash messages
   travel as `?ok=`/`?err=` query params via `done()`/`fail()` in `lib/flash.ts` (plain
   functions, so they aren't exposed as actions), rendered by `app/components/Flash.tsx`
 - `app/documents/` — household paperwork (feature-gated); everyone reads, admins manage

@@ -62,7 +62,7 @@ export default async function TrendsPage() {
           <p className="mt-1 text-sm text-ink-muted">
             Once bills are posted, each type&apos;s monthly cost shows up here.{" "}
             {ctx.membership.role === "admin" && !ctx.demo && (
-              <Link href={householdPath(ctx.household, "/portal")} className="text-accent underline underline-offset-2">
+              <Link href={householdPath(ctx.household, "/bills")} className="text-accent underline underline-offset-2">
                 Post a bill
               </Link>
             )}

@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
     // app/global-not-found.tsx is that page.
     globalNotFound: true,
   },
+  // A household's "Portal" became Bills and Household (2026-10). Emails already sent link to the
+  // old paths, so they keep working. Config redirects run before proxy.ts, so a signed-out visit
+  // lands on /login?next=<the new path>. Not permanent: browsers would cache a 308 for good.
+  async redirects() {
+    return [
+      { source: "/:slug/portal", destination: "/:slug/bills", permanent: false },
+      { source: "/:slug/portal/household", destination: "/:slug/household", permanent: false },
+      { source: "/:slug/portal/:tab(settings|email)", destination: "/:slug/household/:tab", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

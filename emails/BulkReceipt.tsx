@@ -3,7 +3,7 @@ import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Prose, Rows, Shell } from "./Shell";
 
-// The digest copy of a bulk email (/portal/email): what went out, to whom, and the message.
+// The digest copy of a bulk email (/{slug}/household/email): what went out, to whom, and the message.
 
 export interface BulkReceiptProps {
   theme: Theme;
@@ -32,8 +32,8 @@ export default function BulkReceipt(p: BulkReceiptProps) {
       />
       <Eyebrow theme={p.theme}>The message</Eyebrow>
       <Prose theme={p.theme} text={p.body} />
-      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
-        Open the portal
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }))}>
+        Open {p.householdName}
       </ButtonLink>
     </Shell>
   );

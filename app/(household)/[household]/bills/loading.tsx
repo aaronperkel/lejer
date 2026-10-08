@@ -1,10 +1,11 @@
-import PortalTabs from "@/app/(household)/[household]/portal/PortalTabs";
-
-// Instant shell for /portal (bills tab): real tab bar + skeleton body.
-export default function PortalLoading() {
+// Instant shell for /{slug}/bills: the page header + skeleton body.
+export default function BillsLoading() {
   return (
     <main aria-busy="true">
-      <PortalTabs active="bills" />
+      <header className="mb-6">
+        <div className="skeleton mb-2 h-3 w-24" />
+        <h1 className="page-title">Bills</h1>
+      </header>
 
       <div className="mb-2 flex items-center gap-3">
         <div className="skeleton h-3 w-28" />

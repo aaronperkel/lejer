@@ -4,7 +4,7 @@ import { ActionError } from "@/lib/errors";
 import { householdPath } from "@/lib/paths";
 import type { Household } from "@/lib/types";
 
-// The household's optional features, in one place: the nav, the footer, the portal tabs, the
+// The household's optional features, in one place: the nav, the footer, the household tabs, the
 // routes and the actions all ask here, so turning a feature off hides it everywhere and its
 // route answers not-found. ARCHITECTURE.md §7.
 
@@ -31,14 +31,17 @@ export function assertFeature(ctx: Ctx, f: Feature): void {
   if (!hasFeature(ctx.household, f)) throw new ActionError(`${FEATURES[f].label} is turned off for ${ctx.household.name}.`);
 }
 
-/** The header's links, in order: what this person can open in this household. */
+/**
+ * The header's household links, in order: what this person can open in this household. The
+ * person's own pages (account, households, sign out) are the name menu's, not these.
+ */
 export function navLinks(ctx: Ctx): { href: string; label: string }[] {
   const h = ctx.household;
   return [
-    { href: householdPath(h), label: "Dashboard" },
-    { href: householdPath(h, "/portal"), label: "Portal" },
+    { href: householdPath(h), label: "Overview" },
+    { href: householdPath(h, "/bills"), label: "Bills" },
     ...(hasFeature(h, "trends") ? [{ href: householdPath(h, "/trends"), label: "Trends" }] : []),
     ...(hasFeature(h, "documents") ? [{ href: householdPath(h, "/documents"), label: "Docs" }] : []),
-    ...(ctx.demo ? [] : [{ href: "/account", label: "Account" }]),
+    { href: householdPath(h, "/household"), label: "Household" },
   ];
 }

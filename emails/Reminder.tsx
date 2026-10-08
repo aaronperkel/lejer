@@ -3,7 +3,7 @@ import { householdPath } from "../lib/paths";
 import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Paragraph, Rows, Shell, longDate, money } from "./Shell";
 
-// A payment reminder for one debtor on one bill: the per-bill button in the portal (phase 3) and
+// A payment reminder for one debtor on one bill: the per-bill button on the bills page (phase 3) and
 // the daily cron batch (phase 4). Urgent when the bill is within the household's urgent window
 // or overdue. Reply-To is the bill's owner (set by the caller).
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { type BulkEmailState, sendBulkEmailAction } from "@/app/(household)/[household]/portal/email/actions";
+import { type BulkEmailState, sendBulkEmailAction } from "@/app/(household)/[household]/household/email/actions";
 
 /** Subject + message to everyone who has joined. Errors come back inline with the draft intact. */
 export default function BulkEmailForm({ count, fits, retryAfter }: { count: number; fits: boolean; retryAfter: string }) {

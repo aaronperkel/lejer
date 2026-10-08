@@ -33,5 +33,5 @@ export async function createHouseholdAction(formData: FormData): Promise<void> {
 
   await withUser(user.id, (tx) => tx`UPDATE users SET name = ${name} WHERE id = ${user.id}`);
   const household = await createHousehold({ userId: user.id, email: user.email, name: householdName, mode, theme, timezone });
-  redirect(`${householdPath(household, "/portal/household")}?${new URLSearchParams({ ok: `${householdName} is ready. Invite your roommates below.` })}`);
+  redirect(`${householdPath(household, "/household")}?${new URLSearchParams({ ok: `${householdName} is ready. Invite your roommates below.` })}`);
 }

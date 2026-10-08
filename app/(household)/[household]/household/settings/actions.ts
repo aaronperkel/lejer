@@ -20,7 +20,7 @@ export async function saveSettingsAction(_prev: SettingsState, formData: FormDat
   let back: string;
   try {
     const ctx = await requireUserAction();
-    back = householdPath(ctx.household, "/portal/settings");
+    back = householdPath(ctx.household, "/household/settings");
     if (ctx.demo) return { errors: [DEMO_REFUSAL], values };
     assertAdmin(ctx);
     const input = parseSettings(values);

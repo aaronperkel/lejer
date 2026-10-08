@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { type SettingsState, saveSettingsAction } from "@/app/(household)/[household]/portal/settings/actions";
+import { type SettingsState, saveSettingsAction } from "@/app/(household)/[household]/household/settings/actions";
 import ConfirmButton from "@/app/components/ConfirmButton";
 import TimezoneSelect from "@/app/components/TimezoneSelect";
 import { BRAND } from "@/lib/brand";

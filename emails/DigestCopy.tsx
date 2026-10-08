@@ -4,7 +4,7 @@ import type { Theme } from "../lib/types";
 import { ButtonLink, Eyebrow, Heading, Rows, Shell, longDate, money } from "./Shell";
 
 // The digest copy of household mail about one bill: a new-bill notice, a corrected bill, a
-// removed bill, or a per-bill reminder from the portal. Says what went out and to whom; goes
+// removed bill, or a per-bill reminder from the bills page. Says what went out and to whom; goes
 // to digest_email when set.
 
 export interface DigestCopyProps {
@@ -51,8 +51,8 @@ export default function DigestCopy(p: DigestCopyProps) {
           ...(p.failed ? [{ label: "Didn't send", value: String(p.failed), urgent: true }] : []),
         ]}
       />
-      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/portal"))}>
-        Open the portal
+      <ButtonLink theme={p.theme} href={appUrl(householdPath({ slug: p.householdSlug }, "/bills"))}>
+        See the bills
       </ButtonLink>
     </Shell>
   );

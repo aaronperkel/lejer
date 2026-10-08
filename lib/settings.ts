@@ -8,7 +8,7 @@ import { normalizeEmail } from "@/lib/login-codes";
 import { BILLS_PER_PAGE, NAME_MAX, type SettingsForm, TAGLINE_MAX } from "@/lib/settings-form";
 import type { ColorScheme, Household, HouseholdMode, Theme } from "@/lib/types";
 
-// /portal/settings, every group (ARCHITECTURE.md §7): household and mode, look, features and
+// /{slug}/household/settings, every group (ARCHITECTURE.md §7): household and mode, look, features and
 // rent, bills, the reminder schedule, the timezone, and email identity. One form, one save.
 
 export { BILLS_PER_PAGE, NAME_MAX, TAGLINE_MAX, type SettingsForm } from "@/lib/settings-form";

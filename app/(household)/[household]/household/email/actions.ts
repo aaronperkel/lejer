@@ -21,7 +21,7 @@ export async function sendBulkEmailAction(_prev: BulkEmailState, formData: FormD
   let back: string;
   try {
     const ctx = await requireUserAction();
-    back = householdPath(ctx.household, "/portal/email");
+    back = householdPath(ctx.household, "/household/email");
     if (ctx.demo) return { errors: [DEMO_REFUSAL], subject, body };
     assertAdmin(ctx);
     report = await sendBulkEmail(ctx, { subject, body });

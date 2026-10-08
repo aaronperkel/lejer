@@ -9,7 +9,7 @@ import { ActionError } from "@/lib/errors";
 import { sendMail } from "@/lib/mail";
 import { daysBetween, localDate } from "@/lib/time";
 
-// Per-bill reminders from the portal (new-bill, corrected and removed notices live in
+// Per-bill reminders from the bills page (new-bill, corrected and removed notices live in
 // lib/notices.ts). Recipients are members who have joined (signed in at least once): a pending
 // invite's address hasn't been proven yet, so it gets nothing but the invite itself. Reply-To is
 // the bill's owner, so replying reaches the person being paid.
@@ -46,7 +46,7 @@ async function sendDigest(ctx: Ctx, p: Omit<DigestCopyProps, "theme" | "househol
 }
 
 /**
- * Reminds everyone who still owes on one bill (the portal's per-bill button). Urgent within the
+ * Reminds everyone who still owes on one bill (the bills page's per-bill button). Urgent within the
  * household's urgent window, counted in the household's own calendar.
  */
 export async function remindBill(ctx: Ctx, billId: number): Promise<SendReport & { typeName: string }> {

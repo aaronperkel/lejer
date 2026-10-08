@@ -227,7 +227,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("the last-household cookie grants nothing (B's admin, A's key) → 404", res.status === 404, res.status);
 
   r.section("http: posting bills over the wire (useActionState protocol)");
-  const addBill = id("app/(household)/[household]/portal/actions.ts", "addBill");
+  const addBill = id("app/(household)/[household]/bills/actions.ts", "addBill");
   const billForm = (typeId: number, amount: string, withPdf: Uint8Array | string | null) => {
     const f = new FormData();
     f.set("typeId", String(typeId));
@@ -238,90 +238,90 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   };
   const count = async (hid: number) => (await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM bills WHERE household_id = ${hid}`)[0].n;
   let before = await count(a.id);
-  res = await callAction(A("/portal"), addBill, { state: { errors: [] }, form: billForm(a.typeId, "50.00", null) }, aMember);
+  res = await callAction(A("/bills"), addBill, { state: { errors: [] }, form: billForm(a.typeId, "50.00", null) }, aMember);
   let text = await res.text();
   r.check("ledger member posting for someone else's type → refused with the reason", text.includes("You can only post bills and mark payments for bill types you own"), text.slice(0, 200));
   r.check("…and no bill was created", (await count(a.id)) === before);
-  res = await callAction(A("/portal"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "50.00", PDF) }, aMember);
+  res = await callAction(A("/bills"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "50.00", PDF) }, aMember);
   await res.text();
   const [posted] = await owner<{ id: number; pdf: string | null; per: string; addedBy: number }[]>`
     SELECT id, pdf_path AS pdf, per_person_cost AS per, added_by_id AS "addedBy" FROM bills
     WHERE household_id = ${a.id} AND type_id = ${a.memberTypeId} ORDER BY id DESC LIMIT 1`;
-  r.check("member posts for their own type (redirect back to /portal?ok=)", (res.headers.get("x-action-redirect") ?? "").startsWith(A("/portal?ok=")), res.headers.get("x-action-redirect"));
+  r.check("member posts for their own type (redirect back to /bills?ok=)", (res.headers.get("x-action-redirect") ?? "").startsWith(A("/bills?ok=")), res.headers.get("x-action-redirect"));
   r.check("…stored with the poster and a 25.00 share", posted && posted.addedBy === a.member.membershipId && Number(posted.per) === 25, posted);
   r.check("…its PDF under h/{id}/bills/{year}/water/{MMDD}-{billId}.pdf", !!posted?.pdf && new RegExp(`^h/${a.id}/bills/\\d{4}/water/\\d{4}-${posted.id}\\.pdf$`).test(posted.pdf), posted?.pdf);
   res = await get(`/files/${posted.pdf}`, aAdmin);
   r.check("…and the uploaded PDF is served back", res.status === 200 && (await res.arrayBuffer()).byteLength === PDF.length);
   before = await count(a.id);
-  res = await callAction(A("/portal"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "50.00", "not a pdf at all") }, aMember);
+  res = await callAction(A("/bills"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "50.00", "not a pdf at all") }, aMember);
   text = await res.text();
   r.check("a non-PDF upload is refused", text.includes("isn't a PDF") && (await count(a.id)) === before);
-  res = await callAction(A("/portal"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "12.345", null) }, aMember);
+  res = await callAction(A("/bills"), addBill, { state: { errors: [] }, form: billForm(a.memberTypeId, "12.345", null) }, aMember);
   r.check("a malformed amount is refused", (await res.text()).includes("Enter the amount"));
   const [queued] = await owner<{ kind: string | null; queued: boolean }[]>`
     SELECT notice_kind AS kind, notice_queued_at IS NOT NULL AS queued FROM bills WHERE id = ${posted.id}`;
   r.check("posting queues the new-bill email instead of sending it", queued?.kind === "new" && queued.queued && !/new_bill to /.test(server.log), queued);
 
   r.section("http: marking payments over the wire");
-  const setPaidAction = id("app/(household)/[household]/portal/actions.ts", "setPaidAction");
-  res = await callAction(A("/portal"), setPaidAction, [a.billId, a.member.membershipId, true], aMember);
+  const setPaidAction = id("app/(household)/[household]/bills/actions.ts", "setPaidAction");
+  res = await callAction(A("/bills"), setPaidAction, [a.billId, a.member.membershipId, true], aMember);
   text = await res.text();
   r.check("member marking a payment on someone else's type → refused", text.includes("types you own") && text.includes('"ok":false'), text.slice(0, 160));
   const [{ paid: stillUnpaid }] = await owner<{ paid: boolean }[]>`SELECT paid_at IS NOT NULL AS paid FROM bill_debts WHERE bill_id = ${a.billId}`;
   r.check("…and the row is untouched", stillUnpaid === false);
-  res = await callAction(A("/portal"), setPaidAction, [a.billId, a.member.membershipId, true], aAdmin);
+  res = await callAction(A("/bills"), setPaidAction, [a.billId, a.member.membershipId, true], aAdmin);
   text = await res.text();
   r.check("admin marks it paid → bill status paid", text.includes('"ok":true') && text.includes('"status":"paid"'), text.slice(0, 160));
-  res = await callAction(A("/portal"), setPaidAction, [b.billId, b.member.membershipId, true], aAdmin);
+  res = await callAction(A("/bills"), setPaidAction, [b.billId, b.member.membershipId, true], aAdmin);
   text = await res.text();
   r.check("an admin of A can't touch B's bill (RLS hides it)", text.includes('"ok":false') && text.includes("no longer exists"), text.slice(0, 160));
 
-  r.section("http: other portal actions");
-  res = await formPost(A("/portal"), id("app/(household)/[household]/portal/actions.ts", "sendReminder"), { billId: String(b.billId) }, aAdmin);
+  r.section("http: other bill and household actions");
+  res = await formPost(A("/bills"), id("app/(household)/[household]/bills/actions.ts", "sendReminder"), { billId: String(b.billId) }, aAdmin);
   r.check("reminder for another household's bill → refused", err(res).includes("no longer exists"), err(res));
-  res = await formPost(A("/portal/household"), id("app/(household)/[household]/portal/actions.ts", "saveBillTypeAction"), { name: "Nope", emoji: "❌", processingFee: "0" }, aMember);
+  res = await formPost(A("/household"), id("app/(household)/[household]/household/actions.ts", "saveBillTypeAction"), { name: "Nope", emoji: "❌", processingFee: "0" }, aMember);
   r.check("member adding a bill type → refused", res.status >= 400 || err(res) !== "", res.status);
-  res = await formPost(A("/portal/household"), id("app/(household)/[household]/portal/actions.ts", "removeBillTypeAction"), { typeId: String(a.typeId) }, aAdmin);
+  res = await formPost(A("/household"), id("app/(household)/[household]/household/actions.ts", "removeBillTypeAction"), { typeId: String(a.typeId) }, aAdmin);
   r.check("removing a type with bills → friendly refusal", err(res).includes("on record"), err(res));
   const roomie = await addMember(owner, a, `ha-roomie-${RUN}`);
   const lateBill = await owner<{ id: number }[]>`SELECT id FROM bills WHERE id = ${posted.id}`;
-  res = await callAction(A("/portal"), setPaidAction, [lateBill[0].id, roomie.membershipId, true], aAdmin);
+  res = await callAction(A("/bills"), setPaidAction, [lateBill[0].id, roomie.membershipId, true], aAdmin);
   r.check("someone who joined after a bill can't be marked on it", (await res.text()).includes("doesn't owe"));
 
   r.section("http: editing and deleting a bill over the wire");
-  const editBill = id("app/(household)/[household]/portal/actions.ts", "editBill");
-  const deleteBill = id("app/(household)/[household]/portal/actions.ts", "deleteBillAction");
+  const editBill = id("app/(household)/[household]/bills/actions.ts", "editBill");
+  const deleteBill = id("app/(household)/[household]/bills/actions.ts", "deleteBillAction");
   const editForm = (amount: string) => {
     const f = billForm(a.memberTypeId, amount, null);
     f.set("billId", String(posted.id));
     return f;
   };
-  res = await callAction(A("/portal"), editBill, { state: { errors: [] }, form: editForm("60.00") }, aMember);
+  res = await callAction(A("/bills"), editBill, { state: { errors: [] }, form: editForm("60.00") }, aMember);
   await res.text();
   const [edited] = await owner<{ per: string; kind: string }[]>`SELECT per_person_cost AS per, notice_kind AS kind FROM bills WHERE id = ${posted.id}`;
   r.check("the bill's owner edits it (redirect back with ?ok=, 60.00 → 30.00 each, email still queued)",
-    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/portal?ok=")) && Number(edited.per) === 30 && edited.kind === "new", { redirect: res.headers.get("x-action-redirect"), edited });
+    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/bills?ok=")) && Number(edited.per) === 30 && edited.kind === "new", { redirect: res.headers.get("x-action-redirect"), edited });
   const [{ n: roomieRows }] = await owner<{ n: number }[]>`SELECT count(*)::int AS n FROM bill_debts WHERE bill_id = ${posted.id} AND person_id = ${roomie.membershipId}`;
   r.check("…and the member who joined after the post still isn't a debtor", roomieRows === 0);
-  res = await callAction(B("/portal"), editBill, { state: { errors: [] }, form: editForm("60.00") }, bAdmin);
+  res = await callAction(B("/bills"), editBill, { state: { errors: [] }, form: editForm("60.00") }, bAdmin);
   r.check("someone from another household can't edit it", (await res.text()).includes("no longer exists"));
-  res = await callAction(A("/portal"), editBill, { state: { errors: [] }, form: editForm("60.00") }, bAdmin);
+  res = await callAction(A("/bills"), editBill, { state: { errors: [] }, form: editForm("60.00") }, bAdmin);
   r.check("…nor by posting to its household's URL instead (not a member: refused)", (await res.text()).includes("Sign in to edit bills"));
-  res = await callAction(A("/portal"), setPaidAction, [posted.id, a.admin.membershipId, true], aMember);
+  res = await callAction(A("/bills"), setPaidAction, [posted.id, a.admin.membershipId, true], aMember);
   await res.text();
-  res = await callAction(A("/portal"), editBill, { state: { errors: [] }, form: editForm("70.00") }, aMember);
+  res = await callAction(A("/bills"), editBill, { state: { errors: [] }, form: editForm("70.00") }, aMember);
   r.check("once someone is marked paid, an edit is refused inline", (await res.text()).includes("already been marked paid"));
-  res = await formPost(A("/portal"), deleteBill, { billId: String(posted.id) }, aMember);
+  res = await formPost(A("/bills"), deleteBill, { billId: String(posted.id) }, aMember);
   r.check("…and so is a delete", err(res).includes("already been marked paid"), err(res));
-  res = await callAction(A("/portal"), setPaidAction, [posted.id, a.admin.membershipId, false], aMember);
+  res = await callAction(A("/bills"), setPaidAction, [posted.id, a.admin.membershipId, false], aMember);
   await res.text();
-  res = await formPost(A("/portal"), deleteBill, { billId: String(posted.id) }, aMember);
+  res = await formPost(A("/bills"), deleteBill, { billId: String(posted.id) }, aMember);
   const gone = (await owner`SELECT 1 FROM bills WHERE id = ${posted.id}`).length === 0;
   r.check("unchecked again, the owner deletes it (nobody had been emailed)", gone && ok(res).includes("Nobody had been emailed"), ok(res));
   r.check("…and its PDF is gone from Blob", (await blobExists(posted.pdf!)) === null);
-  res = await get(A("/portal"), aAdmin);
+  res = await get(A("/bills"), aAdmin);
   text = await res.text();
-  r.check("the portal speaks one status vocabulary (no Settled / Open)", !/>(Settled|Open)</.test(text) && />(Paid|Unpaid)</.test(text));
+  r.check("the bills page speaks one status vocabulary (no Settled / Open)", !/>(Settled|Open)</.test(text) && />(Paid|Unpaid)</.test(text));
 
   r.section("http: the house ledger is gross, with a settling hint");
   const n = await makeHousehold(owner, "hn", "ledger"); // the fixture bill: the member owes the admin 40.00 on Gas
@@ -339,7 +339,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   text = (await (await get(N(), await cookieFor(n.admin.userId))).text()).replaceAll("<!-- -->", "");
   r.check("owing nothing, an owner's Next due is the soonest bill owed to them, and who hasn't paid",
     /Next due[\s\S]{0,400}Gas · Member hn hasn(&#x27;|')t paid you/.test(text), text.match(/Next due[\s\S]{0,600}/)?.[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 160));
-  text = await (await get(N("/portal/household"), await cookieFor(n.admin.userId))).text();
+  text = await (await get(N("/household"), await cookieFor(n.admin.userId))).text();
   r.check("member controls open the shared dialog (no <details> disclosure), named for the member",
     !/<summary[^>]*>Edit</.test(text) && text.includes('aria-label="Edit Member hn"') && /<dialog[^>]*class="dialog/.test(text));
 
@@ -369,9 +369,9 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   };
   let pg = await page(A(), aMember);
   r.check("dashboard renders for a member with their balance", pg.status === 200 && pg.html.includes("You owe") && pg.html.includes("The house ledger"), pg.status);
-  pg = await page(A("/portal"), aMember);
-  r.check("portal renders for a member (read-only checkboxes on others' bills)", pg.status === 200 && pg.html.includes("Paid back") && pg.html.includes("disabled"), pg.status);
-  pg = await page(A("/portal/household"), aAdmin);
+  pg = await page(A("/bills"), aMember);
+  r.check("the bills page renders for a member (read-only checkboxes on others' bills)", pg.status === 200 && pg.html.includes("Paid back") && pg.html.includes("disabled"), pg.status);
+  pg = await page(A("/household"), aAdmin);
   r.check("household tab shows bill types with owners (ledger)", pg.status === 200 && pg.html.includes("Bill types") && pg.html.includes("Owner (pays the provider)"));
   pg = await page(A("/documents"), aAdmin);
   r.check("documents page renders when the feature is on", pg.status === 200 && pg.html.includes("Documents"));
@@ -382,8 +382,8 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("…and renders not-found when it's off", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("The lease, insurance"), pg.status);
   pg = await page("/demo", "");
   r.check("/demo: the demo dashboard renders from memory, no cookie needed", pg.status === 200 && pg.html.includes("Demo House") && pg.html.includes("The house ledger"));
-  r.check("…with its links inside /demo", pg.html.includes('href="/demo/portal"'));
-  pg = await page("/demo/portal", aMember);
+  r.check("…with its links inside /demo", pg.html.includes('href="/demo/bills"'));
+  pg = await page("/demo/bills", aMember);
   r.check("…and a signed-in visitor sees the demo there too, not their own household", pg.html.includes('class="wordmark">Demo House<') && !pg.html.includes('class="wordmark">Verify HA<'));
 
   r.section("http: the site flow (household URLs)");
@@ -400,15 +400,15 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   const bothCookie = await cookieFor(both.userId);
   res = await get("/login", `${bothCookie}; ${HOUSEHOLD_COOKIE}=${b.slug}`);
   r.check("…in two households, to the one opened last", new URL(res.headers.get("location") ?? "", base).pathname === B(), res.headers.get("location"));
-  res = await get(`/login?next=${encodeURIComponent(A("/portal"))}`, bothCookie);
-  r.check("…or to next= when given", new URL(res.headers.get("location") ?? "", base).pathname === A("/portal"), res.headers.get("location"));
+  res = await get(`/login?next=${encodeURIComponent(A("/bills"))}`, bothCookie);
+  r.check("…or to next= when given", new URL(res.headers.get("location") ?? "", base).pathname === A("/bills"), res.headers.get("location"));
   pg = await page(A(), bothCookie);
   const pgB = await page(B(), bothCookie);
   r.check("one session, two households, each at its own URL with its own name", pg.html.includes('class="wordmark">Verify HA<') && pgB.html.includes('class="wordmark">Verify HB<'));
   r.check("…and the switcher links to each household's URL", pg.html.includes(`href="${B()}"`) && pgB.html.includes(`href="${A()}"`));
   pg = await page(B(), aMember);
   r.check("a household you're not in → not found, nothing of it shown", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Verify HB"), pg.status);
-  pg = await page(B("/portal"), aMember);
+  pg = await page(B("/bills"), aMember);
   r.check("…on every page of it", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Verify HB"), pg.status);
   res = await get(A(), "");
   r.check("signed out, a household URL → /login?next= that URL", res.status === 307 && (res.headers.get("location") ?? "").endsWith(`/login?next=${encodeURIComponent(A())}`), res.headers.get("location"));
@@ -418,6 +418,20 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("/login is on the public site's root (its look, not a household theme)", pg.status === 200 && pg.html.includes("data-site") && !pg.html.includes("data-theme="), pg.status);
   pg = await page(`/login?step=code&email=${encodeURIComponent(`x-${RUN}@verify.invalid`)}`, "");
   r.check("…the code step too", pg.html.includes("data-site") && pg.html.includes('"one-time-code"'));
+
+  r.section("http: the household nav and the old portal URLs");
+  const linksIn = (html: string) => new Set([...html.matchAll(/href="(\/[a-z0-9/-]*)"/g)].map((m) => m[1]));
+  pg = await page(A(), aMember);
+  const navLinks = linksIn(pg.html);
+  r.check("nav: Overview, Bills, Household; no Portal", navLinks.has(A("/bills")) && navLinks.has(A("/household")) && !navLinks.has(A("/portal")) && pg.html.includes(">Overview<"), [...navLinks]);
+  r.check("…and the person's own pages in the name menu", navLinks.has("/account") && navLinks.has("/households") && pg.html.includes("Sign out"));
+  pg = await page("/account", aMember);
+  r.check("outside a household: no section links, the wordmark goes back to it", !linksIn(pg.html).has(A("/bills")) && pg.html.includes(`href="${A()}"`));
+  for (const [from, to] of [["/portal", "/bills"], ["/portal?page=2", "/bills?page=2"], ["/portal/household", "/household"], ["/portal/settings?ok=x", "/household/settings?ok=x"], ["/portal/email", "/household/email"]]) {
+    res = await get(A(from), "");
+    const loc = res.headers.get("location") ?? "";
+    r.check(`old ${from} → ${to}, before the sign-in check`, (res.status === 307 || res.status === 308) && new URL(loc, base).pathname + new URL(loc, base).search === A(to), { status: res.status, loc });
+  }
 
   r.section("http: the cron endpoint's lock");
   // Only the refusals go over the wire: an authorized tick would run every household in the
@@ -430,7 +444,7 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.check("the right secret under the wrong scheme → 401", res.status === 401, res.status);
 
   r.section("http: settings");
-  const saveSettings = id("app/(household)/[household]/portal/settings/actions.ts", "saveSettingsAction");
+  const saveSettings = id("app/(household)/[household]/household/settings/actions.ts", "saveSettingsAction");
   const settingsForm = (over: Record<string, string> = {}) => {
     const f = new FormData();
     const fields: Record<string, string> = {
@@ -441,25 +455,25 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
     for (const [k, v] of Object.entries(fields)) f.set(k, v);
     return f;
   };
-  pg = await page(A("/portal/settings"), aMember);
+  pg = await page(A("/household/settings"), aMember);
   r.check("a member sees settings read-only", pg.status === 200 && pg.html.includes("Only a household admin can change these") && !pg.html.includes("Save settings"), pg.status);
-  pg = await page(A("/portal/settings"), aAdmin);
+  pg = await page(A("/household/settings"), aAdmin);
   r.check("an admin gets the form, with the schedule in plain words", pg.status === 200 && pg.html.includes("Save settings") && pg.html.includes("Once it&#x27;s late, one every 3 days"), pg.status);
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm() }, aMember);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm() }, aMember);
   text = await res.text();
   r.check("member saving settings → refused", text.includes("Only a household admin can do that"), text.slice(0, 200));
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ urgentReminderDays: "6", digestEmail: "nope@" }) }, aAdmin);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ urgentReminderDays: "6", digestEmail: "nope@" }) }, aAdmin);
   text = await res.text();
   r.check("bad values → every error inline, what was typed echoed back", text.includes("after the heads-up") && text.includes("digest address") && text.includes("nope@"), text.slice(0, 300));
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ digestEmail: "Digest@Verify.Invalid" }) }, aAdmin);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ digestEmail: "Digest@Verify.Invalid" }) }, aAdmin);
   await res.text();
   const [saved] = await owner<{ tz: string; hour: number; first: number; digest: string; fromName: string }[]>`
     SELECT timezone AS tz, send_hour AS hour, first_reminder_days AS first, digest_email::text AS digest, from_name AS "fromName" FROM households WHERE id = ${a.id}`;
   r.check("admin saves → redirect with ?ok=, values stored (email normalized)",
-    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/portal/settings?ok=")) && saved.tz === "America/Chicago" && saved.hour === 8 && saved.first === 5 && saved.digest === "digest@verify.invalid" && saved.fromName === "Oak Crew", saved);
+    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/household/settings?ok=")) && saved.tz === "America/Chicago" && saved.hour === 8 && saved.first === 5 && saved.digest === "digest@verify.invalid" && saved.fromName === "Oak Crew", saved);
 
   r.section("http: bulk email");
-  const bulk = id("app/(household)/[household]/portal/email/actions.ts", "sendBulkEmailAction");
+  const bulk = id("app/(household)/[household]/household/email/actions.ts", "sendBulkEmailAction");
   const bulkForm = (subject: string, body: string) => {
     const f = new FormData();
     f.set("subject", subject);
@@ -467,26 +481,26 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
     return f;
   };
   await owner`UPDATE households SET digest_email = NULL WHERE id = ${a.id}`;
-  pg = await page(A("/portal/email"), aAdmin);
+  pg = await page(A("/household/email"), aAdmin);
   r.check("feature off → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Goes to"), pg.status);
   await owner`UPDATE households SET feature_bulk_email = true WHERE id = ${a.id}`;
   await addMember(owner, a, `ha-invitee-${RUN}`, { joined: false });
   // Streamed under loading.tsx, a redirect() arrives as a 200 carrying the target, not a 307.
-  pg = await page(A("/portal/email"), aMember);
+  pg = await page(A("/household/email"), aMember);
   r.check("a member is sent to /no-access", pg.html.includes(A("/no-access")) && !pg.html.includes("Goes to"), pg.status);
-  pg = await page(A("/portal/email"), aAdmin);
+  pg = await page(A("/household/email"), aAdmin);
   r.check("the admin sees who it goes to (and who it doesn't)", pg.status === 200 && pg.html.includes("Goes to") && pg.html.includes(`Not to ha-invitee-${RUN}`), pg.status);
-  res = await callAction(A("/portal/email"), bulk, { state: { errors: [] }, form: bulkForm("", "") }, aAdmin);
+  res = await callAction(A("/household/email"), bulk, { state: { errors: [] }, form: bulkForm("", "") }, aAdmin);
   text = await res.text();
   r.check("empty subject and message → both errors inline", text.includes("Add a subject") && text.includes("Write the message"), text.slice(0, 200));
-  res = await callAction(A("/portal/email"), bulk, { state: { errors: [] }, form: bulkForm("Hi", "Hello") }, aMember);
+  res = await callAction(A("/household/email"), bulk, { state: { errors: [] }, form: bulkForm("Hi", "Hello") }, aMember);
   r.check("a member sending → refused", (await res.text()).includes("Only a household admin can do that"));
   const logBefore = server.log.length;
-  res = await callAction(A("/portal/email"), bulk, { state: { errors: [] }, form: bulkForm(`Note ${RUN}`, "Rent's due Friday.") }, aAdmin);
+  res = await callAction(A("/household/email"), bulk, { state: { errors: [] }, form: bulkForm(`Note ${RUN}`, "Rent's due Friday.") }, aAdmin);
   await res.text();
   const sentLog = server.log.slice(logBefore);
   r.check("admin sends → ?ok=, one custom email per joined member, none to the invitee",
-    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/portal/email?ok=")) && (sentLog.match(/\[mail:console\] custom to /g) ?? []).length >= 2 && !sentLog.includes(`ha-invitee-${RUN}`),
+    (res.headers.get("x-action-redirect") ?? "").startsWith(A("/household/email?ok=")) && (sentLog.match(/\[mail:console\] custom to /g) ?? []).length >= 2 && !sentLog.includes(`ha-invitee-${RUN}`),
     res.headers.get("x-action-redirect"));
 
   r.section("http: sign-in flow (console mail)");
@@ -548,12 +562,11 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   // ---------------------------------------------------------------------------------------------
   r.section("http: disabled features are hidden and refused");
   await owner`UPDATE households SET feature_trends = false, feature_documents = false, feature_bulk_email = false, feature_welcome_tour = false WHERE id = ${a.id}`;
-  const hrefs = (html: string) => new Set([...html.matchAll(/href="(\/[a-z0-9/-]*)"/g)].map((m) => m[1]));
   pg = await page(A(), aAdmin);
-  let nav = hrefs(pg.html);
+  let nav = linksIn(pg.html);
   r.check("all off: no Trends or Docs in the nav, no tour link in the footer", !nav.has(A("/trends")) && !nav.has(A("/documents")) && !nav.has(A("/welcome")), [...nav]);
-  pg = await page(A("/portal"), aAdmin);
-  r.check("…and no Email tab in the portal", !hrefs(pg.html).has(A("/portal/email")));
+  pg = await page(A("/household"), aAdmin);
+  r.check("…and no Email tab under Household", !linksIn(pg.html).has(A("/household/email")));
   pg = await page(A("/trends"), aAdmin);
   r.check("/trends → not found", (pg.status === 404 || pg.html.includes("could not be found")) && !pg.html.includes("Totals by bill type"), pg.status);
   res = await get(A("/trends/csv"), aAdmin);
@@ -568,10 +581,10 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
 
   await owner`UPDATE households SET feature_trends = true, feature_documents = true, feature_bulk_email = true, feature_welcome_tour = true WHERE id = ${a.id}`;
   pg = await page(A(), aAdmin);
-  nav = hrefs(pg.html);
+  nav = linksIn(pg.html);
   r.check("all on: Trends and Docs in the nav, the tour in the footer", nav.has(A("/trends")) && nav.has(A("/documents")) && nav.has(A("/welcome")), [...nav]);
-  pg = await page(A("/portal"), aAdmin);
-  r.check("…and the Email tab for an admin", hrefs(pg.html).has(A("/portal/email")));
+  pg = await page(A("/household"), aAdmin);
+  r.check("…and the Email tab for an admin", linksIn(pg.html).has(A("/household/email")));
   pg = await page(A("/trends"), aMember);
   r.check("/trends renders the chart and the totals", pg.status === 200 && pg.html.includes("Totals by bill type") && pg.html.includes("Download CSV"), pg.status);
   res = await get(A("/trends/csv"), aMember);
@@ -598,23 +611,23 @@ async function suite(r: Results, owner: Sql, server: Server, id: (file: string, 
   r.section("http: theme");
   pg = await page(A(), aMember);
   r.check("statement by default: data-theme and the household's scheme on <html>", /<html[^>]*data-theme="statement"[^>]*data-color-scheme="system"/.test(pg.html));
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "peach", colorScheme: "system" }) }, aAdmin);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "peach", colorScheme: "system" }) }, aAdmin);
   await res.text();
   pg = await page(A(), aMember);
   r.check("an admin saves peach → every member's next page is peach, light", /<html[^>]*data-theme="peach"[^>]*data-color-scheme="light"/.test(pg.html), pg.html.match(/<html[^>]*>/)?.[0]);
   r.check("…with the awning and the peach page color in the browser chrome", pg.html.includes('class="awning"') && pg.html.includes('name="theme-color" content="#faf3e7"'));
   r.check("…while the peach faces stay unpreloaded (only the default ledger face is)", (pg.html.match(/rel="preload"[^>]*as="font"/g) ?? []).length <= 1);
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "statement", colorScheme: "light" }) }, aAdmin);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ theme: "statement", colorScheme: "light" }) }, aAdmin);
   await res.text();
   pg = await page(A(), aMember);
   r.check("…and back to statement, always light", /<html[^>]*data-theme="statement"[^>]*data-color-scheme="light"/.test(pg.html));
 
   r.section("http: mode switch over the wire");
-  res = await callAction(A("/portal/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ mode: "single_payer", payerId: String(a.admin.membershipId) }) }, aAdmin);
+  res = await callAction(A("/household/settings"), saveSettings, { state: { errors: [] }, form: settingsForm({ mode: "single_payer", payerId: String(a.admin.membershipId) }) }, aAdmin);
   await res.text();
   const [{ mode }] = await owner<{ mode: string }[]>`SELECT mode FROM households WHERE id = ${a.id}`;
   const typeOwners = await owner<{ o: number }[]>`SELECT owner_id AS o FROM bill_types WHERE household_id = ${a.id}`;
   r.check("admin switches to single payer → mode saved, every type owned by the payer", mode === "single_payer" && typeOwners.every((t) => t.o === a.admin.membershipId) && (res.headers.get("x-action-redirect") ?? "").includes("ok="), { mode, typeOwners });
-  pg = await page(A("/portal/household"), aAdmin);
+  pg = await page(A("/household"), aAdmin);
   r.check("…and the owner column is gone from bill types", !pg.html.includes("Owner (pays the provider)"));
 }

@@ -11,7 +11,7 @@ import type { Household } from "@/lib/types";
 // - days = first_reminder_days        → the heads-up;
 // - 0 ≤ days ≤ urgent_reminder_days    → urgent, every day through the due date;
 // - overdue                            → urgent on overdue days 1, 4, 7, … (OVERDUE_EVERY_DAYS).
-// Once a bill is late it slows down rather than nagging daily; the portal's per-bill button is
+// Once a bill is late it slows down rather than nagging daily; the bills page's per-bill button is
 // there for a nudge in between.
 
 export const OVERDUE_EVERY_DAYS = 3;

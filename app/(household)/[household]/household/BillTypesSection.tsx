@@ -3,7 +3,7 @@
 import ConfirmButton from "@/app/components/ConfirmButton";
 import Dialog, { DialogBody, DialogFooter } from "@/app/components/Dialog";
 import SubmitButton from "@/app/components/SubmitButton";
-import { removeBillTypeAction, saveBillTypeAction } from "@/app/(household)/[household]/portal/actions";
+import { removeBillTypeAction, saveBillTypeAction } from "@/app/(household)/[household]/household/actions";
 
 export interface BillTypeRow {
   id: number;
