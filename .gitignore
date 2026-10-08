@@ -44,9 +44,12 @@ next-env.d.ts
 # npm run verify: pidfile of the next start it runs
 .verify/
 
-# impeccable: per-machine settings and the design hook cache
+# impeccable: per-machine settings, the design hook cache, and session scratch (review
+# screenshots, question logs)
 .impeccable/config.local.json
 .impeccable/hook.cache.json
+.impeccable/review/
+.impeccable/questions/
 
 # Claude Code: per-machine settings, and the Impeccable engine binary (platform-specific; the
 # launcher fetches the pinned, checksum-verified version on first run)
