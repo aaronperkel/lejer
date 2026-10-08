@@ -528,7 +528,7 @@ select {
    * reduced-motion rule below settles all of it at once.
    */
   .tour-pop {
-    animation: tour-pop 0.4s cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
+    animation: tour-pop 0.4s cubic-bezier(0.25, 1, 0.5, 1) backwards; /* ease-out-quart */
   }
 
   .tour-slide {
@@ -536,7 +536,7 @@ select {
   }
 
   .tour-check {
-    animation: tour-pop 0.3s cubic-bezier(0.2, 1.2, 0.4, 1) backwards;
+    animation: tour-pop 0.3s cubic-bezier(0.25, 1, 0.5, 1) backwards; /* ease-out-quart */
   }
 
   /* The PAID stamp: drops oversized and settles slightly askew */
